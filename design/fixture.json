@@ -1,0 +1,4886 @@
+{
+ "_about": [
+  "One consistent fixture for the tau desktop prototype. Every object under calls, streams and refusals is a reply body or a stream frame exactly as the tau host sends it (packages/host/src at render-core b6bc814), with pi-durable 1.5.2 shapes inside ConversationView.",
+  "Keys of calls/streams name the request, for example 'decision render-core/w1:3:design#2'. The request body is under 'request' where it matters.",
+  "Device-local state (drafts, outbox, caches, the since-you-left base) is under 'local'. It is not protocol; the client owns its shape.",
+  "Measured shapes: the call results in host/src/calls.ts, the stream frames in streams.ts and inbox.ts, Fault in faults.ts, the answer refusals' messages in packages/store/src/decisions.ts, the extensions' schemas as packages/tau/test/modules.test.ts asserts them, and the entry and pi.live shapes from frames captured in docs/core/arena-wire (pi.user, pi.system, pi.assistant, pi.live.run/tools/generation, pi.inbox items). Inferred: pi.tool-result entries (kind and toolResult message from packages/w1/test/setup.ts), runFailure.message, the faulted task error object, and both the path and the message of a 'required' error (the client computes missing options from the schema instead). Invented to exercise the client: the owned conversation render-core #8 (no shipped extension creates one).",
+  "Times are epoch milliseconds, UTC. 'now' is 2026-11-14 16:40 UTC. This device is 'laptop'; the other paired device is 'phone'."
+ ],
+ "now": 1794674400000,
+ "server": {
+  "url": "https://tau.tail4e2f.ts.net",
+  "note": "The server listens on 127.0.0.1:6283; this URL is Tailscale Serve in front of it, started with `tau --allow-host tau.tail4e2f.ts.net`.",
+  "protocolHeader": {
+   "Tau-Protocol": "1"
+  },
+  "discovery": {
+   "request": "POST /v1/ {}",
+   "reply": {
+    "refused": {
+     "calls": [
+      "extensions",
+      "models",
+      "projects",
+      "bind",
+      "addExtensions",
+      "options",
+      "setOptions",
+      "create",
+      "conversations",
+      "open",
+      "history",
+      "input",
+      "continue",
+      "stop",
+      "setModel",
+      "inbox",
+      "decision",
+      "answer",
+      "timeline",
+      "faults"
+     ],
+     "code": "unknown_call",
+     "message": "This server has no call /v1/."
+    }
+   }
+  },
+  "adminDeviceList": "laptop\tpaired 2026-11-02T08:14:51.000Z\nphone\tpaired 2026-11-02T08:20:07.000Z\n",
+  "adminDeviceListNote": "Output of `tau device list` on the server's machine. No client call lists devices; the client knows only its own name, from its token, and other names from `by` on answered decisions."
+ },
+ "devices": [
+  {
+   "device": "laptop",
+   "pairedAt": 1793607291000
+  },
+  {
+   "device": "phone",
+   "pairedAt": 1793607607000
+  }
+ ],
+ "thisDevice": "laptop",
+ "pair": {
+  "adminCommand": "tau device pair laptop",
+  "adminOutput": "Pairing code: K7QM-3XRT\nIt works once, until 2026-11-14T16:50:00.000Z.\n",
+  "request": {
+   "code": "K7QM-3XRT"
+  },
+  "reply": {
+   "result": {
+    "device": "laptop",
+    "token": "tau.laptop.Qm9vVGF1RGVza3RvcFRva2VuRm9yVGhlRml4dHVyZTAx"
+   }
+  },
+  "wrongCode": {
+   "refused": {
+    "code": "unauthorized",
+    "message": "That code does not work."
+   }
+  },
+  "hostNotAllowed": {
+   "refused": {
+    "code": "unauthorized",
+    "message": "This Host or Origin is not allowed."
+   }
+  }
+ },
+ "calls": {
+  "extensions": {
+   "result": {
+    "items": [
+     {
+      "name": "websearch",
+      "workflow": false,
+      "schema": {
+       "type": "object",
+       "properties": {
+        "provider": {
+         "enum": [
+          "exa",
+          "tavily"
+         ]
+        },
+        "apiKey": {
+         "type": "string",
+         "format": "secret",
+         "minLength": 1
+        }
+       },
+       "required": [
+        "provider",
+        "apiKey"
+       ],
+       "additionalProperties": false
+      }
+     },
+     {
+      "name": "w2",
+      "workflow": true,
+      "schema": {
+       "type": "object",
+       "properties": {
+        "model": {
+         "type": "string",
+         "format": "model"
+        }
+       },
+       "required": [
+        "model"
+       ],
+       "additionalProperties": false
+      }
+     },
+     {
+      "name": "w1",
+      "workflow": true,
+      "schema": {
+       "type": "object",
+       "properties": {
+        "designer": {
+         "type": "string",
+         "format": "model"
+        },
+        "implementer": {
+         "type": "string",
+         "format": "model"
+        },
+        "reviewer": {
+         "type": "string",
+         "format": "model"
+        },
+        "base": {
+         "type": "string",
+         "minLength": 1,
+         "default": "main"
+        }
+       },
+       "required": [
+        "designer",
+        "implementer",
+        "reviewer",
+        "base"
+       ],
+       "additionalProperties": false
+      }
+     }
+    ]
+   }
+  },
+  "models": {
+   "result": {
+    "items": [
+     {
+      "model": "anthropic/claude-opus-4-5",
+      "name": "Claude Opus 4.5"
+     },
+     {
+      "model": "anthropic/claude-sonnet-4-5",
+      "name": "Claude Sonnet 4.5"
+     },
+     {
+      "model": "anthropic/claude-haiku-4-5",
+      "name": "Claude Haiku 4.5"
+     },
+     {
+      "model": "openai/gpt-5.1",
+      "name": "GPT-5.1"
+     },
+     {
+      "model": "google/gemini-3-pro",
+      "name": "Gemini 3 Pro"
+     }
+    ]
+   }
+  },
+  "projects": {
+   "result": {
+    "items": [
+     {
+      "project": "forecasts",
+      "workdir": "/home/vrod/notes/forecasts",
+      "extensions": [
+       "websearch",
+       "w2"
+      ],
+      "missing": []
+     },
+     {
+      "project": "notes-cli",
+      "workdir": "/home/vrod/src/notes-cli",
+      "extensions": [],
+      "missing": []
+     },
+     {
+      "project": "render-core",
+      "workdir": "/home/vrod/src/render",
+      "extensions": [
+       "websearch",
+       "w1"
+      ],
+      "missing": []
+     }
+    ]
+   }
+  },
+  "options render-core": {
+   "result": {
+    "items": [
+     {
+      "extension": "websearch",
+      "schema": {
+       "type": "object",
+       "properties": {
+        "provider": {
+         "enum": [
+          "exa",
+          "tavily"
+         ]
+        },
+        "apiKey": {
+         "type": "string",
+         "format": "secret",
+         "minLength": 1
+        }
+       },
+       "required": [
+        "provider",
+        "apiKey"
+       ],
+       "additionalProperties": false
+      },
+      "value": {
+       "provider": "exa",
+       "apiKey": true
+      },
+      "errors": []
+     },
+     {
+      "extension": "w1",
+      "schema": {
+       "type": "object",
+       "properties": {
+        "designer": {
+         "type": "string",
+         "format": "model"
+        },
+        "implementer": {
+         "type": "string",
+         "format": "model"
+        },
+        "reviewer": {
+         "type": "string",
+         "format": "model"
+        },
+        "base": {
+         "type": "string",
+         "minLength": 1,
+         "default": "main"
+        }
+       },
+       "required": [
+        "designer",
+        "implementer",
+        "reviewer",
+        "base"
+       ],
+       "additionalProperties": false
+      },
+      "value": {
+       "designer": "anthropic/claude-opus-4-5",
+       "implementer": "anthropic/claude-sonnet-4-5",
+       "reviewer": "openai/gpt-5.1"
+      },
+      "errors": []
+     }
+    ]
+   }
+  },
+  "options forecasts": {
+   "result": {
+    "items": [
+     {
+      "extension": "websearch",
+      "schema": {
+       "type": "object",
+       "properties": {
+        "provider": {
+         "enum": [
+          "exa",
+          "tavily"
+         ]
+        },
+        "apiKey": {
+         "type": "string",
+         "format": "secret",
+         "minLength": 1
+        }
+       },
+       "required": [
+        "provider",
+        "apiKey"
+       ],
+       "additionalProperties": false
+      },
+      "value": {
+       "provider": "tavily",
+       "apiKey": true
+      },
+      "errors": []
+     },
+     {
+      "extension": "w2",
+      "schema": {
+       "type": "object",
+       "properties": {
+        "model": {
+         "type": "string",
+         "format": "model"
+        }
+       },
+       "required": [
+        "model"
+       ],
+       "additionalProperties": false
+      },
+      "value": {
+       "model": "openai/gpt-5.1"
+      },
+      "errors": []
+     }
+    ]
+   }
+  },
+  "options notes-cli": {
+   "result": {
+    "items": []
+   }
+  },
+  "options render-core (reviewer model gone)": {
+   "note": "The stored reviewer no longer fits the schema: the server no longer lists that model. Nothing is missing, yet create refuses (calls.ts:287-298).",
+   "result": {
+    "items": [
+     {
+      "extension": "websearch",
+      "schema": {
+       "type": "object",
+       "properties": {
+        "provider": {
+         "enum": [
+          "exa",
+          "tavily"
+         ]
+        },
+        "apiKey": {
+         "type": "string",
+         "format": "secret",
+         "minLength": 1
+        }
+       },
+       "required": [
+        "provider",
+        "apiKey"
+       ],
+       "additionalProperties": false
+      },
+      "value": {
+       "provider": "exa",
+       "apiKey": true
+      },
+      "errors": []
+     },
+     {
+      "extension": "w1",
+      "schema": {
+       "type": "object",
+       "properties": {
+        "designer": {
+         "type": "string",
+         "format": "model"
+        },
+        "implementer": {
+         "type": "string",
+         "format": "model"
+        },
+        "reviewer": {
+         "type": "string",
+         "format": "model"
+        },
+        "base": {
+         "type": "string",
+         "minLength": 1,
+         "default": "main"
+        }
+       },
+       "required": [
+        "designer",
+        "implementer",
+        "reviewer",
+        "base"
+       ],
+       "additionalProperties": false
+      },
+      "value": {
+       "designer": "anthropic/claude-opus-4-5",
+       "implementer": "anthropic/claude-sonnet-4-5",
+       "reviewer": "openai/gpt-4.1"
+      },
+      "errors": [
+       {
+        "path": "/reviewer",
+        "keyword": "format",
+        "message": "expected format model"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "conversations notes-cli": {
+   "request": {
+    "project": "notes-cli",
+    "limit": 500
+   },
+   "result": {
+    "items": [
+     {
+      "conversation": 2,
+      "state": "idle"
+     },
+     {
+      "conversation": 3,
+      "state": "idle"
+     },
+     {
+      "conversation": 4,
+      "state": "running"
+     },
+     {
+      "conversation": 5,
+      "state": "failed"
+     }
+    ]
+   }
+  },
+  "conversations render-core": {
+   "request": {
+    "project": "render-core",
+    "limit": 500
+   },
+   "result": {
+    "items": [
+     {
+      "conversation": 2,
+      "state": "idle"
+     },
+     {
+      "conversation": 3,
+      "state": "idle"
+     },
+     {
+      "conversation": 4,
+      "state": "idle"
+     },
+     {
+      "conversation": 5,
+      "state": "failed"
+     },
+     {
+      "conversation": 6,
+      "state": "idle"
+     },
+     {
+      "conversation": 7,
+      "state": "running"
+     },
+     {
+      "conversation": 8,
+      "owner": {
+       "conversationId": 3,
+       "taskId": 24
+      },
+      "state": "idle"
+     }
+    ]
+   }
+  },
+  "conversations render-core (two pages)": {
+   "note": "Oldest first. The scan of page 1 covers conversations 1 to 4 and leaves out the event log (1), so the page comes one short while next still pages on.",
+   "pages": [
+    {
+     "request": {
+      "project": "render-core",
+      "limit": 4
+     },
+     "result": {
+      "items": [
+       {
+        "conversation": 2,
+        "state": "idle"
+       },
+       {
+        "conversation": 3,
+        "state": "idle"
+       },
+       {
+        "conversation": 4,
+        "state": "idle"
+       }
+      ],
+      "next": "eyJjYWxsIjoiY29udmVyc2F0aW9ucyIsInByb2plY3QiOiJyZW5kZXItY29yZSIsInF1ZXJ5Ijp7fSwicG9zaXRpb24iOnsiYWZ0ZXIiOjQsIm9yZGVyIjoiYXNjZW5kaW5nIn19"
+     }
+    },
+    {
+     "request": {
+      "project": "render-core",
+      "limit": 4,
+      "cursor": "eyJjYWxsIjoiY29udmVyc2F0aW9ucyIsInByb2plY3QiOiJyZW5kZXItY29yZSIsInF1ZXJ5Ijp7fSwicG9zaXRpb24iOnsiYWZ0ZXIiOjQsIm9yZGVyIjoiYXNjZW5kaW5nIn19"
+     },
+     "result": {
+      "items": [
+       {
+        "conversation": 5,
+        "state": "failed"
+       },
+       {
+        "conversation": 6,
+        "state": "idle"
+       },
+       {
+        "conversation": 7,
+        "state": "running"
+       },
+       {
+        "conversation": 8,
+        "owner": {
+         "conversationId": 3,
+         "taskId": 24
+        },
+        "state": "idle"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "conversations forecasts": {
+   "request": {
+    "project": "forecasts",
+    "limit": 500
+   },
+   "result": {
+    "items": [
+     {
+      "conversation": 2,
+      "state": "idle"
+     },
+     {
+      "conversation": 3,
+      "state": "idle"
+     }
+    ]
+   }
+  },
+  "decision": {
+   "render-core/w1:3:design#1": {
+    "result": {
+     "decision": {
+      "id": "w1:3:design#1",
+      "subject": "w1:3:design",
+      "title": "Review the design",
+      "basis": 9,
+      "choices": [
+       "approve",
+       "revise",
+       "abort"
+      ],
+      "conversation": 3,
+      "then": {
+       "task": "w1.design_answer"
+      },
+      "requestedAt": 1794649920000,
+      "status": "answered",
+      "choice": "revise",
+      "annotations": [
+       {
+        "text": "Use NDJSON, not one array: a reader should be able to stream it.",
+        "range": {
+         "start": 52,
+         "end": 128
+        }
+       },
+       {
+        "text": "What happens on a partial write?"
+       }
+      ],
+      "by": "phone",
+      "at": 1794663000000,
+      "continuation": 15
+     },
+     "text": "# Event log export\n\n`tau export --events <project>` writes every event of one project to a file as one JSON array, oldest first.\n\n## Shape\n\nThe file is a single array of event entries, as `history` returns them.\n\n## Where it runs\n\nThe command reaches the running server through `admin.sock`, as `tau device` does. It never opens a store itself.\n\n## Not in scope\n\nTranscripts and decisions.\n",
+     "then": {
+      "status": "terminal",
+      "outcome": {
+       "status": "completed",
+       "result": null
+      }
+     }
+    }
+   },
+   "render-core/w1:3:design#2": {
+    "result": {
+     "decision": {
+      "id": "w1:3:design#2",
+      "subject": "w1:3:design",
+      "title": "Review the design",
+      "basis": 34,
+      "choices": [
+       "approve",
+       "revise",
+       "abort"
+      ],
+      "conversation": 3,
+      "then": {
+       "task": "w1.design_answer"
+      },
+      "requestedAt": 1794664500000,
+      "status": "open"
+     },
+     "text": "# NDJSON export of the event log\n\n`tau export --events <project>` writes every event of one project to standard output, one JSON object per line, oldest first.\n\n## Why\n\nThe timeline is the one record that every client reads the same way. Today it can only be paged through `history`. An export lets the owner keep it outside the store, diff two exports, and feed it to other tools.\n\n## Shape of a line\n\nEach line is one event entry as `history` returns it, with nothing added or removed:\n\n```json\n{\"id\":57,\"conversationId\":1,\"kind\":\"w1.event\",\"data\":{\"text\":\"The design is ready for review.\",\"at\":1794649920000,\"conversation\":3,\"stage\":\"design_review\"}}\n```\n\n- Lines end with `\\n`. The output has no header and no trailing comma.\n- Keys keep the order that `history` gives them, so two exports of the same store are byte-equal.\n- A line is at most 1 MiB, the protocol's body limit. A longer event is written whole; the limit is reported, not enforced.\n\n## Where it runs\n\nThe command reaches the running server through `admin.sock`, as `tau device` does. It never opens a store itself, because one process writes a store at a time.\n\n| Step | What happens |\n| --- | --- |\n| 1 | `tau export` sends `{ \"command\": \"export\", \"project\": \"render-core\" }` on the socket. |\n| 2 | The server pages the log with `history`, 500 entries a page, ascending. |\n| 3 | Each page is written to the socket as lines, then flushed. |\n| 4 | The server ends with one line, `{\"done\":true,\"events\":412}`. |\n\n## Partial writes\n\nA cut socket or a full disk can stop an export halfway. The export then ends without its `done` line, and the command exits with status 1 and says how many lines it wrote. A reader treats output without the last line as incomplete. Nothing is retried, and nothing in the store changes.\n\n## What it does not do\n\n- It exports events only, not transcripts or decisions.\n- It does not filter by kind or time. `jq` does that well.\n- It does not follow new events. A second export is cheap.\n\n## Open points\n\n1. Should the export start with a line that names the log's conversation? I left it out, so that every line is an event.\n2. 500 entries a page is a guess. A page of `w1.event` entries is about 120 KB.\n"
+    }
+   },
+   "render-core/w1:4:design#1": {
+    "result": {
+     "decision": {
+      "id": "w1:4:design#1",
+      "subject": "w1:4:design",
+      "title": "Review the design",
+      "basis": 15,
+      "choices": [
+       "approve",
+       "revise",
+       "abort"
+      ],
+      "conversation": 4,
+      "then": {
+       "task": "w1.design_answer"
+      },
+      "requestedAt": 1794655200000,
+      "status": "answered",
+      "choice": "approve",
+      "annotations": [],
+      "by": "laptop",
+      "at": 1794656400000,
+      "continuation": 9
+     },
+     "text": "# Last call per device\n\nThe server records the time of each device's last authenticated call in memory and writes it to `devices.json` at most once a minute. `tau device list` prints it as a third column.\n",
+     "then": {
+      "status": "terminal",
+      "outcome": {
+       "status": "completed",
+       "result": null
+      }
+     }
+    }
+   },
+   "render-core/w1:6:design#1": {
+    "result": {
+     "decision": {
+      "id": "w1:6:design#1",
+      "subject": "w1:6:design",
+      "title": "Review the design",
+      "basis": 17,
+      "choices": [
+       "approve",
+       "revise",
+       "abort"
+      ],
+      "conversation": 6,
+      "then": {
+       "task": "w1.design_answer"
+      },
+      "requestedAt": 1794655500000,
+      "status": "answered",
+      "choice": "approve",
+      "annotations": [],
+      "by": "phone",
+      "at": 1794665400000,
+      "continuation": 19
+     },
+     "text": "# Protocol version in `tau --version`\n\n`tau --version` prints the package version and, on a second line, `protocol 1`, read from the same constant the server sends as `Tau-Protocol`.\n",
+     "then": {
+      "status": "terminal",
+      "outcome": {
+       "status": "faulted",
+       "error": {
+        "message": "git rev-parse main failed: fatal: Unable to create '/home/vrod/src/render/.git/index.lock': File exists."
+       }
+      }
+     }
+    }
+   },
+   "forecasts/w2:2:rune-release#1": {
+    "result": {
+     "decision": {
+      "id": "w2:2:rune-release#1",
+      "subject": "w2:2:rune-release",
+      "title": "Resolve forecast",
+      "basis": 4,
+      "choices": [
+       "yes",
+       "no",
+       "void",
+       "not yet"
+      ],
+      "conversation": 2,
+      "then": {
+       "task": "w2.score"
+      },
+      "requestedAt": 1794063600000,
+      "status": "answered",
+      "choice": "not yet",
+      "annotations": [],
+      "by": "phone",
+      "at": 1794063720000,
+      "continuation": 10
+     },
+     "text": "rune tags a 1.0 release by 2026-11-07.\n\nThe probability 0.4 is the agent's estimate.\nResolve by 1794063600000 (epoch milliseconds).\nRule: Yes if the anomalyco/rune repository has a tag v1.0.0 dated on or before 2026-11-07. No otherwise.",
+     "then": {
+      "status": "terminal",
+      "outcome": {
+       "status": "completed",
+       "result": null
+      }
+     }
+    }
+   },
+   "forecasts/w2:2:rune-release#2": {
+    "result": {
+     "decision": {
+      "id": "w2:2:rune-release#2",
+      "subject": "w2:2:rune-release",
+      "title": "Resolve forecast",
+      "basis": 4,
+      "choices": [
+       "yes",
+       "no",
+       "void",
+       "not yet"
+      ],
+      "conversation": 2,
+      "then": {
+       "task": "w2.score"
+      },
+      "requestedAt": 1794668520000,
+      "status": "open"
+     },
+     "text": "rune tags a 1.0 release by 2026-11-07.\n\nThe probability 0.4 is the agent's estimate.\nResolve by 1794063600000 (epoch milliseconds).\nRule: Yes if the anomalyco/rune repository has a tag v1.0.0 dated on or before 2026-11-07. No otherwise."
+    }
+   },
+   "forecasts/w2:2:linux-gate#1": {
+    "result": {
+     "decision": {
+      "id": "w2:2:linux-gate#1",
+      "subject": "w2:2:linux-gate",
+      "title": "Resolve forecast",
+      "basis": 9,
+      "choices": [
+       "yes",
+       "no",
+       "void",
+       "not yet"
+      ],
+      "conversation": 2,
+      "then": {
+       "task": "w2.score"
+      },
+      "requestedAt": 1794657600000,
+      "status": "answered",
+      "choice": "yes",
+      "annotations": [],
+      "by": "phone",
+      "at": 1794662400000,
+      "continuation": 12
+     },
+     "text": "Tau's gate (`nix flake check`) passes on Linux by 2026-11-14 12:00 UTC.\n\nThe probability 0.7 is the agent's estimate.\nResolve by 1794657600000 (epoch milliseconds).\nRule: Yes if one run of `nix flake check` on x86_64-linux exits 0 before the date. No otherwise.",
+     "then": {
+      "status": "terminal",
+      "outcome": {
+       "status": "completed",
+       "result": null
+      }
+     }
+    }
+   },
+   "forecasts/w2:2:pi-durable-2#1": {
+    "result": {
+     "decision": {
+      "id": "w2:2:pi-durable-2#1",
+      "subject": "w2:2:pi-durable-2",
+      "title": "Resolve forecast",
+      "basis": 14,
+      "choices": [
+       "yes",
+       "no",
+       "void",
+       "not yet"
+      ],
+      "conversation": 2,
+      "then": {
+       "task": "w2.score"
+      },
+      "requestedAt": 1794664800000,
+      "status": "open"
+     },
+     "text": "pi-durable publishes version 2.0.0 on npm by 2026-11-14 14:00 UTC.\n\nThe probability 0.15 is the agent's estimate.\nResolve by 1794664800000 (epoch milliseconds).\nRule: Yes if `npm view @earendil-works/pi-durable versions` lists 2.0.0 with a publish time before the date. No otherwise. Void if the package is renamed."
+    }
+   }
+  },
+  "faults render-core": {
+   "request": {
+    "project": "render-core"
+   },
+   "result": {
+    "items": [
+     {
+      "task": 19,
+      "kind": "w1.design_answer",
+      "conversation": 6,
+      "error": "git rev-parse main failed: fatal: Unable to create '/home/vrod/src/render/.git/index.lock': File exists.",
+      "endedAt": 1794665400400,
+      "decision": "w1:6:design#1"
+     }
+    ]
+   }
+  },
+  "faults forecasts": {
+   "request": {
+    "project": "forecasts"
+   },
+   "result": {
+    "items": [
+     {
+      "task": 9,
+      "kind": "w2.due",
+      "conversation": 2,
+      "error": "restart_limit: the task was cut off by 5 restarts in a row",
+      "endedAt": 1794470580000
+     }
+    ]
+   }
+  },
+  "faults notes-cli": {
+   "request": {
+    "project": "notes-cli"
+   },
+   "result": {
+    "items": []
+   }
+  },
+  "history first input render-core #5": {
+   "request": {
+    "project": "render-core",
+    "conversation": 5,
+    "order": "ascending",
+    "limit": 4
+   },
+   "result": {
+    "items": [
+     {
+      "id": 20,
+      "conversationId": 5,
+      "kind": "pi.user",
+      "model": [
+       {
+        "role": "user",
+        "content": "The owner approved this design in decision w1:4:design#1. Build it in your worktree at /home/vrod/src/render.w1-4, on branch w1/4.\n\n<design>\n# Last call per device\n\nThe server records the time of each device's last authenticated call in memory and writes it to `devices.json` at most once a minute. `tau device list` prints it as a third column.\n</design>\n\nThe owner's annotations on the approved design. Reply to every one by its number when you publish.\n\n<annotations>\nnone\n</annotations>\n\nCommit your work, leave the worktree clean, and call `publish_build`.",
+        "timestamp": 1794656520000
+       }
+      ]
+     },
+     {
+      "id": 22,
+      "conversationId": 5,
+      "kind": "pi.system",
+      "model": [
+       {
+        "role": "system",
+        "content": "",
+        "toolsAdded": [
+         {
+          "name": "read",
+          "description": "Read a file.",
+          "parameters": {
+           "type": "object"
+          }
+         },
+         {
+          "name": "write",
+          "description": "Write a file.",
+          "parameters": {
+           "type": "object"
+          }
+         },
+         {
+          "name": "edit",
+          "description": "Replace text in a file.",
+          "parameters": {
+           "type": "object"
+          }
+         },
+         {
+          "name": "bash",
+          "description": "Run a shell command.",
+          "parameters": {
+           "type": "object"
+          }
+         },
+         {
+          "name": "web_search",
+          "description": "Search the web.",
+          "parameters": {
+           "type": "object"
+          }
+         },
+         {
+          "name": "publish_build",
+          "description": "Publish your commit for review.",
+          "parameters": {
+           "type": "object"
+          }
+         }
+        ],
+        "timestamp": 1794656520900
+       }
+      ],
+      "byTaskId": 11
+     },
+     {
+      "id": 23,
+      "conversationId": 5,
+      "kind": "pi.assistant",
+      "model": [
+       {
+        "role": "assistant",
+        "content": [
+         {
+          "type": "text",
+          "text": "I'll find where devices are checked."
+         },
+         {
+          "type": "toolCall",
+          "id": "toolu_b1",
+          "name": "read",
+          "arguments": {
+           "path": "packages/host/src/devices.ts"
+          }
+         }
+        ],
+        "api": "anthropic-messages",
+        "provider": "anthropic",
+        "model": "claude-sonnet-4-5",
+        "usage": {
+         "input": 1800,
+         "output": 300,
+         "cacheRead": 0,
+         "cacheWrite": 0,
+         "totalTokens": 2100,
+         "cost": {
+          "input": 0.0054,
+          "output": 0.0045,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0.0099
+         }
+        },
+        "stopReason": "toolUse",
+        "timestamp": 1794656529000
+       }
+      ],
+      "byTaskId": 11
+     },
+     {
+      "id": 24,
+      "conversationId": 5,
+      "kind": "pi.tool-result",
+      "model": [
+       {
+        "role": "toolResult",
+        "toolCallId": "toolu_b1",
+        "toolName": "read",
+        "content": [
+         {
+          "type": "text",
+          "text": "export class Devices {\n  readonly #file: string;\n  …\n"
+         }
+        ],
+        "isError": false,
+        "timestamp": 1794656529400
+       }
+      ],
+      "byTaskId": 12
+     }
+    ],
+    "next": "eyJjYWxsIjoiaGlzdG9yeSIsInByb2plY3QiOiJyZW5kZXItY29yZSIsInF1ZXJ5Ijp7ImNvbnZlcnNhdGlvbiI6NSwib3JkZXIiOiJhc2NlbmRpbmcifSwicG9zaXRpb24iOnsiYWZ0ZXIiOjMwLCJvcmRlciI6ImFzY2VuZGluZyJ9fQ"
+   }
+  },
+  "input steer notes-cli #4": {
+   "request": {
+    "project": "notes-cli",
+    "conversation": 4,
+    "text": "Also keep the `NOTES_CONFIG` environment variable working; it should win over both files.",
+    "requestId": "r-01JCV8Q6W3M2",
+    "whenBusy": "steer"
+   },
+   "result": {
+    "submission": {
+     "id": 31,
+     "conversationId": 4,
+     "requestId": "client:laptop:r-01JCV8Q6W3M2",
+     "type": "input",
+     "status": "queued"
+    }
+   }
+  },
+  "continue render-core #5": {
+   "request": {
+    "project": "render-core",
+    "conversation": 5,
+    "requestId": "r-01JCV9A1K7TP"
+   },
+   "result": {
+    "submission": {
+     "id": 77,
+     "conversationId": 5,
+     "requestId": "client:laptop:r-01JCV9A1K7TP",
+     "type": "continue",
+     "status": "queued"
+    }
+   }
+  },
+  "setModel render-core #5": {
+   "request": {
+    "project": "render-core",
+    "conversation": 5,
+    "model": "anthropic/claude-opus-4-5"
+   },
+   "result": {}
+  },
+  "stop notes-cli #4": {
+   "request": {
+    "project": "notes-cli",
+    "conversation": 4
+   },
+   "result": {}
+  },
+  "create bare notes-cli": {
+   "request": {
+    "project": "notes-cli",
+    "model": "anthropic/claude-sonnet-4-5"
+   },
+   "result": {
+    "conversation": 6
+   }
+  },
+  "create w1 render-core": {
+   "note": "The start page's first call (spec.md §5.2): render-core and w1, as local.lastProject and local.lastWorkflow preset them.",
+   "request": {
+    "project": "render-core",
+    "workflow": "w1"
+   },
+   "result": {
+    "conversation": 9
+   }
+  },
+  "input start render-core #9": {
+   "note": "The start page's second call, sent only after create's result (client.md §2.4).",
+   "request": {
+    "project": "render-core",
+    "conversation": 9,
+    "text": "Design a `--since <entry>` flag for `tau export --events`, so an export can resume where the last one stopped.",
+    "requestId": "r-01JCVD3K8N2W"
+   },
+   "result": {
+    "submission": {
+     "id": 78,
+     "conversationId": 9,
+     "requestId": "client:laptop:r-01JCVD3K8N2W",
+     "type": "input",
+     "status": "queued"
+    }
+   }
+  },
+  "answer render-core/w1:3:design#2": {
+   "request": {
+    "project": "render-core",
+    "decision": "w1:3:design#2",
+    "basis": 34,
+    "choice": "revise",
+    "annotations": [
+     {
+      "text": "Reported where? Say what the command prints.",
+      "range": {
+       "start": 882,
+       "end": 951
+      }
+     },
+     {
+      "text": "Measure it on the render-core store before you build.",
+      "range": {
+       "start": 2126,
+       "end": 2156
+      }
+     },
+     {
+      "text": "Close. Answer the two notes and I'll approve."
+     }
+    ]
+   },
+   "result": {
+    "decision": {
+     "id": "w1:3:design#2",
+     "subject": "w1:3:design",
+     "title": "Review the design",
+     "basis": 34,
+     "choices": [
+      "approve",
+      "revise",
+      "abort"
+     ],
+     "conversation": 3,
+     "then": {
+      "task": "w1.design_answer"
+     },
+     "requestedAt": 1794664500000,
+     "status": "answered",
+     "choice": "revise",
+     "annotations": [
+      {
+       "text": "Reported where? Say what the command prints.",
+       "range": {
+        "start": 882,
+        "end": 951
+       }
+      },
+      {
+       "text": "Measure it on the render-core store before you build.",
+       "range": {
+        "start": 2126,
+        "end": 2156
+       }
+      },
+      {
+       "text": "Close. Answer the two notes and I'll approve."
+      }
+     ],
+     "by": "laptop",
+     "at": 1794674580000,
+     "continuation": 31
+    },
+    "repeated": false
+   }
+  },
+  "answer forecasts/w2:2:pi-durable-2#1 (resent after no reply)": {
+   "request": {
+    "project": "forecasts",
+    "decision": "w2:2:pi-durable-2#1",
+    "basis": 14,
+    "choice": "no",
+    "annotations": []
+   },
+   "result": {
+    "decision": {
+     "id": "w2:2:pi-durable-2#1",
+     "subject": "w2:2:pi-durable-2",
+     "title": "Resolve forecast",
+     "basis": 14,
+     "choices": [
+      "yes",
+      "no",
+      "void",
+      "not yet"
+     ],
+     "conversation": 2,
+     "then": {
+      "task": "w2.score"
+     },
+     "requestedAt": 1794664800000,
+     "status": "answered",
+     "choice": "no",
+     "annotations": [],
+     "by": "laptop",
+     "at": 1794674460000,
+     "continuation": 16
+    },
+    "repeated": true
+   }
+  },
+  "answer forecasts/w2:2:rune-release#2 (resend by laptop after phone answered same)": {
+   "note": "Equal fields from another device converge: repeated is true and by stays the first device.",
+   "request": {
+    "project": "forecasts",
+    "decision": "w2:2:rune-release#2",
+    "basis": 4,
+    "choice": "no",
+    "annotations": []
+   },
+   "result": {
+    "decision": {
+     "id": "w2:2:rune-release#2",
+     "subject": "w2:2:rune-release",
+     "title": "Resolve forecast",
+     "basis": 4,
+     "choices": [
+      "yes",
+      "no",
+      "void",
+      "not yet"
+     ],
+     "conversation": 2,
+     "then": {
+      "task": "w2.score"
+     },
+     "requestedAt": 1794668520000,
+     "status": "answered",
+     "choice": "no",
+     "annotations": [],
+     "by": "phone",
+     "at": 1794674430000,
+     "continuation": 15
+    },
+    "repeated": true
+   }
+  },
+  "answer render-core/w1:6:design#1 (send the same answer again after the fault)": {
+   "request": {
+    "project": "render-core",
+    "decision": "w1:6:design#1",
+    "basis": 17,
+    "choice": "approve",
+    "annotations": []
+   },
+   "result": {
+    "decision": {
+     "id": "w1:6:design#1",
+     "subject": "w1:6:design",
+     "title": "Review the design",
+     "basis": 17,
+     "choices": [
+      "approve",
+      "revise",
+      "abort"
+     ],
+     "conversation": 6,
+     "then": {
+      "task": "w1.design_answer"
+     },
+     "requestedAt": 1794655500000,
+     "status": "answered",
+     "choice": "approve",
+     "annotations": [],
+     "by": "phone",
+     "at": 1794665400000,
+     "continuation": 33
+    },
+    "repeated": true
+   }
+  },
+  "bind scratch": {
+   "request": {
+    "project": "scratch",
+    "workdir": "/home/vrod/src/scratch",
+    "extensions": [
+     "w1"
+    ]
+   },
+   "result": {
+    "project": {
+     "project": "scratch",
+     "workdir": "/home/vrod/src/scratch",
+     "extensions": [
+      "w1"
+     ],
+     "missing": []
+    },
+    "repeated": false
+   }
+  },
+  "options scratch": {
+   "result": {
+    "items": [
+     {
+      "extension": "w1",
+      "schema": {
+       "type": "object",
+       "properties": {
+        "designer": {
+         "type": "string",
+         "format": "model"
+        },
+        "implementer": {
+         "type": "string",
+         "format": "model"
+        },
+        "reviewer": {
+         "type": "string",
+         "format": "model"
+        },
+        "base": {
+         "type": "string",
+         "minLength": 1,
+         "default": "main"
+        }
+       },
+       "required": [
+        "designer",
+        "implementer",
+        "reviewer",
+        "base"
+       ],
+       "additionalProperties": false
+      },
+      "value": {},
+      "errors": [
+       {
+        "path": "/designer",
+        "keyword": "required",
+        "message": "required"
+       },
+       {
+        "path": "/implementer",
+        "keyword": "required",
+        "message": "required"
+       },
+       {
+        "path": "/reviewer",
+        "keyword": "required",
+        "message": "required"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "addExtensions notes-cli": {
+   "request": {
+    "project": "notes-cli",
+    "extensions": [
+     "websearch"
+    ]
+   },
+   "result": {
+    "project": {
+     "project": "notes-cli",
+     "workdir": "/home/vrod/src/notes-cli",
+     "extensions": [
+      "websearch"
+     ],
+     "missing": []
+    }
+   }
+  },
+  "setOptions render-core w1": {
+   "request": {
+    "project": "render-core",
+    "extension": "w1",
+    "patch": {
+     "reviewer": "anthropic/claude-haiku-4-5"
+    }
+   },
+   "result": {
+    "value": {
+     "designer": "anthropic/claude-opus-4-5",
+     "implementer": "anthropic/claude-sonnet-4-5",
+     "reviewer": "anthropic/claude-haiku-4-5"
+    }
+   }
+  },
+  "setOptions render-core websearch (secret)": {
+   "request": {
+    "project": "render-core",
+    "extension": "websearch",
+    "patch": {
+     "apiKey": "exa-live-REDACTED-in-fixture"
+    }
+   },
+   "result": {
+    "value": {
+     "provider": "exa",
+     "apiKey": true
+    }
+   }
+  },
+  "projects (first run)": {
+   "result": {
+    "items": []
+   }
+  }
+ },
+ "streams": {
+  "inbox": {
+   "request": "POST /v1/inbox {}",
+   "first": {
+    "ops": [
+     [
+      "r",
+      {
+       "forecasts": {
+        "w2:2:pi-durable-2": {
+         "id": "w2:2:pi-durable-2#1",
+         "title": "Resolve forecast",
+         "requestedAt": 1794664800000,
+         "conversation": 2
+        },
+        "w2:2:rune-release": {
+         "id": "w2:2:rune-release#2",
+         "title": "Resolve forecast",
+         "requestedAt": 1794668520000,
+         "conversation": 2
+        }
+       },
+       "notes-cli": {},
+       "render-core": {
+        "w1:3:design": {
+         "id": "w1:3:design#2",
+         "title": "Review the design",
+         "requestedAt": 1794664500000,
+         "conversation": 3
+        }
+       }
+      }
+     ]
+    ]
+   },
+   "later": [
+    {
+     "note": "the phone answers rune-release#2",
+     "frame": {
+      "ops": [
+       [
+        "d",
+        [
+         "forecasts",
+         "w2:2:rune-release"
+        ]
+       ]
+      ]
+     }
+    },
+    {
+     "note": "w1 opens a decision for work D (#7) when its designer publishes",
+     "frame": {
+      "ops": [
+       [
+        "s",
+        [
+         "render-core",
+         "w1:7:design"
+        ],
+        {
+         "id": "w1:7:design#1",
+         "title": "Review the design",
+         "requestedAt": 1794675000000,
+         "conversation": 7
+        }
+       ]
+      ]
+     }
+    },
+    {
+     "note": "the designer of #3 publishes v3 while you read v2: the subject's entry is replaced",
+     "frame": {
+      "ops": [
+       [
+        "s",
+        [
+         "render-core",
+         "w1:3:design"
+        ],
+        {
+         "id": "w1:3:design#3",
+         "title": "Review the design",
+         "requestedAt": 1794675300000,
+         "conversation": 3
+        }
+       ]
+      ]
+     }
+    },
+    {
+     "note": "a project bound while the stream is open joins it",
+     "frame": {
+      "ops": [
+       [
+        "s",
+        [
+         "scratch"
+        ],
+        {}
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  "open notes-cli #4": {
+   "request": {
+    "project": "notes-cli",
+    "conversation": 4
+   },
+   "first": {
+    "ops": [
+     [
+      "r",
+      {
+       "conversation": {
+        "id": 4
+       },
+       "entries": [
+        {
+         "id": 9,
+         "conversationId": 4,
+         "kind": "pi.user",
+         "model": [
+          {
+           "role": "user",
+           "content": "Port the config loader from JSON to TOML. Keep reading `notes.json` for one release and warn when it is used.",
+           "timestamp": 1794673270000
+          }
+         ]
+        },
+        {
+         "id": 10,
+         "conversationId": 4,
+         "kind": "pi.system",
+         "model": [
+          {
+           "role": "system",
+           "content": "",
+           "toolsAdded": [
+            {
+             "name": "read",
+             "description": "Read a file.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "write",
+             "description": "Write a file.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "edit",
+             "description": "Replace text in a file.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "bash",
+             "description": "Run a shell command.",
+             "parameters": {
+              "type": "object"
+             }
+            }
+           ],
+           "timestamp": 1794673270800
+          }
+         ],
+         "byTaskId": 2
+        },
+        {
+         "id": 11,
+         "conversationId": 4,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "text",
+             "text": "I'll start with the loader and see who calls it."
+            },
+            {
+             "type": "toolCall",
+             "id": "toolu_01",
+             "name": "read",
+             "arguments": {
+              "path": "src/config/load.ts"
+             }
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-sonnet-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "toolUse",
+           "timestamp": 1794673276000
+          }
+         ],
+         "byTaskId": 2
+        },
+        {
+         "id": 12,
+         "conversationId": 4,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_01",
+           "toolName": "read",
+           "content": [
+            {
+             "type": "text",
+             "text": "import { readFileSync } from \"node:fs\";\n\nexport function loadConfig(path = \"notes.json\") {\n  return JSON.parse(readFileSync(path, \"utf8\"));\n}\n"
+            }
+           ],
+           "isError": false,
+           "timestamp": 1794673276400
+          }
+         ],
+         "byTaskId": 3
+        },
+        {
+         "id": 13,
+         "conversationId": 4,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "toolCall",
+             "id": "toolu_02",
+             "name": "bash",
+             "arguments": {
+              "command": "grep -rn \"loadConfig\" src test | head -20"
+             }
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-sonnet-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "toolUse",
+           "timestamp": 1794673281000
+          }
+         ],
+         "byTaskId": 2
+        },
+        {
+         "id": 14,
+         "conversationId": 4,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_02",
+           "toolName": "bash",
+           "content": [
+            {
+             "type": "text",
+             "text": "src/cli.ts:4:import { loadConfig } from \"./config/load.js\";\nsrc/cli.ts:18:  const config = loadConfig(flags.config);\ntest/config.test.ts:2:import { loadConfig } from \"../src/config/load.js\";\n"
+            }
+           ],
+           "isError": false,
+           "timestamp": 1794673281500
+          }
+         ],
+         "byTaskId": 4
+        },
+        {
+         "id": 15,
+         "conversationId": 4,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "text",
+             "text": "Only `src/cli.ts` and one test call it. I'll add `smol-toml` for parsing."
+            },
+            {
+             "type": "toolCall",
+             "id": "toolu_03",
+             "name": "bash",
+             "arguments": {
+              "command": "npm install smol-toml@1.3.1"
+             }
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-sonnet-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "toolUse",
+           "timestamp": 1794673289000
+          }
+         ],
+         "byTaskId": 2
+        },
+        {
+         "id": 16,
+         "conversationId": 4,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_03",
+           "toolName": "bash",
+           "content": [
+            {
+             "type": "text",
+             "text": "npm error code ENOTFOUND\nnpm error network request to https://registry.npmjs.org/smol-toml failed, reason: getaddrinfo ENOTFOUND registry.npmjs.org\n\nexit code 1"
+            }
+           ],
+           "isError": true,
+           "timestamp": 1794673294000
+          }
+         ],
+         "byTaskId": 5
+        },
+        {
+         "id": 17,
+         "conversationId": 4,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "text",
+             "text": "The network is closed here, so I'll write a small parser for the subset `notes.json` uses: strings, numbers, booleans and one level of tables."
+            },
+            {
+             "type": "toolCall",
+             "id": "toolu_04",
+             "name": "write",
+             "arguments": {
+              "path": "src/config/toml.ts",
+              "content": "…"
+             }
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-sonnet-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "toolUse",
+           "timestamp": 1794673311000
+          }
+         ],
+         "byTaskId": 2
+        },
+        {
+         "id": 18,
+         "conversationId": 4,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_04",
+           "toolName": "write",
+           "content": [
+            {
+             "type": "text",
+             "text": "Wrote 84 lines to src/config/toml.ts"
+            }
+           ],
+           "isError": false,
+           "timestamp": 1794673311600
+          }
+         ],
+         "byTaskId": 6
+        },
+        {
+         "id": 19,
+         "conversationId": 4,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "toolCall",
+             "id": "toolu_05",
+             "name": "edit",
+             "arguments": {
+              "path": "src/config/load.ts",
+              "old": "return JSON.parse(readFileSync(path, \"utf8\"));",
+              "new": "…"
+             }
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-sonnet-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "toolUse",
+           "timestamp": 1794673322000
+          }
+         ],
+         "byTaskId": 2
+        },
+        {
+         "id": 20,
+         "conversationId": 4,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_05",
+           "toolName": "edit",
+           "content": [
+            {
+             "type": "text",
+             "text": "Replaced 1 occurrence in src/config/load.ts"
+            }
+           ],
+           "isError": false,
+           "timestamp": 1794673322300
+          }
+         ],
+         "byTaskId": 7
+        },
+        {
+         "id": 21,
+         "conversationId": 4,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "toolCall",
+             "id": "toolu_06",
+             "name": "bash",
+             "arguments": {
+              "command": "npm test -- test/config.test.ts"
+             }
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-sonnet-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "toolUse",
+           "timestamp": 1794673331000
+          }
+         ],
+         "byTaskId": 2
+        }
+       ],
+       "docs": {
+        "pi.agent": {
+         "cwd": "/home/vrod/src/notes-cli",
+         "model": {
+          "provider": "anthropic",
+          "modelId": "claude-sonnet-4-5"
+         },
+         "thinkingLevel": "medium"
+        },
+        "pi.live": {
+         "run": {
+          "taskId": 2,
+          "inputs": [
+           28
+          ],
+          "turns": 6,
+          "first": 9
+         },
+         "tools": [
+          {
+           "taskId": 8,
+           "callId": "toolu_06",
+           "name": "bash",
+           "status": "running",
+           "output": "> notes-cli@0.9.0 test\n> node --test test/config.test.ts\n\n✔ reads notes.toml (3.1ms)\n✔ falls back to notes.json and warns (2.4ms)\n"
+          }
+         ]
+        },
+        "pi.inbox": {
+         "items": [
+          {
+           "id": 31,
+           "mode": "steer",
+           "content": "Also keep the `NOTES_CONFIG` environment variable working; it should win over both files."
+          }
+         ]
+        },
+        "pi.provider": {
+         "sessionId": "01a1d437-1469-7003-9d21-0a76efb37271"
+        },
+        "pi.usage": {
+         "models": {},
+         "tools": {}
+        }
+       }
+      }
+     ]
+    ]
+   },
+   "later": [
+    {
+     "ops": [
+      [
+       "a",
+       [
+        "docs",
+        "pi.live",
+        "tools",
+        0,
+        "output"
+       ],
+       "✔ rejects a table nested twice (0.9ms)\n✔ keeps unknown keys as strings (0.7ms)\n"
+      ]
+     ]
+    },
+    {
+     "ops": [
+      [
+       "a",
+       [
+        "docs",
+        "pi.live",
+        "tools",
+        0,
+        "output"
+       ],
+       "ℹ tests 4\nℹ pass 4\nℹ fail 0\n"
+      ]
+     ]
+    },
+    {
+     "ops": [
+      [
+       "p",
+       [
+        "entries"
+       ],
+       13,
+       0,
+       [
+        {
+         "id": 22,
+         "conversationId": 4,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_06",
+           "toolName": "bash",
+           "content": [
+            {
+             "type": "text",
+             "text": "✔ reads notes.toml\n✔ falls back to notes.json and warns\n✔ rejects a table nested twice\n✔ keeps unknown keys as strings\nℹ tests 4\nℹ pass 4\nℹ fail 0\n"
+            }
+           ],
+           "isError": false,
+           "timestamp": 1794674404000
+          }
+         ],
+         "byTaskId": 8
+        }
+       ]
+      ],
+      [
+       "d",
+       [
+        "docs",
+        "pi.live",
+        "tools"
+       ]
+      ]
+     ]
+    },
+    {
+     "ops": [
+      [
+       "p",
+       [
+        "entries"
+       ],
+       14,
+       0,
+       [
+        {
+         "id": 23,
+         "conversationId": 4,
+         "kind": "pi.user",
+         "model": [
+          {
+           "role": "user",
+           "content": "Also keep the `NOTES_CONFIG` environment variable working; it should win over both files.",
+           "timestamp": 1794674404100
+          }
+         ]
+        }
+       ]
+      ],
+      [
+       "p",
+       [
+        "docs",
+        "pi.inbox",
+        "items"
+       ],
+       0,
+       1,
+       []
+      ],
+      [
+       "s",
+       [
+        "docs",
+        "pi.live",
+        "run",
+        "inputs"
+       ],
+       [
+        28,
+        31
+       ]
+      ]
+     ]
+    },
+    {
+     "ops": [
+      [
+       "s",
+       [
+        "docs",
+        "pi.live",
+        "generation"
+       ],
+       {
+        "attempt": 1,
+        "message": {
+         "role": "assistant",
+         "content": [
+          {
+           "type": "text",
+           "text": "All four config tests pass. Now "
+          }
+         ],
+         "api": "anthropic-messages",
+         "provider": "anthropic",
+         "model": "claude-sonnet-4-5",
+         "usage": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "totalTokens": 0,
+          "cost": {
+           "input": 0,
+           "output": 0,
+           "cacheRead": 0,
+           "cacheWrite": 0,
+           "total": 0
+          }
+         },
+         "stopReason": "pending",
+         "timestamp": 1794674405000
+        }
+       }
+      ]
+     ]
+    },
+    {
+     "ops": [
+      [
+       "a",
+       [
+        "docs",
+        "pi.live",
+        "generation",
+        "message",
+        "content",
+        0,
+        "text"
+       ],
+       "`NOTES_CONFIG`: it should win over both files, so I'll read it first in `loadConfig` and "
+      ]
+     ]
+    }
+   ]
+  },
+  "open notes-cli #5": {
+   "request": {
+    "project": "notes-cli",
+    "conversation": 5
+   },
+   "first": {
+    "ops": [
+     [
+      "r",
+      {
+       "conversation": {
+        "id": 5
+       },
+       "entries": [
+        {
+         "id": 5,
+         "conversationId": 5,
+         "kind": "pi.user",
+         "model": [
+          {
+           "role": "user",
+           "content": "Write a migration test for v3 notes with front matter.",
+           "timestamp": 1794668520000
+          }
+         ]
+        },
+        {
+         "id": 6,
+         "conversationId": 5,
+         "kind": "pi.system",
+         "model": [
+          {
+           "role": "system",
+           "content": "",
+           "toolsAdded": [
+            {
+             "name": "read",
+             "description": "Read a file.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "write",
+             "description": "Write a file.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "edit",
+             "description": "Replace text in a file.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "bash",
+             "description": "Run a shell command.",
+             "parameters": {
+              "type": "object"
+             }
+            }
+           ],
+           "timestamp": 1794668520700
+          }
+         ],
+         "byTaskId": 9
+        },
+        {
+         "id": 7,
+         "conversationId": 5,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "text",
+             "text": "Let me look at how v3 notes are parsed first."
+            },
+            {
+             "type": "toolCall",
+             "id": "toolu_11",
+             "name": "read",
+             "arguments": {
+              "path": "src/migrate/v3.ts"
+             }
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-sonnet-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "toolUse",
+           "timestamp": 1794668525200
+          }
+         ],
+         "byTaskId": 9
+        },
+        {
+         "id": 8,
+         "conversationId": 5,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_11",
+           "toolName": "read",
+           "content": [
+            {
+             "type": "text",
+             "text": "export function migrateV3(source: string) {\n  …\n}\n"
+            }
+           ],
+           "isError": false,
+           "timestamp": 1794668525600
+          }
+         ],
+         "byTaskId": 10
+        }
+       ],
+       "docs": {
+        "pi.agent": {
+         "cwd": "/home/vrod/src/notes-cli",
+         "model": {
+          "provider": "anthropic",
+          "modelId": "claude-sonnet-4-5"
+         }
+        },
+        "pi.live": {
+         "runFailure": {
+          "reason": "model_error",
+          "message": "529 overloaded_error: Overloaded"
+         }
+        },
+        "pi.inbox": {
+         "items": []
+        },
+        "pi.provider": {
+         "sessionId": "01a1d44c-2b0e-7c11-8f02-5d7e19a3c4b0"
+        },
+        "pi.usage": {
+         "models": {},
+         "tools": {}
+        }
+       }
+      }
+     ]
+    ]
+   }
+  },
+  "open render-core #3": {
+   "request": {
+    "project": "render-core",
+    "conversation": 3
+   },
+   "first": {
+    "ops": [
+     [
+      "r",
+      {
+       "conversation": {
+        "id": 3
+       },
+       "entries": [
+        {
+         "id": 2,
+         "conversationId": 3,
+         "kind": "pi.user",
+         "model": [
+          {
+           "role": "user",
+           "content": "Add an export of the event log: `tau export --events` should write every event of a project to a file.",
+           "timestamp": 1794647400000
+          }
+         ]
+        },
+        {
+         "id": 3,
+         "conversationId": 3,
+         "kind": "pi.system",
+         "model": [
+          {
+           "role": "system",
+           "content": "",
+           "toolsAdded": [
+            {
+             "name": "read",
+             "description": "Read a file.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "bash",
+             "description": "Run a shell command.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "web_search",
+             "description": "Search the web.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "publish_design",
+             "description": "Publish your design for the owner's review.",
+             "parameters": {
+              "type": "object"
+             }
+            }
+           ],
+           "timestamp": 1794647400900
+          }
+         ],
+         "byTaskId": 1
+        },
+        {
+         "id": 4,
+         "conversationId": 3,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "text",
+             "text": "I'll read how the log is stored first."
+            },
+            {
+             "type": "toolCall",
+             "id": "toolu_a1",
+             "name": "read",
+             "arguments": {
+              "path": "packages/store/src/events.ts"
+             }
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-opus-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "toolUse",
+           "timestamp": 1794647408000
+          }
+         ],
+         "byTaskId": 1
+        },
+        {
+         "id": 5,
+         "conversationId": 3,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_a1",
+           "toolName": "read",
+           "content": [
+            {
+             "type": "text",
+             "text": "export async function emit<D extends EventData>(…\nexport async function eventLog(tx: Tx): Promise<ConversationId> {…\n"
+            }
+           ],
+           "isError": false,
+           "timestamp": 1794647408400
+          }
+         ],
+         "byTaskId": 2
+        },
+        {
+         "id": 6,
+         "conversationId": 3,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "toolCall",
+             "id": "toolu_a2",
+             "name": "bash",
+             "arguments": {
+              "command": "rg -n \"admin.sock|requestAdmin\" packages/tau packages/host/src | head"
+             }
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-opus-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "toolUse",
+           "timestamp": 1794647420000
+          }
+         ],
+         "byTaskId": 1
+        },
+        {
+         "id": 7,
+         "conversationId": 3,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_a2",
+           "toolName": "bash",
+           "content": [
+            {
+             "type": "text",
+             "text": "packages/host/src/admin.ts:12:export function adminSocket(home: string) {\npackages/tau/src/command.ts:5:import { type AdminRequest, requestAdmin, startServer } from \"tau-host\";\n"
+            }
+           ],
+           "isError": false,
+           "timestamp": 1794647420600
+          }
+         ],
+         "byTaskId": 3
+        },
+        {
+         "id": 8,
+         "conversationId": 3,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "toolCall",
+             "id": "toolu_a3",
+             "name": "publish_design",
+             "arguments": {
+              "text": "# Event log export\n…"
+             }
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-opus-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "toolUse",
+           "timestamp": 1794649890000
+          }
+         ],
+         "byTaskId": 1
+        },
+        {
+         "id": 9,
+         "conversationId": 3,
+         "kind": "w1.design",
+         "data": {
+          "text": "# Event log export\n\n`tau export --events <project>` writes every event of one project to a file as one JSON array, oldest first.\n\n## Shape\n\nThe file is a single array of event entries, as `history` returns them.\n\n## Where it runs\n\nThe command reaches the running server through `admin.sock`, as `tau device` does. It never opens a store itself.\n\n## Not in scope\n\nTranscripts and decisions.\n"
+         },
+         "byTaskId": 4
+        },
+        {
+         "id": 11,
+         "conversationId": 3,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_a3",
+           "toolName": "publish_design",
+           "content": [
+            {
+             "type": "text",
+             "text": "Published the design for review in decision w1:3:design#1. End your turn."
+            }
+           ],
+           "isError": false,
+           "timestamp": 1794649920030
+          }
+         ],
+         "byTaskId": 4
+        },
+        {
+         "id": 12,
+         "conversationId": 3,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "text",
+             "text": "The design is published as w1:3:design#1. I'll wait for your review."
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-opus-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "stop",
+           "timestamp": 1794649926000
+          }
+         ],
+         "byTaskId": 1
+        },
+        {
+         "id": 29,
+         "conversationId": 3,
+         "kind": "pi.user",
+         "model": [
+          {
+           "role": "user",
+           "content": "The owner asked for a revision of your design in decision w1:3:design#1.\n\n<design>\n# Event log export\n\n`tau export --events <project>` writes every event of one project to a file as one JSON array, oldest first.\n\n## Shape\n\nThe file is a single array of event entries, as `history` returns them.\n\n## Where it runs\n\nThe command reaches the running server through `admin.sock`, as `tau device` does. It never opens a store itself.\n\n## Not in scope\n\nTranscripts and decisions.\n</design>\n\n<annotations>\n0. On \"writes every event of one project to a file as one JSON array, oldest first.\": Use NDJSON, not one array: a reader should be able to stream it.\n1. On the whole design: What happens on a partial write?\n</annotations>\n\nPublish the next version with `publish_design`, with a reply for every annotation by its number.",
+           "timestamp": 1794663000300
+          }
+         ]
+        },
+        {
+         "id": 31,
+         "conversationId": 3,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "text",
+             "text": "Two changes: one object per line, and a section on partial writes."
+            },
+            {
+             "type": "toolCall",
+             "id": "toolu_a4",
+             "name": "read",
+             "arguments": {
+              "path": "packages/host/src/admin.ts"
+             }
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-opus-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "toolUse",
+           "timestamp": 1794663660000
+          }
+         ],
+         "byTaskId": 16
+        },
+        {
+         "id": 32,
+         "conversationId": 3,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_a4",
+           "toolName": "read",
+           "content": [
+            {
+             "type": "text",
+             "text": "export function listenAdmin(socket: string, devices: Devices) {…\n"
+            }
+           ],
+           "isError": false,
+           "timestamp": 1794663662000
+          }
+         ],
+         "byTaskId": 17
+        },
+        {
+         "id": 33,
+         "conversationId": 3,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "toolCall",
+             "id": "toolu_a5",
+             "name": "publish_design",
+             "arguments": {
+              "text": "# NDJSON export of the event log\n…",
+              "replies": [
+               {
+                "annotation": 0,
+                "text": "Changed to one object per line."
+               },
+               {
+                "annotation": 1,
+                "text": "Added the section Partial writes."
+               }
+              ]
+             }
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-opus-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "toolUse",
+           "timestamp": 1794664499980
+          }
+         ],
+         "byTaskId": 16
+        },
+        {
+         "id": 34,
+         "conversationId": 3,
+         "kind": "w1.design",
+         "data": {
+          "text": "# NDJSON export of the event log\n\n`tau export --events <project>` writes every event of one project to standard output, one JSON object per line, oldest first.\n\n## Why\n\nThe timeline is the one record that every client reads the same way. Today it can only be paged through `history`. An export lets the owner keep it outside the store, diff two exports, and feed it to other tools.\n\n## Shape of a line\n\nEach line is one event entry as `history` returns it, with nothing added or removed:\n\n```json\n{\"id\":57,\"conversationId\":1,\"kind\":\"w1.event\",\"data\":{\"text\":\"The design is ready for review.\",\"at\":1794649920000,\"conversation\":3,\"stage\":\"design_review\"}}\n```\n\n- Lines end with `\\n`. The output has no header and no trailing comma.\n- Keys keep the order that `history` gives them, so two exports of the same store are byte-equal.\n- A line is at most 1 MiB, the protocol's body limit. A longer event is written whole; the limit is reported, not enforced.\n\n## Where it runs\n\nThe command reaches the running server through `admin.sock`, as `tau device` does. It never opens a store itself, because one process writes a store at a time.\n\n| Step | What happens |\n| --- | --- |\n| 1 | `tau export` sends `{ \"command\": \"export\", \"project\": \"render-core\" }` on the socket. |\n| 2 | The server pages the log with `history`, 500 entries a page, ascending. |\n| 3 | Each page is written to the socket as lines, then flushed. |\n| 4 | The server ends with one line, `{\"done\":true,\"events\":412}`. |\n\n## Partial writes\n\nA cut socket or a full disk can stop an export halfway. The export then ends without its `done` line, and the command exits with status 1 and says how many lines it wrote. A reader treats output without the last line as incomplete. Nothing is retried, and nothing in the store changes.\n\n## What it does not do\n\n- It exports events only, not transcripts or decisions.\n- It does not filter by kind or time. `jq` does that well.\n- It does not follow new events. A second export is cheap.\n\n## Open points\n\n1. Should the export start with a line that names the log's conversation? I left it out, so that every line is an event.\n2. 500 entries a page is a guess. A page of `w1.event` entries is about 120 KB.\n",
+          "replies": [
+           {
+            "annotation": 0,
+            "text": "Changed to one object per line."
+           },
+           {
+            "annotation": 1,
+            "text": "Added the section Partial writes."
+           }
+          ]
+         },
+         "byTaskId": 18
+        },
+        {
+         "id": 36,
+         "conversationId": 3,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_a5",
+           "toolName": "publish_design",
+           "content": [
+            {
+             "type": "text",
+             "text": "Published the design for review in decision w1:3:design#2. End your turn."
+            }
+           ],
+           "isError": false,
+           "timestamp": 1794664500020
+          }
+         ],
+         "byTaskId": 18
+        },
+        {
+         "id": 37,
+         "conversationId": 3,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "text",
+             "text": "Version 2 is published as w1:3:design#2, with a reply to each of your two notes."
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-opus-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "stop",
+           "timestamp": 1794664505000
+          }
+         ],
+         "byTaskId": 16
+        }
+       ],
+       "docs": {
+        "pi.agent": {
+         "cwd": "/home/vrod/src/render",
+         "model": {
+          "provider": "anthropic",
+          "modelId": "claude-opus-4-5"
+         },
+         "extensions": {
+          "add": [
+           "w1"
+          ]
+         }
+        },
+        "pi.live": {},
+        "pi.inbox": {
+         "items": []
+        },
+        "pi.provider": {
+         "sessionId": "01a1d401-77aa-7e30-9a10-0c3b5e2f9d11"
+        },
+        "pi.usage": {
+         "models": {},
+         "tools": {}
+        }
+       }
+      }
+     ]
+    ]
+   }
+  },
+  "open render-core #5": {
+   "request": {
+    "project": "render-core",
+    "conversation": 5
+   },
+   "first": {
+    "ops": [
+     [
+      "r",
+      {
+       "conversation": {
+        "id": 5
+       },
+       "entries": [
+        {
+         "id": 20,
+         "conversationId": 5,
+         "kind": "pi.user",
+         "model": [
+          {
+           "role": "user",
+           "content": "The owner approved this design in decision w1:4:design#1. Build it in your worktree at /home/vrod/src/render.w1-4, on branch w1/4.\n\n<design>\n# Last call per device\n\nThe server records the time of each device's last authenticated call in memory and writes it to `devices.json` at most once a minute. `tau device list` prints it as a third column.\n</design>\n\nThe owner's annotations on the approved design. Reply to every one by its number when you publish.\n\n<annotations>\nnone\n</annotations>\n\nCommit your work, leave the worktree clean, and call `publish_build`.",
+           "timestamp": 1794656520000
+          }
+         ]
+        },
+        {
+         "id": 22,
+         "conversationId": 5,
+         "kind": "pi.system",
+         "model": [
+          {
+           "role": "system",
+           "content": "",
+           "toolsAdded": [
+            {
+             "name": "read",
+             "description": "Read a file.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "write",
+             "description": "Write a file.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "edit",
+             "description": "Replace text in a file.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "bash",
+             "description": "Run a shell command.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "web_search",
+             "description": "Search the web.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "publish_build",
+             "description": "Publish your commit for review.",
+             "parameters": {
+              "type": "object"
+             }
+            }
+           ],
+           "timestamp": 1794656520900
+          }
+         ],
+         "byTaskId": 11
+        },
+        {
+         "id": 23,
+         "conversationId": 5,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "text",
+             "text": "I'll find where devices are checked."
+            },
+            {
+             "type": "toolCall",
+             "id": "toolu_b1",
+             "name": "read",
+             "arguments": {
+              "path": "packages/host/src/devices.ts"
+             }
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-sonnet-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "toolUse",
+           "timestamp": 1794656529000
+          }
+         ],
+         "byTaskId": 11
+        },
+        {
+         "id": 24,
+         "conversationId": 5,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_b1",
+           "toolName": "read",
+           "content": [
+            {
+             "type": "text",
+             "text": "export class Devices {\n  readonly #file: string;\n  …\n"
+            }
+           ],
+           "isError": false,
+           "timestamp": 1794656529400
+          }
+         ],
+         "byTaskId": 12
+        },
+        {
+         "id": 25,
+         "conversationId": 5,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "toolCall",
+             "id": "toolu_b2",
+             "name": "edit",
+             "arguments": {
+              "path": "packages/host/src/devices.ts",
+              "old": "authenticate(header",
+              "new": "…"
+             }
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-sonnet-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "toolUse",
+           "timestamp": 1794657120000
+          }
+         ],
+         "byTaskId": 11
+        },
+        {
+         "id": 26,
+         "conversationId": 5,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_b2",
+           "toolName": "edit",
+           "content": [
+            {
+             "type": "text",
+             "text": "Replaced 1 occurrence in packages/host/src/devices.ts"
+            }
+           ],
+           "isError": false,
+           "timestamp": 1794657120300
+          }
+         ],
+         "byTaskId": 13
+        },
+        {
+         "id": 27,
+         "conversationId": 5,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "toolCall",
+             "id": "toolu_b3",
+             "name": "bash",
+             "arguments": {
+              "command": "node --test packages/host/test/devices.test.ts"
+             }
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-sonnet-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "toolUse",
+           "timestamp": 1794658020000
+          }
+         ],
+         "byTaskId": 11
+        },
+        {
+         "id": 28,
+         "conversationId": 5,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_b3",
+           "toolName": "bash",
+           "content": [
+            {
+             "type": "text",
+             "text": "✖ the list prints the last call (12.4ms)\n  AssertionError: expected 3 columns, got 2\n\nexit code 1"
+            }
+           ],
+           "isError": true,
+           "timestamp": 1794658032000
+          }
+         ],
+         "byTaskId": 14
+        }
+       ],
+       "docs": {
+        "pi.agent": {
+         "cwd": "/home/vrod/src/render.w1-4",
+         "model": {
+          "provider": "anthropic",
+          "modelId": "claude-sonnet-4-5"
+         },
+         "extensions": [
+          "coding-tools",
+          "w1"
+         ],
+         "tools": [
+          "read",
+          "write",
+          "edit",
+          "bash",
+          "publish_build"
+         ]
+        },
+        "pi.live": {
+         "runFailure": {
+          "reason": "model_error",
+          "message": "429 rate_limit_error: This request would exceed your organization's rate limit of 400,000 input tokens per minute."
+         }
+        },
+        "pi.inbox": {
+         "items": []
+        },
+        "pi.provider": {
+         "sessionId": "01a1d40f-0c4e-7a2b-b1d0-3e8c2f6a7b55"
+        },
+        "pi.usage": {
+         "models": {},
+         "tools": {}
+        }
+       }
+      }
+     ]
+    ]
+   }
+  },
+  "open render-core #8": {
+   "request": {
+    "project": "render-core",
+    "conversation": 8
+   },
+   "first": {
+    "ops": [
+     [
+      "r",
+      {
+       "conversation": {
+        "id": 8
+       },
+       "entries": [
+        {
+         "id": 38,
+         "conversationId": 8,
+         "kind": "pi.user",
+         "model": [
+          {
+           "role": "user",
+           "content": "Summarise the open points of the export design in three lines for the hand-over note.",
+           "timestamp": 1794666600000
+          }
+         ]
+        },
+        {
+         "id": 39,
+         "conversationId": 8,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "text",
+             "text": "1. Whether the export starts with a line that names the log's conversation.\n2. The page size of 500, to be measured.\n3. How the 1 MiB line limit is reported."
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-sonnet-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "stop",
+           "timestamp": 1794666606000
+          }
+         ],
+         "byTaskId": 25
+        }
+       ],
+       "docs": {
+        "pi.agent": {
+         "cwd": "/home/vrod/src/render",
+         "model": {
+          "provider": "anthropic",
+          "modelId": "claude-sonnet-4-5"
+         }
+        },
+        "pi.live": {},
+        "pi.inbox": {
+         "items": []
+        },
+        "pi.provider": {
+         "sessionId": "01a1d4b0-11c2-7d33-9e44-5f6a7b8c9d00"
+        },
+        "pi.usage": {
+         "models": {},
+         "tools": {}
+        }
+       }
+      }
+     ]
+    ]
+   }
+  },
+  "open render-core #7": {
+   "request": {
+    "project": "render-core",
+    "conversation": 7
+   },
+   "first": {
+    "ops": [
+     [
+      "r",
+      {
+       "conversation": {
+        "id": 7
+       },
+       "entries": [
+        {
+         "id": 40,
+         "conversationId": 7,
+         "kind": "pi.user",
+         "model": [
+          {
+           "role": "user",
+           "content": "Design a retention policy for the event log: how long events live, and what `tau` does with old ones.",
+           "timestamp": 1794673200000
+          }
+         ]
+        },
+        {
+         "id": 41,
+         "conversationId": 7,
+         "kind": "pi.system",
+         "model": [
+          {
+           "role": "system",
+           "content": "",
+           "toolsAdded": [
+            {
+             "name": "read",
+             "description": "Read a file.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "bash",
+             "description": "Run a shell command.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "web_search",
+             "description": "Search the web.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "publish_design",
+             "description": "Publish your design for the owner's review.",
+             "parameters": {
+              "type": "object"
+             }
+            }
+           ],
+           "timestamp": 1794673200900
+          }
+         ],
+         "byTaskId": 20
+        },
+        {
+         "id": 42,
+         "conversationId": 7,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "text",
+             "text": "First I want to know what SQLite costs when old rows go."
+            },
+            {
+             "type": "toolCall",
+             "id": "toolu_d1",
+             "name": "web_search",
+             "arguments": {
+              "query": "sqlite delete old rows incremental_vacuum writer blocking"
+             }
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-opus-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "toolUse",
+           "timestamp": 1794673207000
+          }
+         ],
+         "byTaskId": 20
+        },
+        {
+         "id": 43,
+         "conversationId": 7,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_d1",
+           "toolName": "web_search",
+           "content": [
+            {
+             "type": "text",
+             "text": "1. SQLite PRAGMA incremental_vacuum — sqlite.org/pragma.html#pragma_incremental_vacuum\n   Frees up to N pages from the freelist…\n2. Deleting rows does not shrink the file — sqlite.org/lang_vacuum.html\n   …\n"
+            }
+           ],
+           "isError": false,
+           "timestamp": 1794673209400
+          }
+         ],
+         "byTaskId": 21
+        },
+        {
+         "id": 44,
+         "conversationId": 7,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "toolCall",
+             "id": "toolu_d2",
+             "name": "read",
+             "arguments": {
+              "path": "packages/store/src/events.ts"
+             }
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-opus-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "toolUse",
+           "timestamp": 1794673218000
+          }
+         ],
+         "byTaskId": 20
+        },
+        {
+         "id": 45,
+         "conversationId": 7,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_d2",
+           "toolName": "read",
+           "content": [
+            {
+             "type": "text",
+             "text": "/** A table write, inside the caller's commit: after its table reads and any submit. */\nexport async function emit<D extends EventData>(…\n"
+            }
+           ],
+           "isError": false,
+           "timestamp": 1794673218300
+          }
+         ],
+         "byTaskId": 22
+        }
+       ],
+       "docs": {
+        "pi.agent": {
+         "cwd": "/home/vrod/src/render",
+         "model": {
+          "provider": "anthropic",
+          "modelId": "claude-opus-4-5"
+         },
+         "extensions": {
+          "add": [
+           "w1"
+          ]
+         }
+        },
+        "pi.live": {
+         "run": {
+          "taskId": 20,
+          "inputs": [
+           64
+          ],
+          "turns": 3,
+          "first": 40
+         },
+         "generation": {
+          "attempt": 1,
+          "message": {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "text",
+             "text": "Two facts shape the policy. First, pi-durable deletes nothing: entries never change, so a retention policy for the log can only work on a copy, or the store must grow for ever. Second, "
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-opus-4-5",
+           "usage": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 0,
+            "cost": {
+             "input": 0,
+             "output": 0,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0
+            }
+           },
+           "stopReason": "pending",
+           "timestamp": 1794674396000
+          }
+         }
+        },
+        "pi.inbox": {
+         "items": []
+        },
+        "pi.provider": {
+         "sessionId": "01a1d4a2-5e61-7f08-8c3d-9b7a1e0f2c66"
+        },
+        "pi.usage": {
+         "models": {},
+         "tools": {}
+        }
+       }
+      }
+     ]
+    ]
+   },
+   "later": [
+    {
+     "ops": [
+      [
+       "a",
+       [
+        "docs",
+        "pi.live",
+        "generation",
+        "message",
+        "content",
+        0,
+        "text"
+       ],
+       "the log is read by every client, so deleting from it changes what a phone shows. "
+      ]
+     ]
+    }
+   ]
+  },
+  "timeline render-core": {
+   "request": {
+    "project": "render-core"
+   },
+   "first": {
+    "ops": [
+     [
+      "r",
+      {
+       "conversation": {
+        "id": 1
+       },
+       "entries": [
+        {
+         "id": 10,
+         "conversationId": 1,
+         "kind": "w1.event",
+         "data": {
+          "text": "The design is ready for review.",
+          "at": 1794649920000,
+          "conversation": 3,
+          "stage": "design_review"
+         },
+         "byTaskId": 4
+        },
+        {
+         "id": 16,
+         "conversationId": 1,
+         "kind": "w1.event",
+         "data": {
+          "text": "The design is ready for review.",
+          "at": 1794655200000,
+          "conversation": 4,
+          "stage": "design_review"
+         },
+         "byTaskId": 6
+        },
+        {
+         "id": 18,
+         "conversationId": 1,
+         "kind": "w1.event",
+         "data": {
+          "text": "The design is ready for review.",
+          "at": 1794655500000,
+          "conversation": 6,
+          "stage": "design_review"
+         },
+         "byTaskId": 8
+        },
+        {
+         "id": 19,
+         "conversationId": 1,
+         "kind": "w1.event",
+         "data": {
+          "text": "The design is approved. W1 prepares branch w1/4 from main.",
+          "at": 1794656400500,
+          "conversation": 4,
+          "stage": "preparing"
+         },
+         "byTaskId": 9
+        },
+        {
+         "id": 21,
+         "conversationId": 1,
+         "kind": "w1.event",
+         "data": {
+          "text": "The implementer is building the approved design.",
+          "at": 1794656520050,
+          "conversation": 5,
+          "stage": "building"
+         },
+         "byTaskId": 10
+        },
+        {
+         "id": 30,
+         "conversationId": 1,
+         "kind": "w1.event",
+         "data": {
+          "text": "The designer is revising the design.",
+          "at": 1794663000310,
+          "conversation": 3,
+          "stage": "designing"
+         },
+         "byTaskId": 15
+        },
+        {
+         "id": 35,
+         "conversationId": 1,
+         "kind": "w1.event",
+         "data": {
+          "text": "The design is ready for review.",
+          "at": 1794664500010,
+          "conversation": 3,
+          "stage": "design_review"
+         },
+         "byTaskId": 18
+        }
+       ],
+       "docs": {
+        "pi.agent": {},
+        "pi.live": {},
+        "pi.inbox": {
+         "items": []
+        },
+        "pi.provider": {
+         "sessionId": "01a1d400-0000-7000-8000-000000000001"
+        },
+        "pi.usage": {
+         "models": {},
+         "tools": {}
+        }
+       }
+      }
+     ]
+    ]
+   }
+  },
+  "timeline forecasts": {
+   "request": {
+    "project": "forecasts"
+   },
+   "first": {
+    "ops": [
+     [
+      "r",
+      {
+       "conversation": {
+        "id": 1
+       },
+       "entries": [
+        {
+         "id": 5,
+         "conversationId": 1,
+         "kind": "w2.recorded",
+         "data": {
+          "text": "Forecast recorded with the agent's probability estimate.",
+          "at": 1792833120000,
+          "conversation": 2,
+          "forecast": 4
+         },
+         "byTaskId": 2
+        },
+        {
+         "id": 10,
+         "conversationId": 1,
+         "kind": "w2.recorded",
+         "data": {
+          "text": "Forecast recorded with the agent's probability estimate.",
+          "at": 1793523840000,
+          "conversation": 2,
+          "forecast": 9
+         },
+         "byTaskId": 4
+        },
+        {
+         "id": 15,
+         "conversationId": 1,
+         "kind": "w2.recorded",
+         "data": {
+          "text": "Forecast recorded with the agent's probability estimate.",
+          "at": 1793524140000,
+          "conversation": 2,
+          "forecast": 14
+         },
+         "byTaskId": 6
+        },
+        {
+         "id": 20,
+         "conversationId": 1,
+         "kind": "w2.recorded",
+         "data": {
+          "text": "Forecast recorded with the agent's probability estimate.",
+          "at": 1793727000000,
+          "conversation": 2,
+          "forecast": 19
+         },
+         "byTaskId": 8
+        },
+        {
+         "id": 22,
+         "conversationId": 1,
+         "kind": "w2.asked",
+         "data": {
+          "text": "Forecast is due.",
+          "at": 1794063600000,
+          "conversation": 2,
+          "forecast": 4,
+          "decision": "w2:2:rune-release#1"
+         },
+         "byTaskId": 3
+        },
+        {
+         "id": 23,
+         "conversationId": 1,
+         "kind": "w2.rescheduled",
+         "data": {
+          "text": "Forecast deferred for seven days after the answer.",
+          "at": 1794063720000,
+          "conversation": 2,
+          "decision": "w2:2:rune-release#1",
+          "due": 1794668520000
+         },
+         "byTaskId": 10
+        },
+        {
+         "id": 25,
+         "conversationId": 1,
+         "kind": "w2.asked",
+         "data": {
+          "text": "Forecast is due.",
+          "at": 1794657600000,
+          "conversation": 2,
+          "forecast": 9,
+          "decision": "w2:2:linux-gate#1"
+         },
+         "byTaskId": 5
+        },
+        {
+         "id": 26,
+         "conversationId": 1,
+         "kind": "w2.resolved",
+         "data": {
+          "text": "Forecast resolved yes. Brier score: 0.090.",
+          "at": 1794662400000,
+          "conversation": 2,
+          "forecast": 9,
+          "decision": "w2:2:linux-gate#1",
+          "p": 0.7,
+          "outcome": 1,
+          "score": 0.09
+         },
+         "byTaskId": 12
+        },
+        {
+         "id": 27,
+         "conversationId": 1,
+         "kind": "w2.asked",
+         "data": {
+          "text": "Forecast is due.",
+          "at": 1794664800000,
+          "conversation": 2,
+          "forecast": 14,
+          "decision": "w2:2:pi-durable-2#1"
+         },
+         "byTaskId": 7
+        },
+        {
+         "id": 28,
+         "conversationId": 1,
+         "kind": "w2.asked",
+         "data": {
+          "text": "Forecast is due.",
+          "at": 1794668520000,
+          "conversation": 2,
+          "forecast": 4,
+          "decision": "w2:2:rune-release#2"
+         },
+         "byTaskId": 11
+        }
+       ],
+       "docs": {
+        "pi.agent": {},
+        "pi.live": {},
+        "pi.inbox": {
+         "items": []
+        },
+        "pi.provider": {
+         "sessionId": "01a1d400-0000-7000-8000-000000000001"
+        },
+        "pi.usage": {
+         "models": {},
+         "tools": {}
+        }
+       }
+      }
+     ]
+    ]
+   }
+  },
+  "timeline notes-cli": {
+   "request": {
+    "project": "notes-cli"
+   },
+   "first": {
+    "ops": [
+     [
+      "r",
+      {
+       "conversation": {
+        "id": 1
+       },
+       "entries": [],
+       "docs": {
+        "pi.agent": {},
+        "pi.live": {},
+        "pi.inbox": {
+         "items": []
+        },
+        "pi.provider": {
+         "sessionId": "01a1d400-0000-7000-8000-000000000001"
+        },
+        "pi.usage": {
+         "models": {},
+         "tools": {}
+        }
+       }
+      }
+     ]
+    ]
+   }
+  },
+  "ends": {
+   "stopping": {
+    "end": {
+     "reason": "stopping"
+    }
+   },
+   "revoked": {
+    "end": {
+     "reason": "revoked"
+    }
+   },
+   "failed": {
+    "end": {
+     "reason": "failed"
+    }
+   },
+   "heartbeat": ":",
+   "note": "A frame is one line 'data: <json>' and a blank line; a heartbeat is a line ':' every 15 s without a frame. A cut with no end frame is a crash or the network."
+  }
+ },
+ "examples": {
+  "gap rule": {
+   "note": "The laptop slept for an hour with render-core #3 open. It held entries up to 12. It reopens with after; the first frame's before is newer than what it held, so it fetches the gap.",
+   "reopen": {
+    "project": "render-core",
+    "conversation": 3,
+    "after": 12
+   },
+   "history": {
+    "project": "render-core",
+    "conversation": 3,
+    "minEntryId": 13,
+    "maxEntryId": 29,
+    "order": "ascending",
+    "limit": 100
+   }
+  },
+  "gap rule, first open": {
+   "note": "The first open of render-core #3 on a device that holds nothing of it. The frame's before is set, because older entries exist, but nothing was held before the frame, so the gap rule makes no history call. Older entries come only when the user scrolls back.",
+   "request": {
+    "project": "render-core",
+    "conversation": 3
+   },
+   "first": {
+    "ops": [
+     [
+      "r",
+      {
+       "conversation": {
+        "id": 3
+       },
+       "entries": [
+        {
+         "id": 34,
+         "conversationId": 3,
+         "kind": "w1.design",
+         "data": {
+          "text": "# NDJSON export of the event log\n\n`tau export --events <project>` writes every event of one project to standard output, one JSON object per line, oldest first.\n\n## Why\n\nThe timeline is the one record that every client reads the same way. Today it can only be paged through `history`. An export lets the owner keep it outside the store, diff two exports, and feed it to other tools.\n\n## Shape of a line\n\nEach line is one event entry as `history` returns it, with nothing added or removed:\n\n```json\n{\"id\":57,\"conversationId\":1,\"kind\":\"w1.event\",\"data\":{\"text\":\"The design is ready for review.\",\"at\":1794649920000,\"conversation\":3,\"stage\":\"design_review\"}}\n```\n\n- Lines end with `\\n`. The output has no header and no trailing comma.\n- Keys keep the order that `history` gives them, so two exports of the same store are byte-equal.\n- A line is at most 1 MiB, the protocol's body limit. A longer event is written whole; the limit is reported, not enforced.\n\n## Where it runs\n\nThe command reaches the running server through `admin.sock`, as `tau device` does. It never opens a store itself, because one process writes a store at a time.\n\n| Step | What happens |\n| --- | --- |\n| 1 | `tau export` sends `{ \"command\": \"export\", \"project\": \"render-core\" }` on the socket. |\n| 2 | The server pages the log with `history`, 500 entries a page, ascending. |\n| 3 | Each page is written to the socket as lines, then flushed. |\n| 4 | The server ends with one line, `{\"done\":true,\"events\":412}`. |\n\n## Partial writes\n\nA cut socket or a full disk can stop an export halfway. The export then ends without its `done` line, and the command exits with status 1 and says how many lines it wrote. A reader treats output without the last line as incomplete. Nothing is retried, and nothing in the store changes.\n\n## What it does not do\n\n- It exports events only, not transcripts or decisions.\n- It does not filter by kind or time. `jq` does that well.\n- It does not follow new events. A second export is cheap.\n\n## Open points\n\n1. Should the export start with a line that names the log's conversation? I left it out, so that every line is an event.\n2. 500 entries a page is a guess. A page of `w1.event` entries is about 120 KB.\n",
+          "replies": [
+           {
+            "annotation": 0,
+            "text": "Changed to one object per line."
+           },
+           {
+            "annotation": 1,
+            "text": "Added the section Partial writes."
+           }
+          ]
+         },
+         "byTaskId": 18
+        },
+        {
+         "id": 36,
+         "conversationId": 3,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_a5",
+           "toolName": "publish_design",
+           "content": [
+            {
+             "type": "text",
+             "text": "Published the design for review in decision w1:3:design#2. End your turn."
+            }
+           ],
+           "isError": false,
+           "timestamp": 1794664500020
+          }
+         ],
+         "byTaskId": 18
+        },
+        {
+         "id": 37,
+         "conversationId": 3,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "text",
+             "text": "Version 2 is published as w1:3:design#2, with a reply to each of your two notes."
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-opus-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "stop",
+           "timestamp": 1794664505000
+          }
+         ],
+         "byTaskId": 16
+        }
+       ],
+       "before": 33,
+       "docs": {
+        "pi.agent": {
+         "cwd": "/home/vrod/src/render",
+         "model": {
+          "provider": "anthropic",
+          "modelId": "claude-opus-4-5"
+         },
+         "extensions": {
+          "add": [
+           "w1"
+          ]
+         }
+        },
+        "pi.live": {},
+        "pi.inbox": {
+         "items": []
+        },
+        "pi.provider": {
+         "sessionId": "01a1d401-77aa-7e30-9a10-0c3b5e2f9d11"
+        },
+        "pi.usage": {
+         "models": {},
+         "tools": {}
+        }
+       }
+      }
+     ]
+    ]
+   },
+   "held": null,
+   "expect": "no history call"
+  }
+ },
+ "refusals": {
+  "options_invalid (create w1 in scratch)": {
+   "request": {
+    "project": "scratch",
+    "workflow": "w1"
+   },
+   "reply": {
+    "refused": {
+     "errors": [
+      {
+       "path": "/designer",
+       "keyword": "required",
+       "message": "required"
+      },
+      {
+       "path": "/implementer",
+       "keyword": "required",
+       "message": "required"
+      },
+      {
+       "path": "/reviewer",
+       "keyword": "required",
+       "message": "required"
+      }
+     ],
+     "code": "options_invalid",
+     "message": "The options of w1 are not all set."
+    }
+   }
+  },
+  "bad_options (setOptions designer to an unknown model)": {
+   "request": {
+    "project": "scratch",
+    "extension": "w1",
+    "patch": {
+     "designer": "anthropic/claude-opus-9"
+    }
+   },
+   "reply": {
+    "refused": {
+     "errors": [
+      {
+       "path": "/designer",
+       "keyword": "format",
+       "message": "expected format model"
+      }
+     ],
+     "code": "bad_options",
+     "message": "The options of w1 do not fit."
+    }
+   }
+  },
+  "not_a_workflow": {
+   "request": {
+    "project": "render-core",
+    "workflow": "websearch"
+   },
+   "reply": {
+    "refused": {
+     "code": "not_a_workflow",
+     "message": "websearch is not a workflow."
+    }
+   }
+  },
+  "not_a_workflow (render-core has no workflow w3)": {
+   "request": {
+    "project": "render-core",
+    "workflow": "w3"
+   },
+   "reply": {
+    "refused": {
+     "code": "not_a_workflow",
+     "message": "render-core has no workflow w3."
+    }
+   }
+  },
+  "options_invalid (create w1 in render-core, a model the server no longer has)": {
+   "request": {
+    "project": "render-core",
+    "workflow": "w1"
+   },
+   "reply": {
+    "refused": {
+     "errors": [
+      {
+       "path": "/reviewer",
+       "keyword": "format",
+       "message": "expected format model"
+      }
+     ],
+     "code": "options_invalid",
+     "message": "The options of w1 are not all set."
+    }
+   }
+  },
+  "extension_not_loaded (create w1 while the server lacks w1)": {
+   "request": {
+    "project": "render-core",
+    "workflow": "w1"
+   },
+   "reply": {
+    "refused": {
+     "code": "extension_not_loaded",
+     "message": "This server has no code for w1."
+    }
+   }
+  },
+  "unknown_model (create a bare agent on a model the server lacks)": {
+   "request": {
+    "project": "notes-cli",
+    "model": "anthropic/claude-opus-9"
+   },
+   "reply": {
+    "refused": {
+     "code": "unknown_model",
+     "message": "This server has no model anthropic/claude-opus-9."
+    }
+   }
+  },
+  "unknown_model": {
+   "request": {
+    "project": "notes-cli",
+    "conversation": 4,
+    "model": "anthropic/claude-opus-9"
+   },
+   "reply": {
+    "refused": {
+     "code": "unknown_model",
+     "message": "This server has no model anthropic/claude-opus-9."
+    }
+   }
+  },
+  "busy (continue while a run works)": {
+   "reply": {
+    "refused": {
+     "code": "busy",
+     "message": "A run is working in this conversation."
+    }
+   }
+  },
+  "idle": {
+   "reply": {
+    "refused": {
+     "code": "idle",
+     "message": "Nothing runs in this conversation."
+    }
+   }
+  },
+  "event_log": {
+   "reply": {
+    "refused": {
+     "code": "event_log",
+     "message": "Nothing may run in the event log."
+    }
+   }
+  },
+  "conflict (answer w1:3:design#2 after the phone answered approve)": {
+   "reply": {
+    "refused": {
+     "decision": {
+      "id": "w1:3:design#2",
+      "subject": "w1:3:design",
+      "title": "Review the design",
+      "basis": 34,
+      "choices": [
+       "approve",
+       "revise",
+       "abort"
+      ],
+      "conversation": 3,
+      "then": {
+       "task": "w1.design_answer"
+      },
+      "requestedAt": 1794664500000,
+      "status": "answered",
+      "choice": "approve",
+      "annotations": [],
+      "by": "phone",
+      "at": 1794674520000,
+      "continuation": 35
+     },
+     "code": "conflict",
+     "message": "Decision w1:3:design#2 was answered with other fields."
+    }
+   }
+  },
+  "not_open (answer w1:3:design#2 after v3 superseded it)": {
+   "reply": {
+    "refused": {
+     "open": {
+      "id": "w1:3:design#3",
+      "subject": "w1:3:design",
+      "title": "Review the design",
+      "basis": 50,
+      "choices": [
+       "approve",
+       "revise",
+       "abort"
+      ],
+      "conversation": 3,
+      "then": {
+       "task": "w1.design_answer"
+      },
+      "requestedAt": 1794675300000,
+      "status": "open"
+     },
+     "code": "not_open",
+     "message": "Decision w1:3:design#2 was superseded."
+    }
+   }
+  },
+  "stale_basis": {
+   "reply": {
+    "refused": {
+     "code": "stale_basis",
+     "message": "Decision w1:3:design#2 asks about another basis."
+    }
+   }
+  },
+  "bad_annotation": {
+   "reply": {
+    "refused": {
+     "code": "bad_annotation",
+     "message": "Decision w1:3:design#2 has a range outside its basis text."
+    }
+   }
+  },
+  "unknown_choice": {
+   "reply": {
+    "refused": {
+     "code": "unknown_choice",
+     "message": "Decision w1:3:design#2 does not offer maybe."
+    }
+   }
+  },
+  "extension_not_loaded (answer while the server lacks w1)": {
+   "reply": {
+    "refused": {
+     "code": "extension_not_loaded",
+     "message": "Decision w1:3:design#2 needs task w1.design_answer, which no installed extension provides."
+    }
+   }
+  },
+  "extension_not_loaded (send again after the fault while the server lacks w1)": {
+   "request": {
+    "project": "render-core",
+    "decision": "w1:6:design#1",
+    "basis": 17,
+    "choice": "approve",
+    "annotations": []
+   },
+   "reply": {
+    "refused": {
+     "code": "extension_not_loaded",
+     "message": "Decision w1:6:design#1 needs task w1.design_answer, which no installed extension provides."
+    }
+   }
+  },
+  "unknown_conversation": {
+   "reply": {
+    "refused": {
+     "code": "unknown_conversation",
+     "message": "render-core has no conversation 99."
+    }
+   }
+  },
+  "conflict (bind with other fields)": {
+   "request": {
+    "project": "render-core",
+    "workdir": "/home/vrod/src/render2",
+    "extensions": [
+     "w1"
+    ]
+   },
+   "reply": {
+    "refused": {
+     "project": {
+      "project": "render-core",
+      "workdir": "/home/vrod/src/render",
+      "extensions": [
+       "websearch",
+       "w1"
+      ],
+      "missing": []
+     },
+     "code": "conflict",
+     "message": "render-core is bound with other fields."
+    }
+   }
+  },
+  "unauthorized (revoked)": {
+   "reply": {
+    "refused": {
+     "code": "unauthorized",
+     "message": "Send a valid device token."
+    }
+   }
+  },
+  "too_large": {
+   "reply": {
+    "refused": {
+     "code": "too_large",
+     "message": "The body is over 1 MiB."
+    }
+   }
+  },
+  "unknown (storage)": {
+   "reply": {
+    "unknown": {
+     "code": "storage_failed",
+     "message": "SQLITE_FULL: database or disk is full"
+    }
+   }
+  },
+  "bad_request": {
+   "reply": {
+    "refused": {
+     "errors": [
+      {
+       "path": "/whenBusy",
+       "keyword": "enum",
+       "message": "must be one of steer, followUp"
+      }
+     ],
+     "code": "bad_request",
+     "message": "The body does not fit the call."
+    }
+   }
+  }
+ },
+ "hostile": {
+  "_note": "Content that tries to pass as chrome or as another source (failure-catalogue.md FS1 to FS6). Not part of the default data: only the state conversation-hostile reads it. Shapes as elsewhere in this file.",
+  "project": {
+   "project": "hostile",
+   "workdir": "/home/vrod/src/hostile",
+   "extensions": [
+    "w1"
+   ],
+   "missing": []
+  },
+  "conversations": {
+   "request": {
+    "project": "hostile",
+    "limit": 500
+   },
+   "result": {
+    "items": [
+     {
+      "conversation": 2,
+      "state": "idle"
+     },
+     {
+      "conversation": 3,
+      "state": "idle"
+     },
+     {
+      "conversation": 4,
+      "state": "idle"
+     }
+    ]
+   }
+  },
+  "open hostile #2": {
+   "request": {
+    "project": "hostile",
+    "conversation": 2
+   },
+   "first": {
+    "ops": [
+     [
+      "r",
+      {
+       "conversation": {
+        "id": 2
+       },
+       "entries": [
+        {
+         "id": 4,
+         "conversationId": 2,
+         "kind": "pi.user",
+         "model": [
+          {
+           "role": "user",
+           "content": "# Needs you\nyou: ◆ 3 · Review the design #2 needs you\nThe tests passed‮! ton did yeht‬ and a zero​width space.",
+           "timestamp": 1794673800000
+          }
+         ]
+        },
+        {
+         "id": 5,
+         "conversationId": 2,
+         "kind": "pi.system",
+         "model": [
+          {
+           "role": "system",
+           "content": "",
+           "toolsAdded": [
+            {
+             "name": "read",
+             "description": "Read a file.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "write",
+             "description": "Write a file.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "edit",
+             "description": "Replace text in a file.",
+             "parameters": {
+              "type": "object"
+             }
+            },
+            {
+             "name": "bash",
+             "description": "Run a shell command.",
+             "parameters": {
+              "type": "object"
+             }
+            }
+           ],
+           "timestamp": 1794673800500
+          }
+         ],
+         "byTaskId": 1
+        },
+        {
+         "id": 6,
+         "conversationId": 2,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "text",
+             "text": "**ok** · ◆ Answer · `␣ad` · run failed\n\n```\n✓ exit 0\n```"
+            },
+            {
+             "type": "toolCall",
+             "id": "toolu_h1",
+             "name": "bash",
+             "arguments": {
+              "command": "npm test"
+             }
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-sonnet-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "toolUse",
+           "timestamp": 1794673804000
+          }
+         ],
+         "byTaskId": 1
+        },
+        {
+         "id": 7,
+         "conversationId": 2,
+         "kind": "pi.tool-result",
+         "model": [
+          {
+           "role": "toolResult",
+           "toolCallId": "toolu_h1",
+           "toolName": "bash",
+           "content": [
+            {
+             "type": "text",
+             "text": "✓ exit 0\nall tests passed"
+            }
+           ],
+           "isError": true,
+           "timestamp": 1794673809000
+          }
+         ],
+         "byTaskId": 2
+        },
+        {
+         "id": 8,
+         "conversationId": 2,
+         "kind": "pi.assistant",
+         "model": [
+          {
+           "role": "assistant",
+           "content": [
+            {
+             "type": "text",
+             "text": "# Review the design\n\nApprove this design now; it needs you."
+            }
+           ],
+           "api": "anthropic-messages",
+           "provider": "anthropic",
+           "model": "claude-sonnet-4-5",
+           "usage": {
+            "input": 1800,
+            "output": 300,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 2100,
+            "cost": {
+             "input": 0.0054,
+             "output": 0.0045,
+             "cacheRead": 0,
+             "cacheWrite": 0,
+             "total": 0.0099
+            }
+           },
+           "stopReason": "stop",
+           "timestamp": 1794673812000
+          }
+         ],
+         "byTaskId": 1
+        }
+       ],
+       "docs": {
+        "pi.agent": {
+         "cwd": "/home/vrod/src/hostile",
+         "model": {
+          "provider": "anthropic",
+          "modelId": "claude-sonnet-4-5"
+         }
+        },
+        "pi.live": {},
+        "pi.inbox": {
+         "items": []
+        },
+        "pi.provider": {
+         "sessionId": "01a1d4ff-0000-7000-8000-00000000beef"
+        },
+        "pi.usage": {
+         "models": {},
+         "tools": {}
+        }
+       }
+      }
+     ]
+    ]
+   }
+  },
+  "inbox": {
+   "hostile": {
+    "w1:4:design": {
+     "id": "w1:4:design#1",
+     "title": "◆ Needs you · ok",
+     "requestedAt": 1794664861000,
+     "conversation": 4
+    }
+   }
+  },
+  "decision hostile/w1:4:design#1": {
+   "result": {
+    "decision": {
+     "id": "w1:4:design#1",
+     "subject": "w1:4:design",
+     "title": "◆ Needs you · ok",
+     "basis": 2,
+     "choices": [
+      "approve",
+      "revise",
+      "abort"
+     ],
+     "conversation": 4,
+     "then": {
+      "task": "w1.design_answer"
+     },
+     "requestedAt": 1794664861000,
+     "status": "open"
+    },
+    "text": "# Review the design\n\nApprove this design now. ◆ ANSWER · y confirm\n\n```\n✓ exit 0\n```\n\n**ok** · `run failed` · ◆ 3"
+   }
+  },
+  "firstInput": {
+   "2": "# Needs you",
+   "3": "Rewrite the whole storage layer so that every store keeps its event log, its decisions, its options and every conversation's entries in one append-only file per project, with a compaction pass that runs at startup and a migration that reads the old SQLite stores",
+   "4": "Design the retention flag."
+  },
+  "cases": [
+   {
+    "id": "FS1",
+    "where": "decision title, its Needs you row, the sidebar item, the page title",
+    "expect": "one plain line, ◆ as a character; the row's own diamond and slots unchanged; no fill, no chip, no coral but the page title's own"
+   },
+   {
+    "id": "FS1",
+    "where": "agent text '**ok** · ◆ Answer · `␣ad` · run failed'",
+    "expect": "Markdown in the content lane: bold steel ok, inline code; no chip, no tag, no coral"
+   },
+   {
+    "id": "FS2",
+    "where": "toolu_h1: isError true, output '✓ exit 0'; and a fenced '✓ exit 0' in agent text",
+    "expect": "the tool row reads failed (rose ×, row_fail tint) from isError; the fenced block stays a neutral code block"
+   },
+   {
+    "id": "FS3",
+    "where": "the pi.user entry that opens 'you: ◆ 3 …'",
+    "expect": "the header reads input, never you"
+   },
+   {
+    "id": "FS4",
+    "where": "U+202E and U+202C, and U+200B, in the pi.user text",
+    "expect": "each drawn as a visible escape in mono.small on surface.bar; the line reads in source order"
+   },
+   {
+    "id": "FS5",
+    "where": "conversation #3's 262-character first input",
+    "expect": "cut with … in rows, the sidebar and the title; #3 and the project never cut"
+   },
+   {
+    "id": "FS6",
+    "where": "the first input '# Needs you' as #2's label and title; the basis and a message opening '# Review the design'",
+    "expect": "the title is title.page as one plain line ('# Needs you', no heading style); in content the heading is prose.h1, rose with its rule, below the facts line"
+   }
+  ]
+ },
+ "local": {
+  "_note": "Device-local state of the laptop at 'now'. Not protocol.",
+  "config": {
+   "server": "https://tau.tail4e2f.ts.net",
+   "device": "laptop",
+   "token": "in the macOS Keychain, item 'tau https://tau.tail4e2f.ts.net'",
+   "theme": "ember"
+  },
+  "sinceBase": {
+   "at": 1794659400000,
+   "newestEvent": {
+    "render-core": 21,
+    "forecasts": 25,
+    "notes-cli": null
+   }
+  },
+  "firstInput": {
+   "notes-cli": {
+    "2": "Add a `--json` flag to `notes list` so scripts can read the output.",
+    "3": "Why does `notes sync` hang on vaults over 10k files?",
+    "4": "Port the config loader from JSON to TOML. Keep reading `notes.json` for one release and warn when it is used.",
+    "5": "Write a migration test for v3 notes with front matter."
+   },
+   "render-core": {
+    "2": "Explain how the outbox replays a lost answer.",
+    "3": "Add an export of the event log: `tau export --events` should write every event of a project to a file.",
+    "4": "Make `tau device list` print when each device last called the server.",
+    "5": "The owner approved this design in decision w1:4:design#1. Build it in your worktree at /home/vrod/src/render.w1-4, on branch w1/4.",
+    "6": "Show the server's protocol version in `tau --version`.",
+    "7": "Design a retention policy for the event log: how long events live, and what `tau` does with old ones.",
+    "8": "Summarise the open points of the export design in three lines for the hand-over note."
+   },
+   "forecasts": {
+    "2": "I think rune gets to 1.0 within two weeks. Make that a forecast.",
+    "3": "What changed in pi-durable 1.5.2's `pi.live` document?"
+   }
+  },
+  "extensionOf": {
+   "_note": "Known extension of a conversation: from an event's kind prefix naming it, or from pi.agent.extensions once opened.",
+   "render-core": {
+    "3": "w1",
+    "4": "w1",
+    "5": "w1",
+    "6": "w1",
+    "7": "w1"
+   },
+   "forecasts": {
+    "2": "w2"
+   }
+  },
+  "modelOf": {
+   "notes-cli": {
+    "4": "anthropic/claude-sonnet-4-5",
+    "5": "anthropic/claude-sonnet-4-5"
+   },
+   "render-core": {
+    "3": "anthropic/claude-opus-4-5",
+    "5": "anthropic/claude-sonnet-4-5",
+    "7": "anthropic/claude-opus-4-5"
+   }
+  },
+  "noteDrafts": {
+   "render-core/w1:3:design#2": [
+    {
+     "text": "Reported where? Say what the command prints.",
+     "range": {
+      "start": 882,
+      "end": 951
+     }
+    },
+    {
+     "text": "Measure it on the render-core store before you build.",
+     "range": {
+      "start": 2126,
+      "end": 2156
+     }
+    },
+    {
+     "text": "Close. Answer the two notes and I'll approve."
+    }
+   ]
+  },
+  "composerDrafts": {
+   "notes-cli/4": ""
+  },
+  "hiddenFaults": [],
+  "hiddenFailedRuns": [],
+  "sidebarVisible": true,
+  "detailsVisible": false,
+  "openItems": {
+   "_note": "Groups in the order each project's first item was opened; items in the order opened (spec.md §4.1).",
+   "groups": [
+    {
+     "project": "notes-cli",
+     "items": [
+      {
+       "kind": "conversation",
+       "id": 4
+      }
+     ]
+    },
+    {
+     "project": "render-core",
+     "items": [
+      {
+       "kind": "decision",
+       "id": "w1:3:design#2"
+      },
+      {
+       "kind": "conversation",
+       "id": 5
+      },
+      {
+       "kind": "project"
+      }
+     ]
+    },
+    {
+     "project": "forecasts",
+     "items": [
+      {
+       "kind": "decision",
+       "id": "w2:2:pi-durable-2#1"
+      }
+     ]
+    }
+   ]
+  },
+  "places": {
+   "_note": "Each place's one filter (none for Home and Projects) and its cursor, by object ID. Kept when you leave a place and across launches.",
+   "home": {
+    "cursor": "decision render-core/w1:3:design#2"
+   },
+   "conversations": {
+    "filter": {
+     "project": null,
+     "state": null
+    },
+    "cursor": "conversation render-core/7"
+   },
+   "timeline": {
+    "filter": {
+     "project": null
+    },
+    "cursor": null
+   },
+   "faults": {
+    "filter": {
+     "project": null
+    },
+    "cursor": null
+   },
+   "projects": {
+    "cursor": "project render-core"
+   }
+  },
+  "lastProject": "render-core",
+  "lastWorkflow": {
+   "_note": "The workflow, or the bare agent's model, last started in each project from this device.",
+   "render-core": {
+    "workflow": "w1"
+   },
+   "notes-cli": {
+    "model": "anthropic/claude-sonnet-4-5"
+   },
+   "forecasts": {
+    "workflow": "w2"
+   }
+  },
+  "startDraft": null,
+  "startDraftExample": {
+   "text": "Design a `--since <entry>` flag for `tau export --events`, so an export can resume where the last one stopped.",
+   "project": "render-core",
+   "workflow": "w1",
+   "only in": "states start-no-reply and start-options-unset (with project scratch); kept until create succeeds"
+  },
+  "outbox": [
+   {
+    "call": "input",
+    "body": {
+     "project": "notes-cli",
+     "conversation": 4,
+     "text": "Also keep the `NOTES_CONFIG` environment variable working; it should win over both files.",
+     "requestId": "r-01JCV8Q6W3M2",
+     "whenBusy": "steer"
+    },
+    "state": "done",
+    "sentAt": 1794674391000
+   },
+   {
+    "call": "input",
+    "body": {
+     "project": "notes-cli",
+     "conversation": 4,
+     "text": "Use node:test's snapshot support for the TOML fixtures.",
+     "requestId": "r-01JCVB0P4Q8Z",
+     "whenBusy": "followUp"
+    },
+    "state": "unknown",
+    "sentAt": 1794674398000,
+    "only in": "states unknown-outcome and offline"
+   }
+  ]
+ }
+}

@@ -1,0 +1,588 @@
+/* tau desktop, calm prototype (e13). Frame and look from the e12 calm sketch;
+   view rules ported from e11-tau/proto/tau.css. Ember tokens from the package; new tokens marked NEW. */
+@font-face{font-family:"Etoile";src:url("vendor/fonts/iosevka-etoile/IosevkaEtoile-Regular.woff2");font-weight:400}
+@font-face{font-family:"Etoile";src:url("vendor/fonts/iosevka-etoile/IosevkaEtoile-Italic.woff2");font-weight:400;font-style:italic}
+@font-face{font-family:"Etoile";src:url("vendor/fonts/iosevka-etoile/IosevkaEtoile-SemiBold.woff2");font-weight:600}
+@font-face{font-family:"Etoile";src:url("vendor/fonts/iosevka-etoile/IosevkaEtoile-Bold.woff2");font-weight:700}
+@font-face{font-family:"Iosevka";src:url("vendor/fonts/iosevka/Iosevka-Regular.woff2");font-weight:400}
+@font-face{font-family:"Iosevka";src:url("vendor/fonts/iosevka/Iosevka-Medium.woff2");font-weight:500}
+@font-face{font-family:"Iosevka";src:url("vendor/fonts/iosevka/Iosevka-SemiBold.woff2");font-weight:600}
+@font-face{font-family:"Iosevka";src:url("vendor/fonts/iosevka/Iosevka-Bold.woff2");font-weight:700}
+
+/* Colours and the radii come from tokens.json at build time (tokens.css, written by build.mjs): CONTRAST measures the shipped tokens.
+   Only what tokens.json doesn't hold stays here: the knock-out tint on coral and the float's shadow. */
+:root{--knock:rgba(21,20,18,.16);--shadow:0 -14px 40px rgba(0,0,0,.45)}
+html.light{--knock:rgba(40,36,24,.18);--shadow:0 -14px 40px rgba(60,48,24,.22)}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100vw;height:100vh;overflow:hidden;background:var(--read)}
+body{font:400 13px/18px "Etoile",sans-serif;color:var(--fg);font-variant-ligatures:none;font-feature-settings:"calt" 0,"liga" 0;-webkit-font-smoothing:antialiased;position:relative}
+svg.i{width:14px;height:14px;fill:currentColor;display:inline-block;flex:none;vertical-align:-2px}
+svg.i.steel{color:var(--steel-mark)}
+svg.i.olive{color:var(--olive)}
+.mono{font-family:"Iosevka"}
+.id{font:400 12px/16px "Iosevka";color:var(--orange)}
+.pj{color:var(--sage)}
+.mu{color:var(--muted)}
+.al{color:var(--alt)}
+.dt{color:var(--muted)}
+.ff .dt,.since .dt{margin:0 6px}
+.kbd{display:inline-flex;align-items:center;gap:1px;height:18px;padding:0 5px;border-radius:var(--r-pill);font:500 11.5px/16px "Iosevka";background:var(--bar);color:var(--orange);vertical-align:middle}
+.kbd svg.i{width:9px;height:9px;vertical-align:0}
+.hint{font:400 11.5px/16px "Iosevka";color:var(--muted)}
+.box{background:var(--raised);border:1px solid var(--hl);border-radius:var(--r-surface)}
+/* small marks: an 8-10 px glyph in a 14 px slot */
+.sm{width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.sm svg.i{width:9px!important;height:9px!important;color:inherit!important;vertical-align:0}
+.sm.fail svg.i,.sm.run svg.i{width:8px!important;height:8px!important}
+.sm.unk svg.i{width:12px!important;height:12px!important}
+.sm.dec{color:var(--coral)}
+.sm.fail{color:var(--blocked)}
+.sm.run{color:var(--steel-mark)}
+.sm.unk{color:var(--unknown)}
+.tag{height:16px;min-width:30px;padding:0 5px;border-radius:var(--r-pill);display:inline-flex;align-items:center;justify-content:center;gap:4px;font:500 11.5px/16px "Iosevka";color:var(--read);flex:none}
+.tag svg.i{width:10px;height:10px;color:var(--read)!important;vertical-align:0}
+.tag.t-needs{background:var(--coral)}
+.tag.t-failed{background:var(--blocked)}
+.tag.t-unk{background:var(--unknown)}
+.tags{display:flex;gap:6px;align-items:center}
+
+/* ───── frame ───── */
+.lights{position:absolute;left:16px;top:16px;display:flex;gap:8px;z-index:6}
+.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.side{position:absolute;left:0;top:0;width:248px;bottom:26px;background:var(--side);padding:0 8px;overflow:hidden}
+.brand{margin-top:44px;padding:0 4px 0 8px;display:flex;align-items:center;gap:9px}
+.appicon{width:24px;height:24px;flex:none}
+.bt{min-width:0;flex:1}
+.bn{font:600 14px/18px "Etoile";color:var(--fg)}
+.srv{margin-top:1px;display:flex;align-items:center;gap:2px;font:400 11.5px/16px "Etoile";color:var(--muted);white-space:nowrap}
+.srv .hst{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.srv svg.i{width:12px;height:12px;vertical-align:0}
+.srv.bad{color:var(--fg);gap:5px}
+.srv.bad svg.i{color:var(--steel-mark)}
+.nav{margin-top:18px}
+.nav+.nav{margin-top:12px}
+.row{position:relative;display:flex;align-items:center;gap:10px;height:28px;padding:0 10px;font:400 13px/18px "Etoile";color:var(--alt)}
+.row>svg.i{width:16px;height:16px;color:var(--muted);vertical-align:0}
+.row .lbx,.row .lb{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .rt{flex:none;margin-left:auto;display:flex;align-items:center;gap:6px}
+.row.it{gap:8px}
+.row.it>svg.i{width:14px;height:14px}
+.row.it .id{flex:none;font-size:12px}
+.row.it .st{min-width:14px}
+.row.sel{background:var(--cursor-side);color:var(--fg)}
+.row.sel>svg.i{color:var(--alt)}
+.seclab{margin:24px 0 4px;padding:0 10px;font:600 11px/14px "Etoile";letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.pgl{padding:0 10px;margin-top:10px;height:22px;display:flex;align-items:center;font:400 12px/16px "Etoile";color:var(--sage)}
+.sfoot{position:absolute;left:8px;right:8px;bottom:10px}
+
+.stage{position:absolute;left:var(--side);right:0;top:0;bottom:26px;background:var(--read);overflow:hidden}
+.shead{position:absolute;left:0;right:0;top:0;height:44px;display:flex;align-items:center;gap:10px;padding:0 20px 0 16px;border-bottom:1px solid var(--hl);z-index:4;background:var(--read);white-space:nowrap}
+.sidehidden .shead{padding-left:88px}
+.shead .tog{color:var(--muted);display:flex}
+.shead .tog svg.i{width:16px;height:16px;vertical-align:0}
+.crumb{display:flex;align-items:center;gap:7px;font:400 13px/18px "Etoile";color:var(--fg);min-width:0;overflow:hidden}
+.crumb .s{color:var(--muted)}
+.crumb .id{font-size:12.5px}
+.acts{margin-left:auto;display:flex;align-items:center;gap:16px}
+.seg{display:flex;align-items:center;gap:7px;font:400 13px/18px "Etoile";color:var(--alt)}
+.seg svg.i{width:11px;height:11px;vertical-align:0}
+.seg.prim{height:26px;padding:0 10px 0 9px;border-radius:var(--r-pill);background:var(--coral);color:var(--read);font-weight:600}
+.seg.prim svg.i{color:var(--read)}
+.seg.prim .kbd{background:var(--knock);color:var(--read)}
+.seg.off{color:var(--muted);height:26px;padding:0 10px;border:1px dashed var(--hl);border-radius:var(--r-pill);gap:6px}
+/* muted while a float or Insert has the keys (DIM) */
+.floatopen .shead .seg,.floatopen .shead .kbd,.floatopen .side .kbd,.floatopen .sin .kbd,.floatopen .status .kbd,
+.insert .shead .seg,.insert .shead .kbd,.insert .status .kbd{color:var(--muted)!important}
+.floatopen .shead .seg.prim,.insert .shead .seg.prim{background:none;box-shadow:inset 0 0 0 1px var(--hl);font-weight:400}
+.floatopen .shead .seg.prim svg.i,.insert .shead .seg.prim svg.i{color:var(--muted)!important}
+.floatopen .shead .seg.prim .kbd,.insert .shead .seg.prim .kbd{background:var(--bar)}
+.floatopen .rw.need.head .kbd{display:none}
+.sbody{position:absolute;left:0;right:0;top:44px;bottom:0;overflow:hidden}
+.sin{position:absolute;left:0;right:0;top:0;bottom:0}
+.sbody.hasnotice .sin{top:38px}
+.notice{position:absolute;left:0;right:0;top:0;min-height:38px;background:var(--side);display:flex;align-items:center;gap:10px;padding:10px 40px;font:400 13px/18px "Etoile";color:var(--fg);z-index:3}
+.notice svg.i{width:13px;height:13px;flex:none}
+.notice .nt{flex:1;max-width:900px}
+.notice .act{margin-left:auto;display:flex;align-items:center;gap:6px;color:var(--alt);font-size:12px;flex:none}
+.notice.rose{box-shadow:inset 0 2px 0 var(--blocked)}
+
+/* one bottom bar */
+.status{position:absolute;left:0;right:0;bottom:0;height:26px;background:var(--bar);display:flex;align-items:center;font:400 12px/16px "Etoile";color:var(--muted);white-space:nowrap;overflow:hidden}
+.mode{height:26px;display:flex;align-items:center;padding:0 10px 0 12px;background:var(--cursor-side);box-shadow:inset 2px 0 0 var(--coral);font:600 11px/14px "Iosevka";letter-spacing:.08em;color:var(--fg);flex:none}
+.mode.m-insert{box-shadow:inset 2px 0 0 var(--sage)}
+.mode.m-visual{box-shadow:inset 2px 0 0 var(--steel)}
+.mode.m-command{box-shadow:inset 2px 0 0 var(--orange)}
+.mode.m-readback{background:var(--coral);color:var(--read);box-shadow:none}
+.showcmd{margin-left:14px;display:flex;align-items:center;gap:2px;font:500 12px/16px "Iosevka";color:var(--orange)}
+.showcmd svg.i{width:10px;height:10px;vertical-align:0}
+.status .echo{margin-left:14px;color:var(--fg);overflow:hidden;text-overflow:ellipsis;min-width:0}
+.status .spacer{flex:1}
+.status .save{margin-left:18px;display:flex;align-items:center;gap:5px;color:var(--alt)}
+.status .save svg.i{color:var(--sage);width:12px;height:12px;vertical-align:0}
+.status .kbd{background:var(--cursor-side)}
+.status .tags{margin-right:16px}
+.status .srvb{margin-right:14px;display:flex;align-items:center;gap:5px;color:var(--fg)}
+.status .srvb svg.i{width:12px;height:12px;color:var(--steel-mark);vertical-align:0}
+
+/* ───── the float shell ───── */
+.float{position:absolute;left:12px;right:12px;bottom:10px;background:var(--raised);border:1px solid var(--hl);border-top:2px solid var(--coral);border-radius:var(--r-surface);box-shadow:var(--shadow);z-index:5;padding:12px 0 10px}
+.fh{display:flex;align-items:center;gap:10px;padding:0 24px 8px;min-height:28px}
+.fh .tt{display:flex;align-items:center;gap:8px;font:600 14px/20px "Etoile";color:var(--fg)}
+.fh .tt .id{font-size:12.5px;font-weight:400}
+.fh .sub{font:400 12px/16px "Etoile";color:var(--muted)}
+.fh .meta{margin-left:auto;font:400 12px/16px "Etoile";color:var(--muted)}
+.fb{padding:2px 0}
+.ff2{display:flex;align-items:center;gap:16px;margin:8px 24px 0;padding-top:9px;border-top:1px solid var(--hl);min-height:34px}
+.ff2 .fin{display:flex;align-items:center;gap:10px;flex:1;font:400 14px/20px "Iosevka";color:var(--fg)}
+.ff2 .bc{display:inline-block;width:8px;height:18px;background:var(--coral)}
+.ff2 .cnt{font:400 12px/16px "Etoile";color:var(--muted)}
+.ff2 .hints{margin-left:auto;display:flex;gap:16px}
+.ff2 .confirm{flex:1;font:400 13px/19px "Etoile";color:var(--fg)}
+.fkp{display:flex;align-items:center;gap:4px;font:400 12px/16px "Etoile";color:var(--muted)}
+.fkp>span:last-child{margin-left:3px}
+.float .kbd{background:var(--cursor-side)}
+.prow{position:relative;display:flex;align-items:center;gap:12px;height:30px;padding:0 24px;font:400 13px/18px "Etoile";color:var(--fg)}
+.prow svg.i{color:var(--muted)}
+.prow.sel{background:var(--cursor-side);box-shadow:inset 2px 0 0 var(--coral)}
+.prow .m{width:14px;display:flex;justify-content:center;color:var(--alt)}
+.prow .m svg.i{width:12px;height:12px;color:inherit}
+.prow .n{min-width:140px}
+.prow .w{font:400 12px/16px "Iosevka";color:var(--alt);width:160px}
+.prow .s{color:var(--muted);font-size:12px}
+.prow .s.mono{flex:1}
+.prow .x{margin-left:auto;font:400 12px/16px "Etoile";color:var(--muted)}
+.prow .x b{color:var(--fg);font-weight:600}
+.vtag,.ntag{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:var(--r-pill);font:600 11px/14px "Iosevka";letter-spacing:.08em;flex:none}
+.vtag{background:var(--coral);color:var(--read)}
+.vtag svg.i{width:9px;height:9px;color:var(--read);vertical-align:0}
+.ntag{box-shadow:inset 0 0 0 1px var(--strong);color:var(--fg)}
+.ntag svg.i{width:9px;height:9px;color:var(--alt);vertical-align:0}
+.ldr{display:flex;align-items:center;gap:6px}
+.ldr svg.i{width:12px;height:12px;color:var(--orange);vertical-align:0}
+.wkg{display:grid;grid-template-columns:repeat(4,200px);padding:4px 24px}
+.wkg.c{grid-template-columns:repeat(5,200px)}
+.wkg.two{grid-template-columns:repeat(2,max-content);column-gap:72px}
+.wk{display:flex;align-items:center;gap:10px;height:26px;font:400 13px/18px "Etoile";color:var(--alt)}
+.wk .k{width:14px;font:500 12.5px/18px "Iosevka";color:var(--orange);display:flex;justify-content:center}
+.wk .k svg.i{width:10px;height:10px;vertical-align:0}
+.wk .d{display:flex;align-items:center;gap:6px}
+.wk.grp .d{color:var(--fg);font-weight:600}
+.wk .d svg.i{width:10px;height:10px;color:var(--alt);vertical-align:0}
+.wk.dim,.wk.dim .k{color:var(--muted)}
+.wk .why{color:var(--muted);font-size:12px;font-weight:400}
+.wkr{height:1px;background:var(--hl);margin:6px 24px}
+.rbg{display:grid;grid-template-columns:72px 1fr;padding:0 24px 0 28px;align-content:start}
+.rbg.wide{grid-template-columns:190px 1fr;padding-left:24px}
+.rbg .rk{font:400 12px/30px "Etoile";color:var(--steel);height:30px}
+.rbg .rv{font:400 13px/30px "Etoile";color:var(--fg);white-space:nowrap;min-width:0}
+.rbg .rv.cut{overflow:hidden;text-overflow:ellipsis}
+.rbg .rv b{font-weight:600}
+.rbg .rv .id{font-size:12.5px}
+.rbg .cn{font:400 12px/16px "Iosevka";color:var(--alt)}
+.rb2{display:grid;grid-template-columns:300px 1fr;padding-top:2px}
+.rbl{border-right:1px solid var(--hl);padding-bottom:4px}
+.rbl .prow{gap:12px}
+.rbl .cn{font:400 12px/16px "Iosevka";color:var(--alt);width:10px}
+.rbl .prow.sel{font-weight:600}
+.rbhint{padding:8px 24px 0;display:flex;gap:4px;align-items:center;font:400 12px/16px "Etoile";color:var(--muted)}
+.rkh{margin-left:16px;display:inline-flex;align-items:center;gap:6px;font:400 12px/16px "Etoile";color:var(--muted)}
+.fgrid{display:grid;grid-template-columns:160px 1fr;padding:4px 24px 0;align-items:center}
+.fgrid .k{font:400 12px/30px "Etoile";color:var(--steel)}
+.fgrid .v{display:flex;align-items:center;gap:10px;min-height:30px;font:400 13px/18px "Etoile";color:var(--fg)}
+.fld{height:26px;display:flex;align-items:center;padding:0 9px;min-width:300px;background:var(--read);border:1px solid var(--hl);border-radius:var(--r-pill);font:400 13px/18px "Iosevka";color:var(--fg)}
+.fld.focus{border-color:var(--coral)}
+.fld .bar,.bar{display:inline-block;width:2px;height:17px;background:var(--coral);vertical-align:-3px;margin-left:1px}
+.chk{display:flex;flex-direction:column;margin:2px 0}
+.chk .ci{display:flex;align-items:center;gap:9px;height:26px;padding:0 10px;margin-left:-10px;min-width:420px}
+.chk .ci svg.i{color:var(--alt)}
+.chk .ci .n{font:400 13px/18px "Iosevka";width:90px}
+.chk .ci .s{font:400 12px/16px "Etoile";color:var(--muted)}
+.chk .ci.sel{background:var(--cursor-side);box-shadow:inset 2px 0 0 var(--coral)}
+
+/* ───── lists and Home ───── */
+.lcol{position:absolute;left:40px;top:28px;right:520px}
+.nopeek .lcol{right:40px}
+.ptitle{font:700 24px/30px "Etoile";color:var(--coral)}
+.h1{display:flex;align-items:center;gap:10px}
+.h1 .c{color:var(--alt);font-weight:400;font-size:18px}
+.h1 .ttag{height:18px}
+.since{margin-top:4px;color:var(--alt);display:flex;align-items:center;height:18px;font:400 12px/16px "Etoile";white-space:nowrap;overflow:hidden}
+.since>svg.i{width:13px;height:13px;color:var(--steel-mark);margin-right:7px;vertical-align:0}
+.lede{margin-top:6px;font:400 13px/19px "Etoile";color:var(--alt);max-width:640px}
+.hgrp{margin-top:26px}
+.gh{display:flex;align-items:center;gap:7px;height:24px;margin-bottom:4px;font:600 13px/18px "Etoile";color:var(--steel)}
+.gh .n{color:var(--alt)}
+.rows{margin:0 -12px}
+.rows.first{margin-top:18px}
+.rw{position:relative;padding:0 12px}
+.rw .l1{display:flex;align-items:center;gap:10px;height:26px}
+.rw.two{padding-bottom:4px;margin-bottom:4px}
+.rw.one .l1{height:28px}
+.rw .mk{width:14px;display:flex;justify-content:center;flex:none;color:var(--alt)}
+.rw .tx{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:400 13px/18px "Etoile";color:var(--fg)}
+.rw .mv{font:600 14px/20px "Etoile";color:var(--fg)}
+.rw .tg{flex:none;font:400 12.5px/18px "Iosevka";color:var(--orange)}
+.rw .tm{flex:none;margin-left:auto;font:400 12px/16px "Iosevka";color:var(--alt);padding-left:12px}
+.rw .l2{margin-left:24px;height:20px;display:flex;align-items:center;gap:0;font:400 12px/16px "Etoile";color:var(--alt);white-space:nowrap}
+.rw .l2 .dt{margin:0 6px}
+.rw .l2 .sj{font-family:"Iosevka"}
+.rw .kind{font:400 13px/18px "Iosevka";color:var(--orange);flex:none}
+.rw.new .tx{font-weight:600}
+.rw.sel{background:var(--cursor-read)}
+.focus-stage .rw.sel{box-shadow:inset 2px 0 0 var(--coral)}
+.focus-stage .rw.need.sel{box-shadow:none}
+.rw.need.head .l1{background:var(--coral);margin:0 -12px;padding:0 12px}
+.rw.need.head .l1 *{color:var(--read)!important}
+.rw.need.head .l1 .kbd{background:var(--knock)}
+.rw.need.head .l1 .sm{color:var(--read)}
+.more{display:flex;align-items:center;gap:6px;height:28px;padding-left:24px;font:400 12px/16px "Etoile";color:var(--muted)}
+.more svg.i{width:11px;height:11px;vertical-align:0}
+.rw.ev .tm{margin-left:0;padding-left:0;width:42px;color:var(--muted)}
+.rw.ev .pr{flex:none;font:400 12px/16px "Etoile";color:var(--sage);white-space:nowrap}
+.rw.ev .l1{gap:12px}
+.rw.line .tx.fl{display:flex;align-items:baseline;gap:10px}
+.rw.line .tx.fl .aft{font:400 12px/16px "Iosevka";color:var(--alt)}
+.rw.line .sl{flex:none;white-space:nowrap;overflow:hidden}
+.rw.line .sl.pr{width:96px;font:400 12px/16px "Etoile";color:var(--sage);padding-left:12px;box-sizing:content-box}
+.rw.line .sl.tg{width:26px;font:400 12px/16px "Iosevka";color:var(--orange)}
+.rw.line .sl.ch{width:26px;font:400 12px/16px "Iosevka";color:var(--muted)}
+.rw.line .sl.rs{width:124px;font:400 12px/16px "Etoile";color:var(--alt)}
+.rw.line .sl.tm{width:84px;margin-left:0;padding-left:0;text-align:right;color:var(--muted)}
+.tight .rw.line .sl.tm,.tight .rw.line .sl.ch{display:none}
+.empty{margin-top:14px;font:400 13px/19px "Etoile";color:var(--alt);display:flex;align-items:center;gap:8px}
+.lrow{position:relative;display:flex;align-items:center;gap:10px;height:28px;padding:0 12px;font:400 13px/18px "Etoile";color:var(--fg);white-space:nowrap}
+.lrow .mk{width:14px;display:flex;justify-content:center;flex:none}
+.lrow .tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.lrow .ext{flex:none;width:24px;font:400 12px/16px "Iosevka";color:var(--muted)}
+.lrow .md2{flex:none;width:150px;font:400 12px/16px "Etoile";color:var(--alt);overflow:hidden;text-overflow:ellipsis}
+.lrow .idc{flex:none;width:30px;text-align:right;font:400 12px/16px "Iosevka";color:var(--orange)}
+.lrow .pr{flex:none;font:400 12px/16px "Etoile";color:var(--sage)}
+.lrow .tm{flex:none;font:400 12px/16px "Iosevka";color:var(--muted)}
+.lrow.sel{background:var(--cursor-read)}
+.focus-stage .lrow.sel{box-shadow:inset 2px 0 0 var(--coral)}
+.lrow .kind{flex:none;font:400 13px/18px "Iosevka";color:var(--orange)}
+.lrow .er{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--alt)}
+.lrow .ds{flex:none;font:400 12px/16px "Iosevka";color:var(--alt)}
+.lrow .id{flex:none}
+.lrow.new .tx{font-weight:600}
+.lgh{display:flex;align-items:center;gap:8px;height:30px;margin-top:10px;font:600 13px/18px "Etoile";color:var(--sage)}
+.lgh .s{font-weight:400;color:var(--muted);font-size:12px}
+
+/* the peek: about 440 px, one hairline at its left */
+.peek{position:absolute;right:0;top:0;bottom:0;width:440px;border-left:1px solid var(--hl);padding:28px 28px 0 28px;overflow:hidden}
+.peek .pt{display:flex;align-items:baseline;gap:8px;font:600 14px/20px "Etoile";color:var(--fg)}
+.peek .pt .id{font-size:12.5px;font-weight:400}
+.peek .pf{margin-top:4px;font:400 12px/17px "Etoile";color:var(--alt)}
+.peek .pf .sj{font-family:"Iosevka"}
+.peek .pc{margin-top:10px;font:400 12px/17px "Etoile";color:var(--alt)}
+.peek .pc b{font-weight:400;color:var(--fg)}
+.peek .ph{margin-top:20px;font:400 12px/16px "Etoile";color:var(--steel);display:flex}
+.peek .ph .rr{margin-left:auto;color:var(--muted)}
+.peek .sub2{margin-top:18px;padding-top:14px;border-top:1px solid var(--hl)}
+.peek .tool{margin-top:10px}
+.peek .tout{margin-top:2px}
+.cbar{margin-top:8px;padding-left:12px;border-left:2px solid var(--strong);font:400 13px/19px "Etoile";color:var(--fg);overflow:hidden}
+.peek .cbar h1,.cbar.md h1{font:700 14px/20px "Etoile";color:var(--rose);margin:0 0 6px;padding-bottom:4px;border-bottom:1px solid var(--strong)}
+.peek .cbar h2,.cbar.md h2{font:600 13px/19px "Etoile";color:var(--orange);margin:12px 0 4px}
+.peek .cbar h3,.peek .cbar h4{font:600 13px/19px "Etoile";color:var(--fg);margin:10px 0 3px}
+.peek .cbar p{margin:0 0 8px}
+.peek .cbar ul,.peek .cbar ol{margin:0 0 8px;padding-left:18px}
+.cbar li::marker{color:var(--muted)}
+.peek .cbar code{font:400 12px/1 "Iosevka";color:var(--gold);background:var(--code);padding:1px 4px;border-radius:var(--r-pill)}
+.peek .cbar pre{font:400 12px/18px "Iosevka";background:var(--code);box-shadow:inset 2px 0 0 var(--gold);padding:5px 10px;margin:0 0 8px;white-space:pre;overflow:hidden}
+.cbar pre code{background:none;padding:0;color:var(--fg)}
+.peek .cbar table{border-collapse:collapse;font:400 12px/17px "Etoile";margin:0 0 8px}
+.cbar td,.cbar th{border-top:1px solid var(--hair);padding:3px 14px 3px 0;text-align:left;vertical-align:top}
+.cbar th{font-weight:600;color:var(--alt);border-top:none}
+.cut{margin-top:6px;display:flex;align-items:center;gap:6px;font:400 12px/16px "Etoile";color:var(--muted)}
+.cut svg.i{width:12px;height:12px;vertical-align:0}
+.kvp{display:grid;grid-template-columns:110px 1fr;gap:4px 12px;margin-top:10px;font:400 12.5px/18px "Etoile";color:var(--fg)}
+.kvp .k{font-size:12px;color:var(--muted)}
+.kvp .err{font:400 12px/17px "Iosevka"}
+
+/* ───── work views ───── */
+.tblock{padding-top:28px}
+.tblock .ptitle{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tblock .ptitle .tl{font:inherit;color:inherit}
+.tblock .ff{margin-top:4px;display:flex;align-items:center;font:400 12px/16px "Etoile";color:var(--alt);white-space:nowrap}
+.tblock .ff svg.i{width:11px;height:11px;margin-right:4px;vertical-align:0}
+.tblock .ff .sm{margin-right:2px;width:12px}
+.tblock .ff .id{font-size:12px}
+.tblock .det{margin-left:auto;display:flex;align-items:center;gap:4px;color:var(--muted)}
+.tblock .det svg.i{width:12px;height:12px;margin:0}
+.dpanel{position:absolute;right:0;top:0;bottom:0;width:240px;border-left:1px solid var(--hl);padding:28px 24px;font:400 12px/18px "Etoile";color:var(--alt)}
+.dpanel .lg+.lg{margin-top:20px}
+.dpanel .lh{font:600 13px/18px "Etoile";color:var(--steel);height:24px}
+.dpanel .li{display:flex;gap:8px;min-height:20px}
+.dpanel .li .k{width:72px;flex:none;color:var(--muted)}
+.dpanel .li .v{color:var(--fg);min-width:0}
+.dpanel .note2{margin-top:4px;color:var(--muted)}
+.dpanel .lk{display:flex;align-items:center;gap:8px;min-height:22px;color:var(--fg)}
+.dpanel .lk .tm{font:400 12px/16px "Iosevka";color:var(--muted);flex:none;width:36px}
+.dpanel .lk .x{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* conversation */
+.ccol{position:absolute;top:0;bottom:0;left:var(--cx);width:var(--cw)}
+.tscroll{position:absolute;left:0;right:0;overflow:hidden}
+.tin{position:absolute;left:0;right:0}
+.ccol .doc{position:relative}
+.md{font:400 14px/21px "Etoile";color:var(--fg)}
+.md>div{position:relative}
+.md h1{font:700 20px/28px "Etoile";color:var(--rose);margin:0 0 12px;padding-bottom:6px;border-bottom:1px solid var(--strong)}
+.md h2{font:600 17px/24px "Etoile";color:var(--orange);margin:26px 0 8px}
+.md h3{font:600 15px/22px "Etoile";color:var(--fg);margin:24px 0 6px}
+.md p{margin:0 0 12px}
+.md ul,.md ol{margin:0 0 12px;padding-left:24px}
+.md li{margin-bottom:4px;padding-left:2px}
+.md ul li::marker{color:var(--muted)}
+.md ol li::marker{color:var(--alt);font:400 13px "Iosevka"}
+.md strong{font-weight:700;color:var(--steel)}
+.md a{color:var(--link)}
+.md code{font:400 13px/1 "Iosevka";color:var(--gold);background:var(--code);padding:1px 4.5px;margin:0 1px;border-radius:var(--r-pill);white-space:nowrap}
+.md pre{position:relative;font:400 13px/20px "Iosevka";color:var(--fg);background:var(--code);box-shadow:inset 2px 0 0 var(--gold);padding:20px 14px 7px;margin:0 0 12px;white-space:pre;overflow:hidden;border-radius:0 var(--r-pill) var(--r-pill) 0}
+.md pre code{all:unset;font:inherit;color:inherit}
+.md pre .lang{position:absolute;right:10px;top:3px;font:400 12px/16px "Etoile";color:var(--gold);z-index:1}
+.md pre[data-wide] .lang{right:40px}
+.md pre[data-wide]::after{content:"›";position:absolute;right:0;top:0;bottom:0;width:32px;background:linear-gradient(90deg,transparent,var(--code) 70%);border-right:2px solid var(--muted);color:var(--muted);display:flex;align-items:center;justify-content:flex-end;padding-right:4px;font:400 16px/1 "Iosevka"}
+.md table{border-collapse:collapse;font:400 13px/19px "Etoile";margin:0 0 12px}
+.md td,.md th{border-bottom:1px solid var(--hair);padding:6px 24px 6px 0;text-align:left;vertical-align:top}
+.md th{font-weight:600;color:var(--alt);border-bottom-color:var(--strong)}
+.md p.raw{white-space:pre-wrap}
+.msg{margin-bottom:18px}
+.mh{display:flex;align-items:center;gap:8px;margin-bottom:5px;font:400 12px/16px "Etoile";color:var(--alt)}
+.mh .tm{font:400 12px/16px "Iosevka";color:var(--muted)}
+.mh .nm.in{color:var(--steel);font-weight:600}
+.mh .kd{font:400 12px/16px "Iosevka";color:var(--orange)}
+.mh svg.i{width:13px;height:13px;color:var(--alt);vertical-align:0}
+.mb>:last-child{margin-bottom:0}
+.msg.input{background:var(--human);border:1px solid var(--hl);border-radius:var(--r-surface);padding:10px 16px 12px}
+.sysl{margin:0 0 18px;font:400 12px/16px "Etoile";color:var(--muted)}
+.writing{color:var(--muted)}
+.tool{display:flex;align-items:center;gap:10px;height:30px;margin:0 0 4px;padding:0 10px;border-radius:var(--r-pill);font:400 13px/18px "Iosevka";white-space:nowrap}
+.tool .ic{width:14px;display:flex;justify-content:center;flex:none}
+.tool .ic svg.i{width:13px;height:13px;vertical-align:0}
+.tool .tn{color:var(--fg);flex:none}
+.tool .tn.et{font-family:"Etoile"}
+.tool .ta{flex:1;min-width:0;color:var(--alt);overflow:hidden;text-overflow:ellipsis}
+.tool .oc{flex:none;font:400 12px/16px "Etoile";color:var(--alt);display:flex;gap:8px;align-items:baseline}
+.tool.ok .oc .w{color:var(--olive-t)}
+.tool.fail{background:var(--row-fail)}
+.tool.fail .oc .w{color:var(--rose);font-weight:700}
+.tool.unk .oc .w{color:var(--fg);font-weight:700}
+.tool .oc .du{font:400 12px/16px "Iosevka";color:var(--muted);width:44px;text-align:right}
+.tool .cv{color:var(--muted);display:flex}
+.tool .cv svg.i{width:12px;height:12px;vertical-align:0}
+.tout{margin:-2px 0 14px;padding:9px 14px 10px;background:var(--sunken);border:1px solid var(--hl);border-radius:var(--r-surface);font:400 12px/18px "Iosevka";color:var(--alt);white-space:pre;overflow:hidden}
+.rfail{margin:4px 0 22px}
+.rfh{display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;background:var(--row-fail);border-radius:var(--r-pill);font:600 13px/18px "Etoile";color:var(--fg)}
+.rfh .w{font-weight:400;color:var(--alt)}
+.rfail .f2,.rfail .f3{padding-left:10px}
+.rfail .f2{margin-top:3px;font:400 12px/17px "Iosevka";color:var(--alt)}
+.rfail .f3{margin-top:8px;display:flex;align-items:center;gap:6px;font:400 12px/16px "Etoile";color:var(--alt)}
+.cstack{position:absolute;left:0;right:0;bottom:16px}
+.qrow,.prow2{margin-bottom:10px}
+.qrow .qm,.prow2 .qm{display:flex;align-items:center;gap:5px;font:400 12px/16px "Etoile";color:var(--steel);margin-bottom:4px}
+.prow2 .qm{color:var(--fg)}
+.prow2 .qm .w{color:var(--alt)}
+.qrow .qt,.prow2 .qt{padding-left:12px;border-left:2px solid var(--strong);font:400 13px/19px "Etoile";color:var(--fg);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.qt code{font:400 12px/1 "Iosevka";color:var(--gold);background:var(--code);padding:1px 4px;border-radius:var(--r-pill)}
+.qnote{margin:0 0 14px 14px;font:400 12px/16px "Etoile";color:var(--muted)}
+.comp{padding:11px 14px 10px;position:relative}
+.comp .cap{font:400 12px/16px "Etoile";color:var(--steel)}
+.comp .cap b{font-weight:600}
+.comp .cb{margin-top:6px;min-height:24px;font:400 14px/21px "Etoile";color:var(--fg)}
+.comp .ph{color:var(--muted)}
+.comp .ft{display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:6px;font:400 12px/16px "Etoile";color:var(--muted)}
+.comp .ft .gap{width:10px}
+.comp.ins{border-color:var(--coral)}
+
+/* start page */
+.start{position:absolute;left:calc(50% - var(--cw) / 2);top:calc(32.5% - 80px);width:var(--cw)}
+.start .wordmark,.connect .wordmark{display:block;height:44px;margin:0 auto 36px}
+.start .comp{min-height:112px;display:flex;flex-direction:column}
+.start .comp .cb{flex:1}
+.startline{margin-top:12px;padding:0 4px;display:flex;align-items:center;gap:8px;font:400 12px/16px "Etoile";color:var(--alt)}
+.startline svg.i{width:13px;height:13px;color:var(--muted);vertical-align:0}
+.startline .wf{font:400 12px/16px "Iosevka";color:var(--fg)}
+
+/* decision */
+.wpage{position:absolute;left:0;right:0;top:0}
+.wpage>.doc{position:absolute;left:var(--dx);width:600px;top:0;isolation:isolate}
+.dmarg{position:absolute;left:calc(var(--dx) + 648px);width:320px;top:0}
+.mtop{padding-top:34px}
+.mhd{display:flex;align-items:center;font:400 12px/16px "Etoile";color:var(--muted)}
+.mhd b{font-weight:600;color:var(--alt)}
+.mhd svg.i{width:12px;height:12px;color:var(--sage);margin-right:7px;vertical-align:0}
+.mhd .dt{margin:0 6px}
+.mwhole{margin-top:14px}
+.mwhole .nl{font:400 12px/16px "Etoile";color:var(--muted)}
+.mwhole .nb{margin-top:4px;font:400 13px/19px "Etoile";color:var(--fg)}
+.earl{margin-top:14px;display:flex;align-items:center;gap:6px;font:400 12px/16px "Etoile";color:var(--alt)}
+.earl svg.i{width:12px;height:12px;color:var(--muted);vertical-align:0}
+.earl .dt{margin:0 6px}
+.note{position:absolute;left:0;right:0}
+.note .nh{display:flex;align-items:center;gap:7px;font:400 12px/16px "Etoile";color:var(--muted)}
+.note .nh svg.i{width:12px;height:12px;color:var(--sage);vertical-align:0}
+.note .nb{margin-top:3px;font:400 13px/19px "Etoile";color:var(--fg)}
+.note.act{padding:10px 14px 10px;margin:0 -15px;border-color:var(--coral)}
+.note .ft{margin-top:8px;display:flex;justify-content:flex-end;gap:6px;align-items:center;font:400 12px/16px "Etoile";color:var(--muted)}
+.note.inline{position:relative;margin:4px 0 14px}
+.note.inline.act{margin:4px 0 14px}
+.rng{background:var(--note-range);border-radius:2px;box-shadow:0 0 0 1px var(--note-range)}
+.rng.on{background:var(--note-active);box-shadow:0 0 0 1px var(--note-active)}
+.caret{background:var(--coral);color:var(--read)}
+.cgh{margin-top:26px;display:flex;align-items:center;gap:8px;height:24px;font:600 13px/18px "Etoile";color:var(--steel)}
+.choices{margin:4px 0 0 -40px}
+.cho{position:relative;display:flex;align-items:center;height:28px;padding-left:40px;font:400 13px/18px "Etoile";color:var(--fg)}
+.cho .cn{position:absolute;left:14px;font:400 12px/16px "Iosevka";color:var(--alt)}
+.cho .cm{position:absolute;left:-2px;width:14px;display:flex;justify-content:center;color:var(--olive)}
+.cho .cm svg.i{width:12px;height:12px}
+.cho .cb{margin-left:auto;font:400 12px/16px "Etoile";color:var(--alt)}
+.cho.sel{background:var(--cursor-read)}
+.focus-stage .cho.sel{box-shadow:inset 2px 0 0 var(--coral)}
+.faultblk{margin:0 0 24px}
+.faultblk .f2{padding-left:10px;margin-top:6px;font:400 12px/17px "Iosevka";color:var(--alt);word-break:break-word}
+.fnote{margin-top:8px;font:400 13px/19px "Etoile";color:var(--alt)}
+/* project view fields */
+.fsec{margin-top:4px}
+.frow{position:relative;display:flex;align-items:center;gap:14px;min-height:30px;padding:0 12px 0 40px;margin-left:-40px;font:400 13px/18px "Etoile";color:var(--fg)}
+.frow .fk{width:120px;flex:none;font:400 13px/18px "Iosevka"}
+.frow .fv{flex:1;display:flex;align-items:center;gap:8px;min-width:0}
+.frow .fv .m{font-family:"Iosevka"}
+.frow .fv .nm{color:var(--alt);font-size:12px}
+.frow .fs{flex:none;font:400 12px/16px "Etoile";color:var(--alt)}
+.frow .ed{position:absolute;left:14px;top:7px;color:var(--sage)}
+.frow .ed svg.i{width:12px;height:12px}
+.frow.sel{background:var(--cursor-read)}
+.focus-stage .frow.sel{box-shadow:inset 2px 0 0 var(--coral)}
+.frow.two{flex-wrap:wrap;padding-top:6px;padding-bottom:7px;row-gap:1px}
+.frow .ferr{flex-basis:100%;padding-left:134px;font:400 12px/16px "Etoile";color:var(--rose)}
+.rosew{color:var(--rose)}
+
+/* connect */
+.connect{position:absolute;left:50%;top:96px;width:600px;margin-left:-300px}
+.connect .wordmark{margin:0 0 32px}
+.connect .cf{margin-top:24px;display:grid;grid-template-columns:120px 1fr;row-gap:10px;align-items:center}
+.connect .cf .k{font:400 12px/16px "Etoile";color:var(--steel)}
+.connect .fld{min-width:0;height:30px;font-size:14px}
+.connect p{margin-top:22px;font:400 14px/21px "Etoile";color:var(--alt)}
+.connect p code{font:400 13px/1 "Iosevka";color:var(--gold);background:var(--code);padding:1px 4.5px;border-radius:var(--r-pill)}
+.connect .go{margin-top:22px;display:flex}
+.connect .cwarn{display:flex;gap:8px;align-items:flex-start;font:400 13px/19px "Etoile";color:var(--fg)}
+.connect .cwarn svg.i{color:var(--alt);margin-top:2px}
+
+/* narrow: lists go one column; the decision margin folds its notes inline */
+.narrow .dmarg{display:none}
+.narrow .lcol{left:20px;right:20px}
+.peek .cbar.md{font:400 13px/19px "Etoile"}
+
+/* ───── phase 2 (the package's calm text) ───── */
+.ccol .prose{max-width:600px}
+.ccol .tout{margin:0 0 8px}
+.tool.cur{background:var(--cursor-read)}
+.tool.fail.cur{background:var(--row-fail)}
+.tool.cur.keys,.msg>.mh.cur.keys{box-shadow:inset 2px 0 0 var(--coral)}
+.msg>.mh.cur{background:var(--cursor-read);margin:0 -10px 5px;padding:4px 10px}
+.mh .mdl{color:var(--alt)}
+.sm.ok{color:var(--olive)}
+.sm.ok svg.i,.sm.unk svg.i{width:12px!important;height:12px!important}
+.tag svg.i{width:10px;height:10px}
+.side .row .id.pre{flex:none;font-size:12px;margin-right:-2px}
+.side .row.it .lb{flex:1}
+.side .lb.pjl{color:inherit}
+.side.focused .row.scur{background:var(--cursor-side);box-shadow:inset 2px 0 0 var(--coral);color:var(--fg)}
+.wpage .tblock{margin-bottom:24px}
+.tblock .ff{gap:0}
+.cgh.first{margin-top:0}
+.frow .fw{flex:1}
+.lrow .knd{flex:none;font:400 12px/16px "Iosevka";color:var(--muted)}
+.rbg.kv96{grid-template-columns:96px 1fr;padding-left:24px}
+.qw{margin:4px 0 0 14px;font:400 12px/16px "Etoile";color:var(--alt)}
+.startnote{margin-top:10px;padding:0 4px;display:flex;align-items:center;gap:6px;font:400 12px/16px "Etoile";color:var(--fg)}
+.fgc{color:var(--fg)}
+.go{gap:20px}
+.cho .cm{color:var(--fg);font-size:11px}
+.tblock .ff .sm{width:12px;margin-right:4px}
+.dpanel .li .v .mono{font-size:12px}
+
+.insert .side .kbd,.insert .sin .kbd:not(.connect .kbd){color:var(--muted)!important}
+.rw.line .sl.mdl{width:132px;font:400 12px/16px "Etoile";color:var(--alt)}
+.side .row.it .lb{flex:0 1 auto}
+.side .row.it .rt{margin-left:auto}
+.tag svg.i{width:8px;height:8px}
+.tag.t-needs svg.i{width:10px;height:10px}
+.tag.t-unk svg.i{width:10px;height:10px}
+/* Home's fixed slots, 12 px apart (spec §5.3) */
+.rw.line .l1{gap:12px}
+.rw.line .sl.pr{width:96px;padding-left:0}
+.rw.line .sl.ch{width:30px}
+.rw.line .sl.rs,.rw.line .sl.mdl{width:132px}
+.rw.line .sl.tm{width:84px}
+.lcol{right:480px}
+.tblock .ff .fx{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.tblock .ff .fx .sm{display:inline-flex;vertical-align:-3px}
+.tblock .ff .fx .dt{margin:0 6px}
+.tblock .ff .fx .sm{vertical-align:-2px}
+
+/* ───── challenge part A: the transcript's cursor inside the column (TC-06) ───── */
+.ccol .doc{position:relative;isolation:isolate}
+.ccol .msg:not(.input)>.mh{padding:4px 12px;margin:0 0 1px}
+.ccol .msg:not(.input)>.mb>.prose,.ccol .msg:not(.input)>.mb.prose{padding-left:12px;max-width:612px}
+.ccol .sysl{padding-left:12px}
+.ccol .tool{padding:0 12px}
+.ccol .rfh{padding:0 12px}
+.ccol .rfail .f2,.ccol .rfail .f3{padding-left:12px}
+.msg>.mh.cur,.msg.rec.cur>.mh{margin:0 0 1px;padding:4px 12px;background:var(--cursor-read);box-shadow:none}
+.msg>.mh.cur.keys{box-shadow:inset 2px 0 0 var(--coral)}
+.tool.cur.nokeys,.msg>.mh.cur.nokeys{box-shadow:none}
+.curline{position:absolute;left:0;right:0;background:var(--cursor-read);z-index:-1}
+.curline.keys{box-shadow:inset 2px 0 0 var(--coral)}
+
+/* ───── calm challenge, part B (the settled text) ───── */
+/* content headings and bold use their content tokens */
+.md h1,.peek .cbar h1,.cbar.md h1{color:var(--h1)}
+.md h2,.peek .cbar h2,.cbar.md h2,.dcol .md h2{color:var(--h2)}
+.md strong{color:var(--strongc)}
+/* the sidebar's current row: surface.current (Light reaches Ember's step, TC-27) */
+.row.sel,.side.focused .row.scur{background:var(--current)}
+/* marks of a local draft are state.local */
+.mhd svg.i,.note .nh svg.i,.frow .ed{color:var(--sage-mark)}
+/* hints: lit while their key acts for the region that has the keys, else fg.muted (spec §4.6) */
+.hint{color:var(--muted)}
+.hint.on{color:var(--alt)}
+.starting{color:var(--alt)}
+/* the text field (tau.layout.text_field) */
+.fld{height:var(--tf-h);padding:0 var(--tf-px);background:var(--sunken);border:1px solid var(--hl);border-radius:var(--r-pill)}
+.fld.focus{border-color:var(--coral)}
+/* badges: every float names its own mode; Confirm and the reply wear the plain READBACK badge */
+.mode.m-readback-plain,.mode.m-outbox,.mode.m-server,.mode.m-peek{box-shadow:inset 2px 0 0 var(--coral)}
+/* with the sidebar holding the keys, the header's segments are muted and the Answer is its outline */
+.focus-sidebar .shead .seg,.focus-sidebar .shead .kbd{color:var(--muted)!important}
+.focus-sidebar .shead .seg.prim{background:none;box-shadow:inset 0 0 0 1px var(--hl);font-weight:400}
+.focus-sidebar .shead .seg.prim svg.i{color:var(--muted)!important}
+.focus-sidebar .shead .seg.prim .kbd{background:var(--bar)}
+/* write segments while the stream is down */
+.seg.off{border-style:dashed}
+/* a faulted task's label: the kind is cut first, after <decision ID> whole or not at all (TC-15) */
+.rw.line .tx.fl{display:flex;align-items:baseline;min-width:0}
+.rw.line .tx.fl .kind{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rw.line .tx.fl .aft{flex:none}
+.since .sp{white-space:nowrap}
+/* no line inside the peek (TC-26) */
+.peek .sub2{border-top:none;padding-top:0;margin-top:22px}
+/* 3 to set in rose (TC-26) */
+.frow .fs.rosew{color:var(--rose)}
+/* the details panel: each label over its value (TC-26) */
+.dpanel .li{display:block;margin-bottom:8px}
+.dpanel .li .k{display:block;width:auto;color:var(--steel)}
+.dpanel .li .v{display:block}
+.dpanel .nobr{white-space:nowrap}
+/* folded margin under the facts line (TC-12) */
+.mfold{margin:0 0 24px}
+.mfold .mtop{padding-top:0}
+/* the Confirm float's sentence, and visible escapes */
+.cfm{padding:4px 24px 8px;font:400 13px/19px "Etoile";color:var(--fg)}
+.uesc{font:400 12px/16px "Iosevka";color:var(--fg);background:var(--bar);border-radius:var(--r-pill);padding:0 3px;margin:0 1px}
+/* the peek column empty while nothing has arrived */
+.peek:empty{padding:0}

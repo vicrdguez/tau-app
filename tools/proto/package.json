@@ -1,0 +1,16 @@
+{
+  "name": "tau-desktop-proto",
+  "private": true,
+  "type": "module",
+  "description": "HTML prototype of the tau desktop design: renders every state of states.md headlessly and runs the check families",
+  "scripts": {
+    "build": "node build.mjs",
+    "wire": "node build.mjs --wire",
+    "mutants": "node mutants.mjs"
+  },
+  "devDependencies": {
+    "@carbon/icons": "11.90.0",
+    "marked": "16.4.2",
+    "puppeteer-core": "25.16.0"
+  }
+}

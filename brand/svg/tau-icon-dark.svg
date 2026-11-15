@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <title>tau</title>
+  <rect width="1024" height="1024" rx="230.4" fill="#252422"/>
+  <rect x="6" y="6" width="1012" height="1012" rx="224.4" fill="none" stroke="#3e3c38" stroke-width="12"/>
+  <path fill="#d8d0c0" d="M212.48 431.36A184.32 184.32 0 0 1 396.8 247.04H811.52V339.2H569.6V592.64A92.16 92.16 0 0 0 661.76 684.8H811.52V776.96H661.76A184.32 184.32 0 0 1 477.44 592.64V339.2H396.8A92.16 92.16 0 0 0 304.64 431.36Z"/>
+</svg>

@@ -1,0 +1,1029 @@
+# tau desktop keymap: the one declarative table for the rune client and a future TUI.
+# Semantics: reference/grammar.md. Lint rules: reference/grammar.md §12. Calls named in `wire`: client.md §4.
+# Tiers: local (no server effect) · write (a call that changes server state) · decide (an answer: readback + y).
+# Key syntax: <leader> <C-x> <M-x> <S-x> <D-x> (D = Cmd, GUI only) <CR> <Esc> <Tab> <BS>, printable keys otherwise.
+# A <D-x> binding is an alias: its command always has a terminal-representable binding too (KL9).
+# The placeholder <label> (hint label) appears only in kind = "modal" entries.
+# Modes: n Normal · v Visual · i Insert · c picker/command line · h hint · rb readback, send-again, reply and confirm floats · ho the peek float · ob the outbox float · sv the Server float.
+# A float that takes the keys is a root context: nothing of global acts under it, only its own keys (reference/grammar.md §3).
+# Focus: the stage, the sidebar (context sidebar) or the top float holds the keys; only that region draws a coral cursor (reference/grammar.md §3).
+# Extra rule KL4g (tools/keymap_answer_rule.py): a command whose wire includes "answer" is tier decide under <leader>a.
+
+[meta]
+schema = 1
+leader = "<Space>"
+whichkey_delay_ms = 300
+hint_alphabet = "asdfghjkl"
+jumplist_size = 100
+
+[contexts]                         # child = parent; "" = root
+global = ""
+list = "global"                    # Home, Conversations, Timeline, Faults, Projects
+sidebar = "list"                   # the sidebar while it has the keys: places, open items, Server
+reader = "global"
+conversation = "reader"
+decision = "reader"
+project = "reader"                 # the Project view's option fields
+editor = "global"                  # editable text; never authority
+composer = "editor"                # a conversation's input
+note = "editor"                    # a decision note (range or whole)
+field = "editor"                   # an option value in the Project view
+connect = "editor"                 # the Connect screen's fields
+start = "editor"                   # the start page's composer
+hint = "global"
+# Floats that take the keys: each a root of its own, so nothing of global passes (no leader, no :, no ⌘K under them).
+picker = ""                        # palette, find, project, workflow (with the models), model, thinking, filter, the bind and add-extension checklists
+bind = ""                          # the bind float's two text fields
+readback = ""                      # the answer readback and send-again
+reply = ""                         # the not-recorded reply an answer readback turns into
+confirm = ""                       # the y/n float before bind, addExtensions and pairing over plain HTTP
+outbox = ""                        # the outbox float
+server = ""                        # the Server float
+peek = ""                          # the K float over a list or an open item
+
+[groups]                           # which-key labels (KL8)
+"<leader>" = "leader"
+"<leader>a" = "◇ answer"
+"<leader>c" = "conversation"
+"<leader>h" = "help"
+"<leader>m" = "this view"
+"<leader>o" = "open"
+"<leader>p" = "project"
+"<leader>r" = "recover"
+"<leader>t" = "toggle"
+"g" = "goto"
+"z" = "view"
+"d" = "draft"
+"]" = "next"
+"[" = "prev"
+
+# Reserved builtin sets: local tier by definition, countable, used by KL2 for prefix checks.
+[builtin]
+reader_motions = ["j", "k", "h", "l", "w", "b", "e", "0", "$", "gg", "G", "{", "}", "(", ")", "H", "M", "L",
+                  "<C-d>", "<C-u>", "<C-f>", "<C-b>", "<C-e>", "<C-y>", "zz", "zt", "zb", "zl", "zh", "n", "N", "*", "#", "/", "?",
+                  "v", "V"]                # v V enter Visual in a reader (grammar §2)
+list_motions = ["j", "k", "gg", "G", "<C-d>", "<C-u>", "n", "N", "/", "?"]
+editor_normal = ["h", "j", "k", "l", "w", "b", "e", "W", "B", "E", "0", "^", "$", "gg", "G", "f", "t", "F", "T", ";", ",",
+                 "d", "c", "y", "dd", "yy", "cc", "D", "C", "x", "p", "P", "J", "u", "<C-r>", ".", "v", "V",
+                 "i", "a", "I", "A", "o", "O", "r", "n", "N", "/", "?", "%"]
+editor_textobjects = ["iw", "aw", "ip", "ap", "is", "as", "i\"", "a\"", "i(", "a(", "i[", "a[", "i{", "a{", "iq", "aq", "ib", "ab"]
+editor_insert = ["<Esc>", "jk", "<C-w>", "<C-u>", "<C-CR>", "<S-Tab>", "<C-t>", "<C-d>", "<C-j>", "<C-k>", "<C-f>", "<C-n>", "<C-p>", "<Tab>", "<BS>"]
+start_insert = ["<M-p>", "<M-w>"]  # the start editor's own Insert keys: start.project and start.workflow (bound in Normal below). No other editor has them (grammar §10).
+visual = ["<Esc>"]                 # leaves Visual, in readers and editors
+hint = ["<Esc>", "a", "s", "d", "f", "g", "h", "j", "k", "l"]
+pending = ["<Esc>"]                # Esc cancels a pending prefix (the which-key head prints it as a chip)
+timeout_ok = ["jk"]                # KL2's single exception: the Insert escape
+
+# ───────────────────────────── global: the sidebar, finders, palette ─────────────────────────────
+
+[[command]]
+id = "sidebar.focus"
+ex = "sidebar-focus"
+desc = "focus the sidebar"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+note = "Window left. A sidebar that is not drawn (hidden by choice, or under a 1000 px window) is drawn over the stage while it, or a float opened from it, has the keys; nothing reflows. In the sidebar: j k move, Enter or l opens the row in the stage and gives the stage the keys, x closes an open item, C-l, Esc or q go back."
+keys = [{ mode = "n", ctx = "global", seq = "<C-h>", tui_alt = "<C-w>h" }]
+
+[[command]]
+id = "sidebar.leave"
+ex = "stage-focus"
+desc = "back to the stage"
+tier = "local"
+kind = "command"
+ctx = ["sidebar"]
+note = "Window right. Esc and q do the same in the sidebar (float.close)."
+keys = [{ mode = "n", ctx = "sidebar", seq = "<C-l>" }]
+
+[[command]]
+id = "item.next"
+ex = "bnext"
+desc = "next / prev open item"
+tier = "local"
+kind = "motion"
+object = "b"
+jump = true
+countable = true
+ctx = ["global"]
+note = "Cycles the sidebar's open items top to bottom, wrapping, from the item shown last when the stage shows a place; the places are not in the cycle."
+keys = [{ mode = "n", ctx = "global", seq = "]b" }, { mode = "n", ctx = "global", seq = "[b" }]
+
+[[command]]
+id = "find.object"
+ex = "find"
+desc = "find anything"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+note = "Projects, conversations by label, open decisions by title, events by text. Prefixes p: c: d: e: narrow the kind."
+keys = [{ mode = "n", ctx = "global", seq = "<leader>." }]
+
+[[command]]
+id = "palette"
+ex = "commands"
+desc = "commands"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+keys = [{ mode = "n", ctx = "global", seq = "<leader>;" },
+        { mode = "n", ctx = "global", seq = "<D-k>" }]
+
+[[command]]
+id = "cmdline.open"
+ex = "cmdline"
+desc = "command line"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+keys = [{ mode = "n", ctx = "global", seq = ":" }, { mode = "v", ctx = "global", seq = ":" }]
+
+[[command]]
+id = "yank.clipboard"
+ex = "yank-clip"
+desc = "yank to clipboard"
+tier = "local"
+kind = "operator"
+ctx = ["reader", "editor"]
+keys = [{ mode = "n", ctx = "global", seq = "<leader>y" }, { mode = "v", ctx = "global", seq = "<leader>y" }]
+
+[[command]]
+id = "open.messages"
+ex = "messages"
+desc = "message history"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+keys = []
+
+[[command]]
+id = "open.jumps"
+ex = "jumps"
+desc = "jumplist"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+keys = []
+
+[[command]]
+id = "view.close"
+ex = "q"
+desc = "close item (drafts stay)"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+note = ":q closes the open item the stage shows; x in the sidebar closes the one under the cursor. Drafts are device-local and survive closing, so it never asks. A place can't be closed."
+keys = [{ mode = "n", ctx = "sidebar", seq = "x", shadows = "parent" }]
+
+[[command]]
+id = "app.quit"
+ex = "qa"
+desc = "quit (drafts stay)"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+keys = []
+
+[[command]]
+id = "server.forget"
+ex = "forget-server"
+desc = "forget this server"
+tier = "local"
+kind = "command"
+confirm_local = true
+ctx = ["global"]
+note = "Deletes the token from the Keychain and returns to Connect after a y/n confirm. The server still lists the device until it is revoked there."
+keys = []
+
+# ───────────────────────────── open (␣o) and next ─────────────────────────────
+
+[[command]]
+id = "next.decision"
+ex = "next"
+desc = "next decision"
+tier = "local"
+kind = "command"
+jump = true
+ctx = ["global"]
+note = "Opens the oldest open decision across projects (the inbox's oldest requestedAt)."
+keys = [{ mode = "n", ctx = "global", seq = "<leader>n" }]
+
+[[command]]
+id = "open.home"
+ex = "home"
+desc = "home"
+note = "The sidebar's Home row too."
+tier = "local"
+kind = "command"
+jump = true
+ctx = ["global"]
+keys = [{ mode = "n", ctx = "global", seq = "<leader>oh" }]
+
+[[command]]
+id = "open.conversations"
+ex = "conversations"
+desc = "conversations"
+tier = "local"
+kind = "command"
+jump = true
+ctx = ["global"]
+keys = [{ mode = "n", ctx = "global", seq = "<leader>oc" }]
+
+[[command]]
+id = "open.timeline"
+ex = "timeline"
+desc = "timeline"
+tier = "local"
+kind = "command"
+jump = true
+ctx = ["global"]
+keys = [{ mode = "n", ctx = "global", seq = "<leader>ot" }]
+
+[[command]]
+id = "open.faults"
+ex = "faults"
+desc = "faults"
+tier = "local"
+kind = "command"
+jump = true
+ctx = ["global"]
+keys = [{ mode = "n", ctx = "global", seq = "<leader>of" }]
+
+[[command]]
+id = "open.projects"
+ex = "projects"
+desc = "projects"
+tier = "local"
+kind = "command"
+jump = true
+ctx = ["global"]
+keys = [{ mode = "n", ctx = "global", seq = "<leader>op" }]
+
+[[command]]
+id = "open.server"
+ex = "server"
+desc = "server and streams"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+note = "Also the sidebar's server line and its Server row, and the bottom bar's server state while the sidebar is hidden."
+keys = [{ mode = "n", ctx = "global", seq = "<leader>os" }]
+
+# ───────────────────────────── help and toggles ─────────────────────────────
+
+[[command]]
+id = "help.keys"
+ex = "keys"
+desc = "keys cheat sheet"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+keys = [{ mode = "n", ctx = "global", seq = "<leader>hk" }]
+
+[[command]]
+id = "help.theme"
+ex = "theme"
+desc = "theme: ember / soft / light"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+keys = [{ mode = "n", ctx = "global", seq = "<leader>ht" }]
+
+[[command]]
+id = "toggle.follow"
+ex = "follow"
+desc = "follow the run"
+tier = "local"
+kind = "command"
+ctx = ["conversation"]
+note = "G on the last entry also resumes follow."
+keys = [{ mode = "n", ctx = "global", seq = "<leader>tf" }]
+
+[[command]]
+id = "toggle.source"
+ex = "source"
+desc = "basis as source text"
+tier = "local"
+kind = "command"
+ctx = ["decision"]
+note = "Shows the basis text in mono with no Markdown, so a note can take any exact character range."
+keys = [{ mode = "n", ctx = "global", seq = "<leader>ts" }]
+
+[[command]]
+id = "toggle.hidden"
+ex = "show-hidden"
+desc = "show hidden failures"
+tier = "local"
+kind = "command"
+ctx = ["list"]
+keys = [{ mode = "n", ctx = "global", seq = "<leader>th" }]
+
+[[command]]
+id = "toggle.sidebar"
+ex = "sidebar"
+desc = "sidebar"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+note = "Shows or hides the sidebar; the stored choice on this device is its only state. Hidden, its count tags and any abnormal server state move to the bottom bar's right end. Under a 1000 px window it does what C-h does."
+keys = [{ mode = "n", ctx = "global", seq = "<leader>tb" }]
+
+[[command]]
+id = "toggle.details"
+ex = "details"
+desc = "details panel"
+tier = "local"
+kind = "command"
+ctx = ["conversation", "decision"]
+note = "The right panel of a view's secondary facts: a conversation's settings, decisions and events; a decision's extension, conversation, basis and then task. Hidden at first; remembered on this device. 'details' in the title block does the same."
+keys = [{ mode = "n", ctx = "global", seq = "<leader>td" }]
+
+# ───────────────────────────── moving: jumps, hints, goto ─────────────────────────────
+
+[[command]]
+id = "jump.back"
+ex = "jump-back"
+desc = "jump back"
+tier = "local"
+kind = "command"
+countable = true
+ctx = ["global"]
+keys = [{ mode = "n", ctx = "global", seq = "<C-o>" }]
+
+[[command]]
+id = "jump.forward"
+ex = "jump-forward"
+desc = "jump forward"
+tier = "local"
+kind = "command"
+countable = true
+ctx = ["global"]
+keys = [{ mode = "n", ctx = "global", seq = "<C-i>", tui = "legacy-as-tab" }]
+
+[[command]]
+id = "hint.pane"
+ex = "hints"
+desc = "hint: targets in view"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+keys = [{ mode = "n", ctx = "global", seq = "gs" }]
+
+[[command]]
+id = "goto.linked"
+ex = "goto"
+desc = "go to linked object"
+tier = "local"
+kind = "command"
+jump = true
+ctx = ["global"]
+note = "A decision's or event's conversation, a fault's decision (else its conversation), a #id in chrome."
+keys = [{ mode = "n", ctx = "global", seq = "gd" }]
+
+[[command]]
+id = "peek"
+ex = "peek"
+desc = "details"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+note = "On a list row: the peek float when the stage is under 1000 px, with its own keys; at 1000 px and wider the peek is already the right column and K does nothing. On an open item in the sidebar: the peek float. On a field or a record: its full value. In the outbox: outbox.keys."
+keys = [{ mode = "n", ctx = "global", seq = "K" }]
+
+[[command]]
+id = "link.external"
+ex = "open-url"
+desc = "open external link"
+tier = "local"
+kind = "command"
+confirm_local = true
+ctx = ["reader"]
+keys = [{ mode = "n", ctx = "reader", seq = "gx" }]
+
+[[command]]
+id = "float.close"
+ex = "close-float"
+desc = "close float / leave editor"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+note = "In the sidebar, gives the stage the keys. In an editor's Normal mode, returns to the view and keeps the text as a draft. With a pending prefix (which-key showing), Esc cancels it. A float that takes the keys closes with its own Esc and q."
+keys = [{ mode = "n", ctx = "global", seq = "q" }, { mode = "n", ctx = "global", seq = "<Esc>" }]
+
+[[command]]
+id = "decision.next"
+ex = "qnext"
+desc = "next / prev decision row"
+tier = "local"
+kind = "motion"
+object = "q"
+jump = true
+countable = true
+ctx = ["global"]
+keys = [{ mode = "n", ctx = "global", seq = "]q" }, { mode = "n", ctx = "global", seq = "[q" }]
+
+# ───────────────────────────── lists ─────────────────────────────
+
+[[command]]
+id = "list.open"
+ex = "open"
+desc = "open / edit under cursor"
+tier = "local"
+kind = "command"
+jump = true
+ctx = ["list", "reader"]
+note = "A row: its object (an event: the conversation it names; a fault: its decision, else its conversation). In the sidebar: the place or open item, and the stage gets the keys. In readers: a details link, a #id, a choice (moves the cursor there), an option field (opens its editor or picker)."
+keys = [{ mode = "n", ctx = "list", seq = "<CR>" }, { mode = "n", ctx = "list", seq = "l" }, { mode = "n", ctx = "reader", seq = "<CR>" }]
+
+[[command]]
+id = "group.next"
+ex = "gnext"
+desc = "next / prev group"
+tier = "local"
+kind = "motion"
+object = "g"
+jump = false
+countable = true
+ctx = ["list"]
+keys = [{ mode = "n", ctx = "list", seq = "]g" }, { mode = "n", ctx = "list", seq = "[g" }]
+
+[[command]]
+id = "row.hide"
+ex = "hide"
+desc = "hide failure / forget entry"
+tier = "local"
+kind = "command"
+local_only = true
+ctx = ["list", "outbox"]
+note = "A fault row or a failed-run row: hidden on this device until it fails again (x again shows it while ␣th is on). An outbox entry: forgotten on this device. Never a server call."
+keys = [{ mode = "n", ctx = "list", seq = "x" }, { mode = "ob", ctx = "outbox", seq = "x" }]
+
+# ───────────────────────────── conversation (␣c) ─────────────────────────────
+
+[[command]]
+id = "conv.new"
+ex = "new"
+desc = "new conversation"
+tier = "local"
+kind = "command"
+jump = true
+ctx = ["global"]
+note = "Opens the start page in Insert. Its project: the one the current view names (a Project view, a conversation, a decision, or the sidebar item under the cursor), else the last one used on this device. Its workflow: the last one used in that project, else the project's only workflow, else the bare agent with a model. Nothing is sent until the start page's Cmd-Enter."
+keys = [{ mode = "n", ctx = "global", seq = "<leader>cn" }]
+
+[[command]]
+id = "start.send"
+ex = "start"
+desc = "start the conversation"
+tier = "write"
+kind = "command"
+ctx = ["start"]
+wire = ["create", "input"]
+note = "Sends create for the drawn project and workflow (or model), then input with the text; the page becomes that conversation. Empty or white-space text: nothing. Over 1 MiB: nothing is sent. Off, with the text read-only, from the press until create replies or times out; auto-repeat never fires it. A workflow whose options have errors opens them instead and keeps the text. A lost create reply is never resent (client.md §2.4)."
+keys = [{ mode = "n", ctx = "start", seq = "<D-CR>", tui_alt = "<CR>" },
+        { mode = "i", ctx = "start", seq = "<D-CR>", tui_alt = "<C-CR>" }]
+
+[[command]]
+id = "start.project"
+ex = "project"
+desc = "start page: project"
+tier = "local"
+kind = "command"
+ctx = ["start"]
+note = "The project picker for the start page. In Insert the same key is the start editor's own (builtin start_insert). Off while create is in flight."
+keys = [{ mode = "n", ctx = "start", seq = "<M-p>", tui = "kitty", tui_alt = "<leader>pp" }]
+
+[[command]]
+id = "start.workflow"
+ex = "workflow"
+desc = "start page: workflow or model"
+tier = "local"
+kind = "command"
+ctx = ["start"]
+note = "One flat list: the project's workflows, then one bare-agent row per model. In Insert the same key is the start editor's own (builtin start_insert). Off while create is in flight."
+keys = [{ mode = "n", ctx = "start", seq = "<M-w>", tui = "kitty", tui_alt = "<leader>pw" }]
+
+[[command]]
+id = "composer.focus"
+ex = "compose"
+desc = "write in composer"
+tier = "local"
+kind = "command"
+ctx = ["conversation"]
+keys = [{ mode = "n", ctx = "conversation", seq = "i" }, { mode = "n", ctx = "conversation", seq = "a" }, { mode = "n", ctx = "conversation", seq = "o" }]
+
+[[command]]
+id = "composer.send"
+ex = "send"
+desc = "send (or steer if running)"
+tier = "write"
+kind = "command"
+ctx = ["composer"]
+wire = ["input"]
+note = "Idle or failed: input with no whenBusy. Running: whenBusy steer. Never whenIdle. Empty or white-space text: nothing. Bare Enter never sends from the composer; in a terminal client Enter in the composer's Normal mode is the fallback (tui_alt)."
+keys = [{ mode = "n", ctx = "composer", seq = "<D-CR>", tui_alt = "<CR>" },
+        { mode = "i", ctx = "composer", seq = "<D-CR>", tui_alt = "<C-CR>" }]
+
+[[command]]
+id = "composer.followup"
+ex = "followup"
+desc = "queue as follow-up"
+tier = "write"
+kind = "command"
+ctx = ["composer", "conversation"]
+wire = ["input"]
+note = "input with whenBusy followUp."
+keys = [{ mode = "n", ctx = "composer", seq = "<M-CR>", tui = "kitty", tui_alt = "<leader>cf" },
+        { mode = "i", ctx = "composer", seq = "<M-CR>", tui = "kitty", tui_alt = "<leader>cf" },
+        { mode = "n", ctx = "global", seq = "<leader>cf" }]
+
+[[command]]
+id = "conv.stop"
+ex = "stop"
+desc = "stop the run"
+tier = "write"
+kind = "command"
+ctx = ["conversation"]
+wire = ["stop"]
+note = "In the conversation's own view only, where pi.live is live. On while the drawn frame shows a run; off after sending until the view shows that run gone or a new one. Never resent."
+keys = [{ mode = "n", ctx = "global", seq = "<leader>cx" }]
+
+[[command]]
+id = "conv.continue"
+ex = "continue"
+desc = "continue a failed run"
+tier = "write"
+kind = "command"
+ctx = ["conversation"]
+wire = ["continue"]
+note = "In the conversation's own view only, while the drawn frame shows a run failure."
+keys = [{ mode = "n", ctx = "global", seq = "<leader>cc" }]
+
+[[command]]
+id = "conv.model"
+ex = "model"
+desc = "switch model"
+tier = "write"
+kind = "command"
+ctx = ["conversation"]
+wire = ["setModel"]
+keys = [{ mode = "n", ctx = "global", seq = "<leader>cm" }]
+
+[[command]]
+id = "conv.thinking"
+ex = "thinking"
+desc = "thinking level"
+tier = "write"
+kind = "command"
+ctx = ["conversation"]
+wire = ["setModel"]
+keys = [{ mode = "n", ctx = "global", seq = "<leader>ct" }]
+
+[[command]]
+id = "message.next"
+ex = "mnext"
+desc = "next / prev message"
+tier = "local"
+kind = "motion"
+object = "m"
+jump = false
+countable = true
+ctx = ["conversation"]
+keys = [{ mode = "n", ctx = "conversation", seq = "]m" }, { mode = "n", ctx = "conversation", seq = "[m" },
+        { mode = "n", ctx = "conversation", seq = "]M" }, { mode = "n", ctx = "conversation", seq = "[M" }]
+
+[[command]]
+id = "toolcall.next"
+ex = "tnext"
+desc = "next / prev tool call"
+tier = "local"
+kind = "motion"
+object = "t"
+jump = false
+countable = true
+ctx = ["conversation"]
+keys = [{ mode = "n", ctx = "conversation", seq = "]t" }, { mode = "n", ctx = "conversation", seq = "[t" }]
+
+[[command]]
+id = "fold.toggle"
+ex = "fold"
+desc = "toggle fold"
+tier = "local"
+kind = "command"
+ctx = ["reader"]
+note = "Tool blocks, folded tool groups, thinking blocks, long inputs."
+keys = [{ mode = "n", ctx = "reader", seq = "za" }, { mode = "n", ctx = "reader", seq = "zo" }, { mode = "n", ctx = "reader", seq = "zc" },
+        { mode = "n", ctx = "reader", seq = "zR" }, { mode = "n", ctx = "reader", seq = "zM" }]
+
+[[command]]
+id = "textobject.tau"
+ex = "textobjects"
+desc = "message / paragraph objects"
+tier = "local"
+kind = "textobject"
+ctx = ["reader"]
+chars = { m = "message", p = "paragraph", s = "sentence", w = "word" }
+keys = []
+
+[[command]]
+id = "yank"
+ex = "yank"
+desc = "yank text"
+tier = "local"
+kind = "operator"
+ctx = ["reader"]
+keys = [{ mode = "n", ctx = "reader", seq = "y" }, { mode = "v", ctx = "reader", seq = "y" }]
+
+# ───────────────────────────── decision: notes ─────────────────────────────
+
+[[command]]
+id = "note.annotate"
+ex = "annotate"
+desc = "note on a range"
+tier = "local"
+kind = "operator"
+ctx = ["decision"]
+note = "c{motion} or c in Visual: a note on that source range of the basis text (UTF-16 code units of text). gc is its alias."
+keys = [{ mode = "n", ctx = "decision", seq = "c" }, { mode = "v", ctx = "decision", seq = "c" },
+        { mode = "n", ctx = "decision", seq = "gc", alias_of = "note.annotate" }, { mode = "v", ctx = "decision", seq = "gc", alias_of = "note.annotate" }]
+
+[[command]]
+id = "note.here"
+ex = "note"
+desc = "note on paragraph or selection"
+tier = "local"
+kind = "command"
+ctx = ["decision"]
+note = "Normal: the block under the cursor. Visual: the selection, or the blocks it touches when it crosses markup."
+keys = [{ mode = "n", ctx = "decision", seq = "<leader>mn" }, { mode = "v", ctx = "decision", seq = "<leader>mn" }]
+
+[[command]]
+id = "note.whole"
+ex = "note-whole"
+desc = "note on the whole basis"
+tier = "local"
+kind = "command"
+ctx = ["decision"]
+keys = [{ mode = "n", ctx = "decision", seq = "<leader>mw" }]
+
+[[command]]
+id = "note.next"
+ex = "nnext"
+desc = "next / prev note"
+tier = "local"
+kind = "motion"
+object = "n"
+jump = false
+countable = true
+ctx = ["decision"]
+note = "Moves the document cursor to the next note's passage, in text order. Unprinted. The note on the whole is reached with ␣mw."
+keys = [{ mode = "n", ctx = "decision", seq = "]n" }, { mode = "n", ctx = "decision", seq = "[n" }]
+
+[[command]]
+id = "draft.edit"
+ex = "edit-draft"
+desc = "edit note under cursor"
+tier = "local"
+kind = "command"
+ctx = ["decision"]
+keys = [{ mode = "n", ctx = "decision", seq = "i" }]
+
+[[command]]
+id = "draft.discard"
+ex = "discard-draft"
+desc = "discard note draft"
+tier = "local"
+kind = "command"
+effect = "discard"
+local_only = true
+ctx = ["decision"]
+keys = [{ mode = "n", ctx = "decision", seq = "dd" }]
+
+[[command]]
+id = "draft.undo"
+ex = "undo"
+desc = "undo draft change"
+tier = "local"
+kind = "command"
+countable = true
+ctx = ["reader"]
+keys = [{ mode = "n", ctx = "reader", seq = "u" }]
+
+[[command]]
+id = "draft.redo"
+ex = "redo"
+desc = "redo draft change"
+tier = "local"
+kind = "command"
+countable = true
+ctx = ["reader"]
+keys = [{ mode = "n", ctx = "reader", seq = "<C-r>" }]
+
+# ───────────────────────────── answer (␣a): the decide tier ─────────────────────────────
+
+[[command]]
+id = "auth.answer"
+ex = "answer"
+desc = "◆ answer this decision"
+tier = "decide"
+kind = "command"
+ctx = ["decision"]
+wire = ["answer"]
+repeatable = false
+countable = false
+note = "Opens the readback with the choices; y sends answer {basis, choice, annotations}. Off when the decision is not open, offline, or revoked."
+keys = [{ mode = "n", ctx = "global", seq = "<leader>ad" }]
+
+[[command]]
+id = "auth.again"
+ex = "answer-again"
+desc = "◆ send the answer again"
+tier = "decide"
+kind = "command"
+ctx = ["decision"]
+wire = ["answer"]
+repeatable = false
+countable = false
+note = "The one way to send an answer again, in that decision's view only, through the readback. Live when the decision is answered and its then task ended faulted (sends the record's own basis, choice and annotations), or when this device's answer has an unknown outcome (sends the stored body)."
+keys = [{ mode = "n", ctx = "global", seq = "<leader>ar" }]
+
+# ───────────────────────────── project (␣p) and option fields ─────────────────────────────
+
+[[command]]
+id = "project.bind"
+ex = "bind"
+desc = "bind a project"
+tier = "write"
+kind = "command"
+ctx = ["global"]
+wire = ["bind"]
+note = "The bind float (name, working directory, a checklist of extensions where Tab toggles; zero extensions is valid), then a y/n confirm: a project can't be unbound."
+keys = [{ mode = "n", ctx = "global", seq = "<leader>pb" }]
+
+[[command]]
+id = "project.add"
+ex = "add-extensions"
+desc = "add extensions"
+tier = "write"
+kind = "command"
+ctx = ["global"]
+wire = ["addExtensions"]
+note = "The project the current view names, else the last one used on this device, else the picker asks first. A checklist of the server's extensions not in the project (Tab toggles), then a y/n confirm: an extension can't be removed."
+keys = [{ mode = "n", ctx = "global", seq = "<leader>pa" }]
+
+[[command]]
+id = "project.options"
+ex = "options"
+desc = "this project's options"
+tier = "local"
+kind = "command"
+jump = true
+ctx = ["global"]
+note = "The project the current view names, else the last one used on this device, else the picker asks first."
+keys = [{ mode = "n", ctx = "global", seq = "<leader>po" }]
+
+[[command]]
+id = "list.filter_project"
+ex = "filter-project"
+desc = "filter list: project, state"
+tier = "local"
+kind = "command"
+ctx = ["list"]
+note = "Conversations, Timeline and Faults: a project; Conversations also a state (failed, running, idle). Each place keeps one filter, never global. Home and Projects have none. Opening a place from a Project view, or Home's more-failed-runs line, sets it."
+keys = [{ mode = "n", ctx = "list", seq = "<leader>pf" }]
+
+[[command]]
+id = "field.edit"
+ex = "edit-field"
+desc = "edit option field"
+tier = "local"
+kind = "command"
+ctx = ["project"]
+note = "model: the model picker; enum: the choice picker; string and number: an inline editor; secret: a masked editor, never prefilled; boolean: toggles."
+keys = [{ mode = "n", ctx = "project", seq = "i" }]
+
+[[command]]
+id = "field.reset"
+ex = "reset"
+desc = "reset field to default"
+tier = "local"
+kind = "command"
+ctx = ["project"]
+note = "A draft: :w sends it as null in the patch."
+keys = [{ mode = "n", ctx = "project", seq = "dd" }, { mode = "n", ctx = "project", seq = "<leader>mr" }]
+
+[[command]]
+id = "options.save"
+ex = "w"
+desc = "save option drafts"
+tier = "write"
+kind = "command"
+ctx = ["project"]
+wire = ["setOptions"]
+note = "One setOptions per extension with changed keys."
+keys = [{ mode = "n", ctx = "project", seq = "<leader>ms" }]
+
+[[command]]
+id = "editor.newline"
+ex = "-newline"
+desc = "new line (continues a list)"
+tier = "local"
+kind = "command"
+ctx = ["composer", "note", "start"]
+note = "Enter in a multi-line editor is a new line, as typed text; Markdown list items continue. Sending is Cmd-Enter. In single-line editors (field, connect) Enter commits instead."
+keys = [{ mode = "i", ctx = "composer", seq = "<CR>" }, { mode = "i", ctx = "note", seq = "<CR>" }, { mode = "i", ctx = "start", seq = "<CR>" }]
+
+[[command]]
+id = "field.commit"
+ex = "-commit"
+desc = "commit field, next field"
+tier = "local"
+kind = "command"
+ctx = ["field"]
+note = "In an option field: keeps the value as a draft. The bind float's fields have their own keys (bind.keys)."
+keys = [{ mode = "i", ctx = "field", seq = "<CR>" }, { mode = "n", ctx = "field", seq = "<CR>" }]
+
+[[command]]
+id = "connect.submit"
+ex = "connect"
+desc = "connect and pair"
+tier = "write"
+kind = "command"
+ctx = ["connect"]
+wire = ["pair"]
+note = "pair {code}, then POST /v1/ and projects. To a plain-HTTP URL on another machine, Enter opens the Confirm float first."
+keys = [{ mode = "i", ctx = "connect", seq = "<CR>" }, { mode = "n", ctx = "connect", seq = "<CR>" }]
+
+# ───────────────────────────── recover (␣r) ─────────────────────────────
+
+[[command]]
+id = "recover.outbox"
+ex = "outbox"
+desc = "outbox"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+keys = [{ mode = "n", ctx = "global", seq = "<leader>ru" }]
+
+[[command]]
+id = "recover.retry"
+ex = "retry"
+desc = "retry the call, same body"
+tier = "write"
+kind = "command"
+ctx = ["outbox", "conversation", "project"]
+wire = ["input", "continue", "setModel", "setOptions", "bind", "addExtensions"]
+note = "The outbox entry under the cursor, or the view's unknown outcome: the exact stored body and request ID. Never an answer: an answer entry reads 'open the decision to send it again' (␣ar there). Never a create either: the start page keeps its text and Cmd-Enter there tries again. setModel and setOptions entries restored after a restart can't be retried; set the value again where it lives."
+keys = [{ mode = "n", ctx = "global", seq = "<leader>rt" }, { mode = "ob", ctx = "outbox", seq = "<leader>rt" }]
+
+[[command]]
+id = "recover.reconnect"
+ex = "reconnect"
+desc = "reconnect now"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+keys = [{ mode = "n", ctx = "global", seq = "<leader>rc" }]
+
+[[command]]
+id = "recover.pair"
+ex = "pair"
+desc = "pair again"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+note = "Opens Connect with the server URL kept. A revoked device name can't be reused: the owner pairs a new name on the server."
+keys = [{ mode = "n", ctx = "global", seq = "<leader>rp" }]
+
+
+# ───────────────────────────── modal key sets ─────────────────────────────
+
+[[command]]
+id = "readback.confirm"
+ex = "-"
+desc = "confirm"
+tier = "local"
+kind = "modal"
+ctx = ["readback"]
+note = "Counts only after the readback has been on screen for tau.client_ms.readback_arm (400 ms) and only for what it last drew; an earlier y is discarded and echoes 'read it first'. Auto-repeat and Enter never confirm; a click never confirms."
+keys = [{ mode = "rb", ctx = "readback", seq = "y" }]
+
+[[command]]
+id = "readback.cancel"
+ex = "-"
+desc = "cancel"
+tier = "local"
+kind = "modal"
+ctx = ["readback"]
+keys = [{ mode = "rb", ctx = "readback", seq = "n" }, { mode = "rb", ctx = "readback", seq = "<Esc>" }, { mode = "rb", ctx = "readback", seq = "q" }, { mode = "rb", ctx = "readback", seq = "<C-c>" }]
+
+[[command]]
+id = "readback.pick"
+ex = "-"
+desc = "pick a choice"
+tier = "local"
+kind = "modal"
+ctx = ["readback"]
+note = "j k move the pick; 1–9 pick choice N while there are at most nine choices (past nine, j k only). Each pick redraws the float, and y then waits for that draw."
+keys = [{ mode = "rb", ctx = "readback", seq = "j" }, { mode = "rb", ctx = "readback", seq = "k" },
+        { mode = "rb", ctx = "readback", seq = "1" }, { mode = "rb", ctx = "readback", seq = "2" }, { mode = "rb", ctx = "readback", seq = "3" },
+        { mode = "rb", ctx = "readback", seq = "4" }, { mode = "rb", ctx = "readback", seq = "5" }, { mode = "rb", ctx = "readback", seq = "6" },
+        { mode = "rb", ctx = "readback", seq = "7" }, { mode = "rb", ctx = "readback", seq = "8" }, { mode = "rb", ctx = "readback", seq = "9" }]
+
+[[command]]
+id = "readback.details"
+ex = "-"
+desc = "read every note"
+tier = "local"
+kind = "modal"
+ctx = ["readback"]
+keys = [{ mode = "rb", ctx = "readback", seq = "K" }]
+
+[[command]]
+id = "confirm.keys"
+ex = "-"
+desc = "confirm or cancel"
+tier = "local"
+kind = "modal"
+ctx = ["confirm"]
+note = "The bind, add-extension and plain-HTTP pairing confirm. y goes on; n, Esc, q cancel. The badge reads READBACK in its plain form (not the answer's solid coral)."
+keys = [{ mode = "rb", ctx = "confirm", seq = "y" }, { mode = "rb", ctx = "confirm", seq = "n" },
+        { mode = "rb", ctx = "confirm", seq = "<Esc>" }, { mode = "rb", ctx = "confirm", seq = "q" }]
+
+[[command]]
+id = "hint.select"
+ex = "-"
+desc = "select label (moves cursor only)"
+tier = "local"
+kind = "modal"
+ctx = ["hint"]
+keys = [{ mode = "h", ctx = "hint", seq = "<label>" }, { mode = "h", ctx = "hint", seq = "<Esc>" }, { mode = "h", ctx = "hint", seq = "<BS>" }]
+
+[[command]]
+id = "peek.keys"
+ex = "-"
+desc = "peek float keys"
+tier = "local"
+kind = "modal"
+ctx = ["peek"]
+note = "K on a list row when the stage is under 1000 px, or on an open item in the sidebar: j k move that cursor and the float follows; Enter opens the row; K, q, Esc close. Every other key is inert. The badge reads PEEK."
+keys = [{ mode = "ho", ctx = "peek", seq = "j" }, { mode = "ho", ctx = "peek", seq = "k" },
+        { mode = "ho", ctx = "peek", seq = "<CR>" },
+        { mode = "ho", ctx = "peek", seq = "K" }, { mode = "ho", ctx = "peek", seq = "q" }, { mode = "ho", ctx = "peek", seq = "<Esc>" }]
+
+[[command]]
+id = "picker.keys"
+ex = "-"
+desc = "picker keys"
+tier = "local"
+kind = "modal"
+ctx = ["picker"]
+note = "C-j C-k move the cursor (the fzf habit; in Normal mode they stay reserved for splits); C-n C-p page the preview; Enter chooses or confirms the checklist; Tab toggles the item under the cursor in a checklist (bind, add extensions); S-Tab goes back to the bind float's fields; Esc and C-c cancel."
+keys = [{ mode = "c", ctx = "picker", seq = "<C-j>" }, { mode = "c", ctx = "picker", seq = "<C-k>" },
+        { mode = "c", ctx = "picker", seq = "<C-n>" }, { mode = "c", ctx = "picker", seq = "<C-p>" },
+        { mode = "c", ctx = "picker", seq = "<CR>" }, { mode = "c", ctx = "picker", seq = "<Tab>" }, { mode = "c", ctx = "picker", seq = "<S-Tab>" },
+        { mode = "c", ctx = "picker", seq = "<Esc>" }, { mode = "c", ctx = "picker", seq = "<C-c>" }]
+
+[[command]]
+id = "bind.keys"
+ex = "-"
+desc = "bind float field keys"
+tier = "local"
+kind = "modal"
+ctx = ["bind"]
+note = "The bind float's name and working directory, in Insert: Tab and Enter go to the next field (from the last, to the checklist), S-Tab to the previous; C-w, C-u, BS edit; Esc goes to the checklist, whose Esc cancels (Esc Esc cancel). The fields have no Normal mode, so nothing outside the float ever acts."
+keys = [{ mode = "i", ctx = "bind", seq = "<Tab>" }, { mode = "i", ctx = "bind", seq = "<S-Tab>" }, { mode = "i", ctx = "bind", seq = "<CR>" },
+        { mode = "i", ctx = "bind", seq = "<Esc>" }, { mode = "i", ctx = "bind", seq = "<C-w>" }, { mode = "i", ctx = "bind", seq = "<C-u>" },
+        { mode = "i", ctx = "bind", seq = "<BS>" }]
+
+[[command]]
+id = "reply.keys"
+ex = "-"
+desc = "reply float keys"
+tier = "local"
+kind = "modal"
+ctx = ["reply"]
+note = "The not-recorded reply an answer readback turns into: Esc and q close it. y and every other key are inert. The badge reads READBACK in its plain form."
+keys = [{ mode = "rb", ctx = "reply", seq = "<Esc>" }, { mode = "rb", ctx = "reply", seq = "q" }]
+
+[[command]]
+id = "outbox.keys"
+ex = "-"
+desc = "outbox float keys"
+tier = "local"
+kind = "modal"
+ctx = ["outbox"]
+note = "j k move between entries; K shows an entry's whole body; Esc and q close. Its actions are ␣rt (recover.retry) and x (row.hide), bound in this context. The badge reads OUTBOX."
+keys = [{ mode = "ob", ctx = "outbox", seq = "j" }, { mode = "ob", ctx = "outbox", seq = "k" }, { mode = "ob", ctx = "outbox", seq = "K" },
+        { mode = "ob", ctx = "outbox", seq = "<Esc>" }, { mode = "ob", ctx = "outbox", seq = "q" }]
+
+[[command]]
+id = "server.keys"
+ex = "-"
+desc = "Server float keys"
+tier = "local"
+kind = "modal"
+ctx = ["server"]
+note = "j k scroll the streams; Esc and q close. :forget-server is named in the float and typed after closing it. The badge reads SERVER."
+keys = [{ mode = "sv", ctx = "server", seq = "j" }, { mode = "sv", ctx = "server", seq = "k" },
+        { mode = "sv", ctx = "server", seq = "<Esc>" }, { mode = "sv", ctx = "server", seq = "q" }]

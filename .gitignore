@@ -1,0 +1,7 @@
+.DS_Store
+node_modules
+tools/proto/png/
+tools/proto/index.html
+tools/proto/tokens.css
+tools/proto/fixture.js
+tools/proto/keymap.js

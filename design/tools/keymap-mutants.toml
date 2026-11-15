@@ -1,0 +1,65 @@
+# Seeded faults for ../keymap.toml. Each is the real keymap with one text replacement; each must trip its rule.
+# KL4g runs in keymap_answer_rule.py. The others run in the Brief's keymap lint (lint.py --protocol ../client.md), which lives in the
+# design workbench, not in this repository: keymap_answer_rule.py --mutants writes each as .mutant-<rule>.toml for it.
+
+[[mutant]]
+name = "an unknown wire"
+rule = "KL7"
+find = 'wire = ["answer"]'
+replace = 'wire = ["recordDecision"]'
+
+[[mutant]]
+name = "an answer offered from a list"
+rule = "KL4"
+find = '''desc = "◆ answer this decision"
+tier = "decide"
+kind = "command"
+ctx = ["decision"]'''
+replace = '''desc = "◆ answer this decision"
+tier = "decide"
+kind = "command"
+ctx = ["decision", "list"]'''
+
+[[mutant]]
+name = "an answer outside the answer group"
+rule = "KL4"
+find = 'seq = "<leader>ad" }'
+replace = 'seq = "<leader>cd" }'
+
+[[mutant]]
+name = "a prefix clash under the open group"
+rule = "KL2"
+find = 'seq = "<leader>os" }'
+replace = 'seq = "<leader>o" }'
+
+[[mutant]]
+name = "x at the write tier"
+rule = "KL5"
+find = '''desc = "hide failure / forget entry"
+tier = "local"'''
+replace = '''desc = "hide failure / forget entry"
+tier = "write"'''
+
+[[mutant]]
+name = "the leader in Insert"
+rule = "KL14"
+find = '{ mode = "i", ctx = "note", seq = "<CR>" }'
+replace = '{ mode = "i", ctx = "note", seq = "<leader>x" }'
+
+[[mutant]]
+name = "retry sends an answer (the old ␣rt)"
+rule = "KL4g"
+find = 'wire = ["input", "continue", "setModel", "setOptions", "bind", "addExtensions"]'
+replace = 'wire = ["input", "continue", "setModel", "setOptions", "bind", "addExtensions", "answer"]'
+
+[[mutant]]
+name = "the sidebar's close key without its shadow"
+rule = "KL2"
+find = '{ mode = "n", ctx = "sidebar", seq = "x", shadows = "parent" }'
+replace = '{ mode = "n", ctx = "sidebar", seq = "x" }'
+
+[[mutant]]
+name = "the start page's project key bound in Insert"
+rule = "KL14"
+find = '{ mode = "n", ctx = "start", seq = "<M-p>", tui = "kitty", tui_alt = "<leader>pp" }'
+replace = '{ mode = "i", ctx = "start", seq = "<M-p>", tui = "kitty", tui_alt = "<leader>pp" }'
