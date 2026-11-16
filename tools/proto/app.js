@@ -408,7 +408,7 @@
     if (gen) h += `<div class="ph">agent ${dot} writing</div><div class="cbar md" data-content><p class="writing">${mdInline(gen.text)}</p></div>`;
     else if (lastText) h += `<div class="ph">last agent text</div><div class="cbar md" data-content>${marked.parse(lastText)}</div>`;
     if (runTool) { const lines = runTool.live.output.replace(/\n$/, '').split('\n').slice(-4); h += `<div class="tool run" data-tool><span class="ic">${MK.run}</span><span class="tn">${esc(runTool.name)}</span><span class="ta">${esc(toolArgs(runTool))}</span><span class="oc"><span class="w">running</span></span></div><div class="tout">${esc(lines.join('\n'))}</div>`; }
-    if (fail) h += `<div class="kvp"><span class="k">reason</span><span>${esc(fail.reason)}</span><span class="k">message</span><span class="err">${esc(fail.message)}</span></div>`;
+    if (fail) h += `<div class="kvp"><span class="k">reason</span><span>${esc(fail.reason)}</span><span class="k">message</span><span class="err">${esc(fail.detail)}</span></div>`;
     if (T.inbox.length) h += `<div class="pc">${T.inbox.length} queued ${dot} ${T.inbox.map((q) => (q.mode === 'followUp' ? 'follow-up' : q.mode)).join(', ')}</div>`;
     return h;
   }
@@ -477,7 +477,7 @@
     const foot = ins ? `<div class="ft">${H('Esc', '', lit)}${H('jk', '', lit)}<span>leave Insert</span><span class="gap"></span>${H('⌘⏎', '', lit)}<span>${run ? 'steer' : 'send'}</span>${run ? `<span class="gap"></span>${H('M-⏎', '', lit)}<span>follow-up</span>` : ''}</div>` : '';
     stack += `<div class="comp box${ins ? ' ins' : ''}"><div class="cap">${head}</div><div class="cb">${ins ? `${esc(s.draft || '')}<span class="bar"></span>` : ''}</div>${foot}</div>`;
     let tail = '';
-    if (fail) tail = `<div class="rfail"><div class="rfh">${MK.fail}<span>Run failed</span><span class="w">· ${esc(fail.reason)}</span></div><div class="f2">${esc(fail.message)}</div><div class="f3">${K('␣cc')}<span>continue runs it again on the same context</span></div></div>`;
+    if (fail) tail = `<div class="rfail"><div class="rfh">${MK.fail}<span>Run failed</span><span class="w">· ${esc(fail.reason)}</span></div><div class="f2">${esc(fail.detail)}</div><div class="f3">${K('␣cc')}<span>continue runs it again on the same context</span></div></div>`;
     ctx.crumb = crumbOf([`<span class="pj">${p}</span>`, `<span class="id">#${id}</span>`]);
     ctx.viewCtx = 'conversation';
     const tb = titleBlock(`<span data-spoof class="tl">${plain(label(p, id) || 'empty conversation')}</span>`, facts, { details: s.details });
