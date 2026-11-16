@@ -1,0 +1,43 @@
+{
+  "events": [
+    {
+      "t": 0.1,
+      "type": "key",
+      "name": "w",
+      "alt": true
+    },
+    {
+      "t": 0.2,
+      "type": "type",
+      "text": "no-such-model",
+      "every": 0.001
+    },
+    {
+      "t": 0.3,
+      "type": "key",
+      "name": "Enter"
+    },
+    {
+      "t": 0.4,
+      "type": "key",
+      "name": "a",
+      "cmd": true
+    },
+    {
+      "t": 0.45,
+      "type": "key",
+      "name": "Backspace"
+    },
+    {
+      "t": 0.5,
+      "type": "type",
+      "text": "son",
+      "every": 0.001
+    },
+    {
+      "t": 0.6,
+      "type": "key",
+      "name": "Enter"
+    }
+  ]
+}

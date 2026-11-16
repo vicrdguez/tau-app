@@ -1,0 +1,29 @@
+[package]
+name = "tau-app"
+description = "The tau desktop app: a native rune window onto one tau server."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "tau-app"
+path = "src/main.rs"
+
+[dependencies]
+pulldown-cmark = { version = "0.13", default-features = false }
+tau-client = { path = "../tau-client" }
+rune = { workspace = true, default-features = false, features = ["accessibility", "metal-backend", "svg", "tooling"] }
+rune-kit = { workspace = true, features = ["markdown"] }
+libc = "0.2"
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

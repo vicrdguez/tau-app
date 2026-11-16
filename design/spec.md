@@ -211,8 +211,8 @@ One region has the keys: the stage, the sidebar, or the top float. Two rules fol
 - **The peek** is a column while the stage is at least 1000 px wide (a 1248 px window with the sidebar, 1000 px without); narrower, it is the `K` float.
 - **Home and the places:** the list column runs from 40 px inside the stage's left edge to 40 px before the peek's hairline (at 1512 with the sidebar: window x 288 to 1032). The cursor band runs 12 px beyond the column on each side.
 - **Row slots** (§5.3) are laid out per group. When a row's label would get less than 200 px, the group drops slots whole, in this order: time, model, extension, reason. At 1300 px with the sidebar, Failed keeps project, `#id` and reason, and Running keeps project, `#id` and extension. In a faulted task's label, `after <decision ID>` shows whole or not at all, and the kind is cut first.
-- **Conversation:** a 640 px column, `min(640, stage − 32)`, centred left of the details panel; prose in it wraps at 600 px.
-- **Decision:** the 600 px text column, a 48 px gap and the 320 px notes margin centre together (968 px). When the stage left of the details panel is under 1016 px, the margin folds: its head, the note on the whole and the Earlier lines sit under the facts line, in that order, and each passage's note sits under its paragraph; the text column is `min(600, stage − 32)`.
+- **Conversation:** an 880 px column, `min(880, stage − 32)`, centred left of the details panel; prose in it wraps at 840 px.
+- **Decision:** the 840 px text column, a 48 px gap and the 320 px notes margin centre together (1208 px). When the stage left of the details panel is under 1256 px, the margin folds: its head, the note on the whole and the Earlier lines sit under the facts line, in that order, and each passage's note sits under its paragraph; the text column is `min(840, stage − 32)`.
 - **Project view:** a 600 px column, `min(600, stage − 32)`.
 - **Start page:** the composer is 640 px, `min(640, stage − 32)`.
 
@@ -356,7 +356,7 @@ The project and `#4` are in the breadcrumb, and the rest of the settings in the 
 
 **The cursor.** Inside message text (your message, agent text, a record's body) the cursor is a line: a full-width band with the 2 px coral bar, as in any reader, so `v`, `V`, the motions and the yanks work on text. On a tool row, a fold, a thinking fold or a header line it is the whole row. Band and bar are as `reference/visual-language.md` §1 says, and the bar is drawn inside the column, never in its outset. `]m [m ]t [t` move it by entry and by tool call.
 
-**Transcript** (the 640 px column; prose wraps at 600):
+**Transcript** (the 880 px column; prose wraps at 840):
 
 | Entry | Renders as |
 |---|---|
@@ -407,7 +407,7 @@ The project and `#4` are in the breadcrumb, and the rest of the settings in the 
 
 **Title block:** the title (`title.page`, coral; extension text as one plain line), with no `#n`: it is in the ID. Facts line with `details ›` at its right: `open · requested 13:55 · 2 h 45 m ago`; or `answered revise · by phone 13:30`; or `superseded by #3`; or `withdrawn`; or `? answer sent 16:42 · no reply`. After an answer the line adds the `then` task's state (table below).
 
-**Text column** (600 px), 24 px below the title block:
+**Text column** (840 px), 24 px below the title block:
 - Answered with a faulted `then` task: a head line on `tint.row_fail` with the rose `×` and `The work after this answer failed`; under it, unboxed, the task kind and error in `mono.small`.
 - **The basis:** `text` as Markdown, single line breaks kept. Its first heading is a content `h1` (rose 20/28 with its rule), never the page title's style. This is the exact text the answer quotes; nothing else is shown as basis.
 - **Choices** (group head, steel): one 28 px row per choice in the core's order: number (`mono.small` `fg.alt`, while there are at most nine) and the string (`ui` `fg`), wrapping within the column when long. No recommendation, no colour per choice, no special `abort`. Answered: the chosen row carries `●` and `chosen by phone · 14:10`.

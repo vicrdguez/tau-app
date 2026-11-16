@@ -88,7 +88,7 @@ def call(cid, name, args):
 def result(t, task, cid, name, out, err=False):
     return {"kind": "pi.tool-result", "model": [{"role": "toolResult", "toolCallId": cid, "toolName": name,
                                                  "content": [text(out)], "isError": err, "timestamp": t}],
-            "byTaskId": task}
+            "data": {"diagnostics": []}, "byTaskId": task}
 
 
 def typed(kind, data, task):
@@ -507,7 +507,7 @@ nc4_later = [
     {"ops": [["p", ["entries"], len(nc4_view["entries"]), 0, [
         {"id": n_next, "conversationId": 4, "kind": "pi.tool-result", "model": [{"role": "toolResult", "toolCallId": "toolu_06", "toolName": "bash",
                                                                                   "content": [text("✔ reads notes.toml\n✔ falls back to notes.json and warns\n✔ rejects a table nested twice\n✔ keeps unknown keys as strings\nℹ tests 4\nℹ pass 4\nℹ fail 0\n")],
-                                                                                  "isError": False, "timestamp": t_now + 4000}], "byTaskId": tool6}]],
+                                                                                  "isError": False, "timestamp": t_now + 4000}], "data": {"diagnostics": []}, "byTaskId": tool6}]],
              ["d", ["docs", "pi.live", "tools"]]]},
     {"ops": [["p", ["entries"], len(nc4_view["entries"]) + 1, 0, [
         {"id": n_next + 1, "conversationId": 4, "kind": "pi.user", "model": [{"role": "user", "content": "Also keep the `NOTES_CONFIG` environment variable working; it should win over both files.", "timestamp": t_now + 4100}]}]],
@@ -522,7 +522,8 @@ nc4_later = [
 # notes-cli #5 failed
 nc5_view = view(5, nc_entries[5], {
     "pi.agent": agent_doc("/home/vrod/src/notes-cli", M_SON),
-    "pi.live": {"runFailure": {"reason": "model_error", "message": "529 overloaded_error: Overloaded"}},
+    "pi.live": {"runFailure": {"taskId": run5, "inputs": [25], "reason": "model_error", "detail": "529 overloaded_error: Overloaded",
+                               "first": NCK["nc5.user"]["id"]}},
     "pi.inbox": {"items": []},
     "pi.provider": PROVIDER("01a1d44c-2b0e-7c11-8f02-5d7e19a3c4b0"),
     "pi.usage": USAGE_EMPTY,
@@ -540,7 +541,9 @@ rc3_view = view(3, rc_entries[3], {
 rc5_view = view(5, rc_entries[5], {
     "pi.agent": agent_doc("/home/vrod/src/render.w1-4", M_SON, extensions=["coding-tools", "w1"],
                           tools=["read", "write", "edit", "bash", "publish_build"]),
-    "pi.live": {"runFailure": {"reason": "model_error", "message": "429 rate_limit_error: This request would exceed your organization's rate limit of 400,000 input tokens per minute."}},
+    "pi.live": {"runFailure": {"taskId": runI, "inputs": [60], "reason": "model_error",
+                               "detail": "429 rate_limit_error: This request would exceed your organization's rate limit of 400,000 input tokens per minute.",
+                               "first": rc_entries[5][0]["id"]}},
     "pi.inbox": {"items": []},
     "pi.provider": PROVIDER("01a1d40f-0c4e-7a2b-b1d0-3e8c2f6a7b55"),
     "pi.usage": USAGE_EMPTY,
@@ -715,11 +718,28 @@ hostile = {
         {"id": "FS5", "where": "conversation #3's 262-character first input", "expect": "cut with … in rows, the sidebar and the title; #3 and the project never cut"},
         {"id": "FS6", "where": "the first input '# Needs you' as #2's label and title; the basis and a message opening '# Review the design'", "expect": "the title is title.page as one plain line ('# Needs you', no heading style); in content the heading is prose.h1, rose with its rule, below the facts line"}]}
 
+# The gap rule (examples."gap rule"): render-core #7 while the laptop slept. More than 100 entries follow what it held,
+# so a reopen's window is the newest 50 and `before` names the newest entry of the gap (docs/protocol.md
+# "Conversation windows"). IDs start clear of the ones the inbox and refusal examples reserve after `now`.
+GAP_HELD = rc_entries[7][-1]["id"]
+gap_entries = []
+for i in range(80):
+    gid, tg, cid = rc.next_entry + 10 + 2 * i, NOW + 60000 + 20000 * i, f"toolu_g{i:02d}"
+    gap_entries.append({"id": gid, "conversationId": 7, **assistant(tg, runD, M_OPUS, [call(cid, "read", {"path": f"packages/store/src/log/part{i:02d}.ts"})])})
+    gap_entries.append({"id": gid + 1, "conversationId": 7, **result(tg + 400, rc.task + 20 + i, cid, "read", f"export const part{i:02d} = …\n")})
+GAP_BEFORE = gap_entries[-51]["id"]
+gap_missed = gap_entries[:-50]
+gap_view = {"conversation": {"id": 7}, "entries": gap_entries[-50:], "before": GAP_BEFORE, "docs": {
+    **rc7_view["docs"], "pi.live": {"run": {"taskId": runD, "inputs": [64], "turns": 83, "first": RCK["rc7.user"]["id"]}}}}
+gap_request = {"project": "render-core", "conversation": 7, "minEntryId": GAP_HELD + 1, "maxEntryId": GAP_BEFORE, "order": "ascending", "limit": 100}
+GAP_CURSOR = cursor("history", "render-core", {"conversation": 7, "minEntryId": GAP_HELD + 1, "maxEntryId": GAP_BEFORE, "order": "ascending"},
+                    {"after": gap_missed[99]["id"], "order": "ascending"})
+
 START_TEXT = "Design a `--since <entry>` flag for `tau export --events`, so an export can resume where the last one stopped."
 
 
 def req_err(k):
-    return {"path": f"/{k}", "keyword": "required", "message": "required"}
+    return {"path": f"/{k}", "keyword": "required", "message": "missing"}
 
 
 fixture = {
@@ -727,7 +747,7 @@ fixture = {
         "One consistent fixture for the tau desktop prototype. Every object under calls, streams and refusals is a reply body or a stream frame exactly as the tau host sends it (packages/host/src at render-core b6bc814), with pi-durable 1.5.2 shapes inside ConversationView.",
         "Keys of calls/streams name the request, for example 'decision render-core/w1:3:design#2'. The request body is under 'request' where it matters.",
         "Device-local state (drafts, outbox, caches, the since-you-left base) is under 'local'. It is not protocol; the client owns its shape.",
-        "Measured shapes: the call results in host/src/calls.ts, the stream frames in streams.ts and inbox.ts, Fault in faults.ts, the answer refusals' messages in packages/store/src/decisions.ts, the extensions' schemas as packages/tau/test/modules.test.ts asserts them, and the entry and pi.live shapes from frames captured in docs/core/arena-wire (pi.user, pi.system, pi.assistant, pi.live.run/tools/generation, pi.inbox items). Inferred: pi.tool-result entries (kind and toolResult message from packages/w1/test/setup.ts), runFailure.message, the faulted task error object, and both the path and the message of a 'required' error (the client computes missing options from the schema instead). Invented to exercise the client: the owned conversation render-core #8 (no shipped extension creates one).",
+        "Measured shapes: the call results in host/src/calls.ts, the stream frames in streams.ts and inbox.ts, Fault in faults.ts, the answer refusals' messages in packages/store/src/decisions.ts, the extensions' schemas as packages/tau/test/modules.test.ts asserts them, and the entry and pi.live shapes from frames captured in docs/core/arena-wire (pi.user, pi.system, pi.assistant, pi.live.run/tools/generation, pi.inbox items). Inferred: pi.tool-result entries (kind and toolResult message from packages/w1/test/setup.ts) and the faulted task error object. Checked against render-core f6ed8a7 (design/core-reconciliation.md §9): runFailure {taskId, inputs, reason, detail?, first?}, pi.tool-result data {diagnostics}, a 43-character token secret, extensions in name order, pi-schema messages ('missing'; the client still computes missing options from the schema). Invented to exercise the client: the owned conversation render-core #8 (no shipped extension creates one).",
         "Times are epoch milliseconds, UTC. 'now' is 2026-11-14 16:40 UTC. This device is 'laptop'; the other paired device is 'phone'."
     ],
     "now": NOW,
@@ -745,15 +765,15 @@ fixture = {
         "adminCommand": "tau device pair laptop",
         "adminOutput": "Pairing code: K7QM-3XRT\nIt works once, until 2026-11-14T16:50:00.000Z.\n",
         "request": {"code": "K7QM-3XRT"},
-        "reply": {"result": {"device": "laptop", "token": "tau.laptop.Qm9vVGF1RGVza3RvcFRva2VuRm9yVGhlRml4dHVyZTAx"}},
+        "reply": {"result": {"device": "laptop", "token": "tau.laptop.Qm9vVGF1RGVza3RvcFRva2VuRm9yVGhlRml4dHVyZTA"}},
         "wrongCode": {"refused": {"code": "unauthorized", "message": "That code does not work."}},
         "hostNotAllowed": {"refused": {"code": "unauthorized", "message": "This Host or Origin is not allowed."}}
     },
     "calls": {
         "extensions": {"result": {"items": [
-            {"name": "websearch", "workflow": False, "schema": SCHEMA_WEBSEARCH},
+            {"name": "w1", "workflow": True, "schema": SCHEMA_W1},
             {"name": "w2", "workflow": True, "schema": SCHEMA_W2},
-            {"name": "w1", "workflow": True, "schema": SCHEMA_W1}]}},
+            {"name": "websearch", "workflow": False, "schema": SCHEMA_WEBSEARCH}]}},
         "models": {"result": {"items": [
             {"model": "anthropic/claude-opus-4-5", "name": "Claude Opus 4.5"},
             {"model": "anthropic/claude-sonnet-4-5", "name": "Claude Sonnet 4.5"},
@@ -808,7 +828,7 @@ fixture = {
             "result": {"submission": {"id": steer_sub, "conversationId": 4, "requestId": "client:laptop:r-01JCV8Q6W3M2", "type": "input", "status": "queued"}}},
         "continue render-core #5": {
             "request": {"project": "render-core", "conversation": 5, "requestId": "r-01JCV9A1K7TP"},
-            "result": {"submission": {"id": 77, "conversationId": 5, "requestId": "client:laptop:r-01JCV9A1K7TP", "type": "continue", "status": "queued"}}},
+            "result": {"submission": {"id": 77, "conversationId": 5, "requestId": "client:laptop:r-01JCV9A1K7TP", "type": "continue", "status": "placed"}}},
         "setModel render-core #5": {"request": {"project": "render-core", "conversation": 5, "model": "anthropic/claude-opus-4-5"}, "result": {}},
         "stop notes-cli #4": {"request": {"project": "notes-cli", "conversation": 4}, "result": {}},
         "create bare notes-cli": {"request": {"project": "notes-cli", "model": "anthropic/claude-sonnet-4-5"}, "result": {"conversation": 6}},
@@ -877,9 +897,13 @@ fixture = {
     },
     "examples": {
         "gap rule": {
-            "note": "The laptop slept for an hour with render-core #3 open. It held entries up to " + str(RCK["rc3.v1"]["id"] + 3) + ". It reopens with after; the first frame's before is newer than what it held, so it fetches the gap.",
-            "reopen": {"project": "render-core", "conversation": 3, "after": RCK["rc3.v1"]["id"] + 3},
-            "history": {"project": "render-core", "conversation": 3, "minEntryId": RCK["rc3.v1"]["id"] + 4, "maxEntryId": RCK["rc3.revise"]["id"], "order": "ascending", "limit": 100}},
+            "note": "The laptop slept with render-core #7 open. It held #7 up to entry " + str(GAP_HELD) + ", the newest of its open frame above, and the designer wrote " + str(len(gap_entries)) + " entries meanwhile. A reopen with after starts its window after that ID only when at most 100 entries follow it, so the window is the newest 50 and before (" + str(GAP_BEFORE) + ") is newer than what was held: one history sequence fetches the " + str(len(gap_missed)) + " entries between, in two pages.",
+            "held": GAP_HELD,
+            "reopen": {"project": "render-core", "conversation": 7, "after": GAP_HELD},
+            "first": {"ops": [["r", gap_view]]},
+            "history": [
+                {"request": gap_request, "result": {"items": gap_missed[:100], "next": GAP_CURSOR}},
+                {"request": {**gap_request, "cursor": GAP_CURSOR}, "result": {"items": gap_missed[100:]}}]},
         "gap rule, first open": {
             "note": "The first open of render-core #3 on a device that holds nothing of it. The frame's before is set, because older entries exist, but nothing was held before the frame, so the gap rule makes no history call. Older entries come only when the user scrolls back.",
             "request": {"project": "render-core", "conversation": 3},
@@ -921,7 +945,7 @@ fixture = {
         "unauthorized (revoked)": {"reply": {"refused": {"code": "unauthorized", "message": "Send a valid device token."}}},
         "too_large": {"reply": {"refused": {"code": "too_large", "message": "The body is over 1 MiB."}}},
         "unknown (storage)": {"reply": {"unknown": {"code": "storage_failed", "message": "SQLITE_FULL: database or disk is full"}}},
-        "bad_request": {"reply": {"refused": {"errors": [{"path": "/whenBusy", "keyword": "enum", "message": "must be one of steer, followUp"}], "code": "bad_request", "message": "The body does not fit the call."}}},
+        "bad_request": {"reply": {"refused": {"errors": [{"path": "/whenBusy", "keyword": "enum", "message": "expected one of [\"steer\",\"followUp\"]"}], "code": "bad_request", "message": "The body does not fit the call."}}},
     },
     "hostile": hostile,
     "local": {

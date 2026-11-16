@@ -1,0 +1,31 @@
+{
+  "events": [
+    {
+      "t": 0.1,
+      "type": "key",
+      "name": "j"
+    },
+    {
+      "t": 0.2,
+      "type": "key",
+      "name": "i"
+    },
+    {
+      "t": 0.3,
+      "type": "key",
+      "name": "u",
+      "ctrl": true
+    },
+    {
+      "t": 0.4,
+      "type": "type",
+      "text": "release",
+      "every": 0.001
+    },
+    {
+      "t": 0.5,
+      "type": "key",
+      "name": "Tab"
+    }
+  ]
+}

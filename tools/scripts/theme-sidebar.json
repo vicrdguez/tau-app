@@ -1,0 +1,6 @@
+{"events": [
+  {"t": 0.10, "type": "key", "name": " "}, {"t": 0.12, "type": "key", "name": "h"}, {"t": 0.14, "type": "key", "name": "t"},
+  {"t": 0.20, "type": "key", "name": " "}, {"t": 0.22, "type": "key", "name": "t"}, {"t": 0.24, "type": "key", "name": "b"},
+  {"t": 0.30, "type": "key", "name": "h", "ctrl": true},
+  {"t": 0.32, "type": "key", "name": "j"}, {"t": 0.34, "type": "key", "name": "j"}
+]}
