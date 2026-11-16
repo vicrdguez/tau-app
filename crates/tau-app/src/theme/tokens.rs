@@ -455,6 +455,13 @@ struct RawClientMs {
 #[derive(Deserialize)]
 struct RawMotion {
     float_fade: f32,
+    panel: f32,
+    page: f32,
+}
+
+#[derive(Deserialize)]
+struct RawMotionCurve {
+    bounce: f32,
 }
 
 #[derive(Deserialize)]
@@ -481,6 +488,7 @@ struct Raw {
     height: Heights,
     elevation: RawElevation,
     motion_ms: RawMotion,
+    motion_curve: RawMotionCurve,
     tau: RawTau,
 }
 
@@ -581,6 +589,9 @@ pub(super) fn parse(json: &str) -> Result<Tokens, TokenError> {
     };
     Ok(Tokens {
         float_fade_ms: raw.motion_ms.float_fade,
+        panel_ms: raw.motion_ms.panel,
+        page_ms: raw.motion_ms.page,
+        motion_bounce: raw.motion_curve.bounce,
         palettes,
         ty: type_scale(&all_types)?,
         layout,

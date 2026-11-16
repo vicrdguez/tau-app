@@ -110,6 +110,10 @@ pub struct Screens {
 /// fills in only what it has. A method that names the page (`ctx`, `crumbs`, `view`) runs while
 /// `app.stage` is one of the family's stages; the peek's runs for the peek column and its float.
 pub trait Screen: Sync {
+    fn moving(&self, _app: &App) -> u64 {
+        0
+    }
+
     /// The keymap context while the page has the keys.
     fn ctx(&self, app: &App) -> Ctx;
 

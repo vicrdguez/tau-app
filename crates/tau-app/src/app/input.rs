@@ -2,25 +2,54 @@
 //! that has the keys; a command goes to its handler, and what is left goes to the region's own
 //! handler (the sidebar's motions, a float's input).
 
+#[cfg(test)]
+mod motion_tests;
+
 use rune::{KeyEvent, Tx};
 
 use super::commands::{self, Invocation};
-use super::{App, Focus};
+use super::{App, Focus, Stage};
 use crate::floats::Float;
-use crate::frame::Row;
+use crate::frame::{Row, SidebarPlace};
 use crate::keys::{Code, Key, Outcome, from_rune};
 use crate::screens;
 
-/// The window's `on_key`. What a key changes lands at once (`visual-language.md` §7: rows never
-/// move, the sidebar shows and hides with no slide, `␣ht` switches within one frame), except a
-/// float it opens, which fades in.
+#[derive(Clone, PartialEq)]
+struct Moving {
+    floats: usize,
+    sidebar: Option<SidebarPlace>,
+    details: bool,
+    stage: Stage,
+    page: u64,
+}
+
+impl Moving {
+    fn of(app: &App) -> Self {
+        Self {
+            floats: app.floats.len(),
+            sidebar: app.sidebar_place().filter(|_| screens::page(app).framed()),
+            details: app.details_visible && screens::page(app).has_details(app),
+            stage: app.stage.clone(),
+            page: screens::page(app).moving(app),
+        }
+    }
+
+    fn moved_since(&self, before: &Self) -> bool {
+        self.floats > before.floats
+            || self.sidebar != before.sidebar
+            || self.details != before.details
+            || (self.stage == before.stage && self.page != before.page)
+    }
+}
+
+/// Keys animate only the user-driven changes listed in visual-language.md §7.
 pub fn on_key(app: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
-    let floats = app.floats.len();
+    let before = Moving::of(app);
     let handled = match from_rune(ev, tx.key_base()) {
         Some(key) => press(app, key, tx.key_repeat(), tx),
         None => false,
     };
-    if app.floats.len() > floats {
+    if app.theme().motion.on && Moving::of(app).moved_since(&before) {
         tx.animated();
     } else {
         tx.instant();

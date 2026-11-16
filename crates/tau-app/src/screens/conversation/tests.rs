@@ -519,6 +519,59 @@ fn while_the_open_stream_is_down_writes_read_off_and_the_count_stops() {
 }
 
 #[test]
+fn moving_tracks_folds_and_unsent_inputs_but_not_the_cursor() {
+    let mut a = at("notes-cli", 4);
+    let before = Conversation.moving(&a);
+    keys(&mut a, "[t");
+    assert_eq!(Conversation.moving(&a), before);
+    keys(&mut a, "za");
+    let folded = Conversation.moving(&a);
+    assert_ne!(folded, before);
+    keys(&mut a, "i");
+    typed(&mut a, "Use snapshots.");
+    assert_eq!(Conversation.moving(&a), folded, "typing lands");
+    keys(&mut a, "<D-CR>");
+    assert_ne!(Conversation.moving(&a), folded);
+}
+
+#[test]
+fn moving_ignores_a_server_entry() {
+    use crate::app::testing::{paired, settle};
+    use tau_client::engine::StreamEvent;
+    use tau_client::sse::Frame;
+    let setup = paired(false);
+    let mut a = App::launch(setup.link);
+    on_fixture(&mut a, Stage::Item(conv("notes-cli", 4)));
+    let before = Conversation.moving(&a);
+    let count = shown(&a).unwrap().held.unwrap().entries.len();
+    let fixture = tau_client::Fixture::design();
+    let ops = fixture.value()["streams"]["open notes-cli #4"]["later"][2]["ops"]
+        .as_array()
+        .unwrap()
+        .clone();
+    setup
+        .wire
+        .deliver_to_all(StreamEvent::Frame(Frame::Ops(ops)));
+    settle(&mut a.link);
+    assert!(shown(&a).unwrap().held.unwrap().entries.len() > count);
+    assert_eq!(Conversation.moving(&a), before);
+}
+
+#[test]
+fn a_send_refused_before_leaving_keeps_the_draft_and_does_not_move() {
+    let mut a = at("render-core", 8);
+    keys(&mut a, "i");
+    typed(&mut a, "Keep this draft.");
+    a.link.forget_server();
+    let before = Conversation.moving(&a);
+    keys(&mut a, "<D-CR>");
+    assert_eq!(composer_text(&a), "Keep this draft.");
+    assert!(inputs(&a).is_empty());
+    assert_eq!(Conversation.moving(&a), before);
+    assert!(a.echo.as_deref().unwrap().contains("not connected"));
+}
+
+#[test]
 fn a_picker_opens_on_the_current_choice() {
     let mut a = at("render-core", 8);
     keys(&mut a, "<leader>cm");

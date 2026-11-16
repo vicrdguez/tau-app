@@ -30,6 +30,7 @@ pub(crate) mod transcript;
 mod view;
 mod yank;
 
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::time::Duration;
 
 use rune::{El, Tx};
@@ -65,6 +66,20 @@ use self::state::{composer_edit, composer_text, items};
 pub struct Conversation;
 
 impl Screen for Conversation {
+    fn moving(&self, app: &App) -> u64 {
+        let Some(s) = shown(app) else { return 0 };
+        let mut hash = DefaultHasher::new();
+        if let Some(c) = app.screens.conversation.conv(&s.conv) {
+            let mut folds: Vec<_> = c.folds.iter().collect();
+            folds.sort_unstable_by_key(|(stop, _)| stop.key());
+            folds.hash(&mut hash);
+        }
+        for entry in app.link.outbox().unsent_inputs(&s.conv) {
+            entry.id.hash(&mut hash);
+        }
+        hash.finish()
+    }
+
     fn ctx(&self, app: &App) -> Ctx {
         if composing(app) {
             Ctx::Composer

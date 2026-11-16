@@ -70,9 +70,13 @@ fn reading_defaults_and_float_motion_preserve_the_design() {
         (840.0, 880.0, 1208.0, 1256.0)
     );
     assert_eq!(t.motion.float, rune::Spring::new(0.09, 0.0));
+    assert_eq!(t.motion.panel, rune::Spring::new(0.2, 0.0));
+    assert_eq!(t.motion.page, rune::Spring::new(0.18, 0.0));
     assert!(t.motion.on);
     let off = Theme::new(Variant::Ember, Measure::default(), false);
     assert_eq!(off.motion.float, rune::Spring::NONE);
+    assert_eq!(off.motion.panel, rune::Spring::NONE);
+    assert_eq!(off.motion.page, rune::Spring::NONE);
     assert!(!off.motion.on);
 }
 

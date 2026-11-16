@@ -25,7 +25,7 @@ use crate::frame::{self, Bar, Header, Parts, Place, Row, Sidebar, SidebarPlace};
 use crate::keys::{Keymap, Keys, Mode};
 use crate::open::{Item, OpenItems};
 use crate::screens::{self, Screens};
-use crate::theme::{Theme, Variant, tokens};
+use crate::theme::{Measure, Motion, Theme, Variant, tokens};
 use crate::ui::{Badge, Scope};
 
 /// What the stage shows: one page. `crate::screens::of` names the screen family that draws it.
@@ -51,6 +51,7 @@ pub struct App {
     pub variant: Variant,
     /// The keys this device types: the design's, with any it moved.
     pub keymap: Keymap,
+    pub motion: bool,
     /// The window's size in points, as last laid out.
     pub window: [f32; 2],
     /// Seconds since launch (the virtual clock when headless).
@@ -115,6 +116,7 @@ impl App {
         App {
             variant: Variant::Ember,
             keymap: Keymap::design(),
+            motion: true,
             window: tokens().layout.window,
             now: 0.0,
             focus: Focus::Stage,
@@ -160,7 +162,7 @@ impl App {
     pub fn theme(&self) -> Theme {
         Theme {
             keymap: self.keymap,
-            ..Theme::of(self.variant)
+            ..Theme::new(self.variant, Measure::default(), self.motion)
         }
     }
 
@@ -296,7 +298,11 @@ impl App {
 
 /// Builds the window from the state.
 pub fn view(app: &App, cx: &mut Cx<App>) -> El {
-    let t = app.theme();
+    let reduced = cx.is_reduced_motion();
+    let mut t = app.theme();
+    if reduced {
+        t.motion = Motion::new(false);
+    }
     // The first frame lays out before `on_layout` reports the size: draw at the real one.
     let size = cx.layout_size("root").unwrap_or(app.window);
     let scope = app.scope();
@@ -389,7 +395,10 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
             lights: rune::is_headless(),
         },
     )
-    .on_layout(|s: &mut App, r| s.window = [r[2], r[3]])
+    .on_layout(move |s: &mut App, r| {
+        s.window = [r[2], r[3]];
+        s.motion &= !reduced;
+    })
 }
 
 /// Runs at the start of every frame: keeps the clock, shows which-key when its delay is up, pumps

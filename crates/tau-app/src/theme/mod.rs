@@ -7,7 +7,7 @@ use std::sync::LazyLock;
 
 #[cfg(test)]
 use rune::Color;
-use rune::{Family, Spring, SpringPair};
+use rune::{El, Family, Spring, SpringPair};
 
 use crate::keys::Keymap;
 
@@ -76,6 +76,9 @@ pub struct Palette {
 #[derive(Debug)]
 pub struct Tokens {
     float_fade_ms: f32,
+    panel_ms: f32,
+    page_ms: f32,
+    motion_bounce: f32,
     palettes: [Palette; 3],
     pub ty: TypeScale,
     pub layout: Layout,
@@ -129,14 +132,7 @@ impl Theme {
             ty: &t.ty,
             l: &t.layout,
             read: Reading::new(measure),
-            motion: Motion {
-                float: if motion && t.float_fade_ms > 0.0 {
-                    Spring::new(t.float_fade_ms / 1000.0, 0.0)
-                } else {
-                    Spring::NONE
-                },
-                on: motion,
-            },
+            motion: Motion::new(motion),
             keymap: Keymap::design(),
         }
     }
@@ -200,10 +196,37 @@ impl Reading {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Motion {
     pub float: Spring,
+    pub panel: Spring,
+    pub page: Spring,
     pub on: bool,
 }
 
 impl Motion {
+    pub fn new(on: bool) -> Self {
+        let t = tokens();
+        let spring = |ms| {
+            if on && ms > 0.0 {
+                Spring::new(ms / 1000.0, t.motion_bounce)
+            } else {
+                Spring::NONE
+            }
+        };
+        Self {
+            float: spring(t.float_fade_ms),
+            panel: spring(t.panel_ms),
+            page: spring(t.page_ms),
+            on,
+        }
+    }
+
+    pub fn moves(self, el: El, spring: Spring) -> El {
+        if self.on {
+            el.animated_changes().token_motion(spring)
+        } else {
+            el
+        }
+    }
+
     pub fn pair(spring: Spring) -> SpringPair {
         SpringPair::new(spring, spring)
     }
