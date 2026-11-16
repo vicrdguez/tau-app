@@ -210,6 +210,11 @@ pub trait Screen: Sync {
         None
     }
 
+    /// Object keys owned by a pending operator, before keymap resolution.
+    fn object_key(&self, _app: &mut App, _key: Key) -> bool {
+        false
+    }
+
     /// Keys no command took while this family has the keys: list motions, an editor's keys.
     /// False hands the key on, so a focused field types it.
     fn keys(&self, _app: &mut App, _keys: &[Key], _count: Option<u32>) -> bool {

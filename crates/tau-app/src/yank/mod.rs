@@ -58,7 +58,16 @@ pub fn shown(app: &App) -> String {
     let Some(p) = app.yank else {
         return String::new();
     };
-    let op = if p.clipboard { "␣y" } else { "y" };
+    let scope = app.scope();
+    let op = app
+        .settings
+        .keymap
+        .chip(
+            if p.clipboard { "<leader>y" } else { "y" },
+            scope.mode,
+            scope.ctx,
+        )
+        .printed;
     let half = match p.around {
         Some(true) => "a",
         Some(false) => "i",

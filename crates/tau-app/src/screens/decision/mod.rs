@@ -201,6 +201,10 @@ impl Screen for Decision {
         yank::text(app, obj)
     }
 
+    fn object_key(&self, app: &mut App, key: Key) -> bool {
+        app.scope().ctx == Ctx::Decision && reader::object_key(app, key)
+    }
+
     fn keys(&self, app: &mut App, keys: &[Key], count: Option<u32>) -> bool {
         if app.screens.decision.editing.is_some() {
             reader::editor_key(app, keys, count)

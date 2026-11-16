@@ -243,24 +243,22 @@ fn contexts_that_never_meet_share_a_key() {
 // ───────────── shadows ─────────────
 
 #[test]
-fn an_inner_shadow_keeps_its_exception_when_both_keys_move_together() {
-    let km = moved(design(), "view.close", "x", "X");
-    let km = moved(km, "row.hide", "x", "X");
+fn a_shadowing_key_stays_fixed_so_its_parent_is_never_uncovered() {
+    for to in ["X", "l"] {
+        let refusal = rebind(design(), "view.close", "x", to).unwrap_err();
+        assert!(matches!(refusal, Refusal::Fixed(_)));
+        assert!(refusal.to_string().contains("parent"), "{refusal}");
+    }
+    let row = design()
+        .key_rows()
+        .into_iter()
+        .find(|r| r.command.id == "view.close" && r.design == k("x"))
+        .unwrap();
+    let why = Refusal::Fixed(row.fixed.expect("the float explains why it stays")).to_string();
+    assert!(why.contains("parent"), "{why}");
     assert_eq!(
-        ran(km, Mode::Normal, Ctx::Sidebar, "X"),
+        ran(design(), Mode::Normal, Ctx::Sidebar, "x"),
         Some(("view.close", k("x")))
-    );
-    assert_eq!(
-        ran(km, Mode::Normal, Ctx::List, "X"),
-        Some(("row.hide", k("x")))
-    );
-}
-
-#[test]
-fn a_move_never_makes_a_new_shadow() {
-    assert_eq!(
-        clash_with(rebind(design(), "view.close", "x", "l")),
-        (Overlap::Same, Some("list.open"), Mode::Normal, Ctx::Sidebar)
     );
 }
 

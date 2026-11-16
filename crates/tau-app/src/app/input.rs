@@ -74,6 +74,11 @@ pub fn press(app: &mut App, key: Key, repeat: bool, tx: &mut Tx) -> bool {
         if crate::yank::key(app, key, tx) {
             return true;
         }
+        if let Some(screen) = screens::holder(app)
+            && screens::get(screen).object_key(app, key)
+        {
+            return true;
+        }
     }
     let scope = app.scope();
     match app.keys.press(

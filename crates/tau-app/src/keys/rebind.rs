@@ -36,6 +36,7 @@ pub enum Fixed {
     Answer,
     /// The settings float's own keys: the float that moves keys never loses its own.
     Settings,
+    Shadow,
 }
 
 /// Why a move didn't happen. `Display` is the sentence the float, the echo and `:messages` show.
@@ -293,6 +294,8 @@ impl Keymap {
             Some(Fixed::Answer)
         } else if binding.ctx == Ctx::Settings {
             Some(Fixed::Settings)
+        } else if binding.shadows {
+            Some(Fixed::Shadow)
         } else {
             None
         }
@@ -372,6 +375,9 @@ impl std::fmt::Display for Refusal {
             Refusal::Fixed(Fixed::Labels) => write!(f, "hint labels are letters, not a key"),
             Refusal::Fixed(Fixed::Answer) => write!(f, "keys on the answer path don't move"),
             Refusal::Fixed(Fixed::Settings) => write!(f, "the settings float keeps its own keys"),
+            Refusal::Fixed(Fixed::Shadow) => {
+                write!(f, "this key masks a parent binding, so it stays fixed")
+            }
             Refusal::Typing { mode, ctx, .. } => write!(
                 f,
                 "{} a key needs Control, Option or Command",
