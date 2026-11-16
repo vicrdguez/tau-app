@@ -73,6 +73,12 @@ impl Draw<'_> {
         self.band_on(stop, el, None)
     }
 
+    fn fold_line(&self, stop: &Stop, el: El, fill: Option<rune::Color>) -> El {
+        let target = stop.clone();
+        self.band_on(stop, el, fill)
+            .on_press(move |a: &mut App| super::toggle(a, target.clone()))
+    }
+
     /// The same over a row with a fill of its own (the failed tint), which the cursor keeps.
     fn band_on(&self, stop: &Stop, el: El, fill: Option<rune::Color>) -> El {
         let el = el.key(stop.key());
@@ -595,26 +601,34 @@ fn turn_parts(cx: &Draw, parts: &[Part]) -> El {
                 text: src,
                 open,
             } => {
-                let mut f = col().w_full().child(
-                    cx.band(
+                let mut f = col().key(format!("{}-row", stop.key())).w_full().child(
+                    cx.fold_line(
                         stop,
                         row().w_full().h(16.0).center_y().px(LANE).child(
                             text(format!("thinking · {words} words"))
                                 .font(t.ty.ui_small)
                                 .color(t.c.fg.muted),
                         ),
+                        None,
                     ),
                 );
                 if *open {
-                    f = f.child(row().w_full().pl(LANE).mt(4.0).child(prose(t, src)));
+                    f = f.child(
+                        row()
+                            .key(format!("{}-body", stop.key()))
+                            .w_full()
+                            .pl(LANE)
+                            .mt(4.0)
+                            .child(prose(t, src)),
+                    );
                 }
                 (f, AFTER_BLOCK)
             }
             Part::Tool(r) => (tool(cx, r), AFTER_ROW),
             Part::Fold { stop, rows, open } => {
                 let names: Vec<&str> = rows.iter().map(|r| r.name.as_str()).collect();
-                let mut f = col().w_full().child(
-                    cx.band(
+                let mut f = col().key(format!("{}-row", stop.key())).w_full().child(
+                    cx.fold_line(
                         stop,
                         tool_line(
                             cx,
@@ -627,6 +641,7 @@ fn turn_parts(cx: &Draw, parts: &[Part]) -> El {
                             None,
                             *open,
                         ),
+                        None,
                     ),
                 );
                 if *open {
@@ -645,7 +660,7 @@ fn turn_parts(cx: &Draw, parts: &[Part]) -> El {
     c
 }
 
-/// One tool row and, when open, its output in the sunken container.
+/// One tool row and, when open, its full input and output in sunken containers.
 fn tool(cx: &Draw, r: &ToolRow) -> El {
     let t = cx.t;
     let lead = match r.outcome {
@@ -669,30 +684,58 @@ fn tool(cx: &Draw, r: &ToolRow) -> El {
         r.open,
     );
     let tint = (r.outcome == Outcome::Failed).then_some(t.c.tint.row_fail);
-    let mut c = col().w_full().child(cx.band_on(&stop, row_el, tint));
+    let mut c = col()
+        .key(format!("{}-row", stop.key()))
+        .w_full()
+        .child(cx.fold_line(&stop, row_el, tint));
     if let Some(out) = r.shown_output() {
-        c = c.child(
-            col()
-                .w_full()
-                .mt(AFTER_ROW)
-                .mb(4.0)
-                .pt(9.0)
-                .pb(10.0)
-                .px(14.0)
-                .fill(t.c.surface.sunken)
-                .border(1.0, t.c.border.hairline)
-                .border_layout()
-                .radius(t.l.radius.surface)
-                .clip_rounded(t.l.radius.surface)
-                .child(
-                    text(out)
-                        .font(t.ty.mono_output)
-                        .color(t.c.fg.alt)
-                        .min_w(0.0),
-                ),
-        );
+        let both = r.input.is_some() && !out.is_empty();
+        if let Some(input) = &r.input {
+            c = c.child(tool_block(
+                t,
+                format!("{}-input", stop.key()),
+                input,
+                both.then_some("input"),
+            ));
+        }
+        if r.input.is_none() || !out.is_empty() {
+            c = c.child(tool_block(
+                t,
+                format!("{}-output", stop.key()),
+                &out,
+                both.then_some("output"),
+            ));
+        }
     }
     c
+}
+
+fn tool_block(t: Theme, key: String, source: &str, label: Option<&str>) -> El {
+    col()
+        .key(key)
+        .w_full()
+        .mt(AFTER_ROW)
+        .mb(4.0)
+        .pt(9.0)
+        .pb(10.0)
+        .px(14.0)
+        .fill(t.c.surface.sunken)
+        .border(1.0, t.c.border.hairline)
+        .border_layout()
+        .radius(t.l.radius.surface)
+        .clip_rounded(t.l.radius.surface)
+        .children(label.map(|label| {
+            text(label.to_string())
+                .font(t.ty.ui_small)
+                .color(t.c.fg.muted)
+                .mb(4.0)
+        }))
+        .child(
+            text(source.to_string())
+                .font(t.ty.mono_output)
+                .color(t.c.fg.alt)
+                .min_w(0.0),
+        )
 }
 
 /// A tool row's line: mark, name, arguments cut with `…`, then the outcome word, the count slot

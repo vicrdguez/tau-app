@@ -148,6 +148,14 @@ impl Screen for Conversation {
             ("message.next", |a, inv, _| motion(a, inv, Stop::is_head)),
             ("toolcall.next", |a, inv, _| motion(a, inv, Stop::is_tool)),
             ("fold.toggle", fold),
+            ("list.open", |a, inv, _| {
+                if inv.applies
+                    && !composing(a)
+                    && let Some(stop) = shown(a).and_then(|s| current_stop(a, &s))
+                {
+                    toggle(a, stop);
+                }
+            }),
             ("toggle.follow", |a, _, _| {
                 if following(a) {
                     pause(a);
@@ -555,6 +563,12 @@ fn fold(app: &mut App, inv: &Invocation, _: &mut Tx) {
     let conv = s.conv.clone();
     let cursor = current_stop(app, &s);
     let following = following(app);
+    if key.is_none_or(|k| k == Key::char('a')) {
+        if let Some(stop) = cursor {
+            toggle(app, stop);
+        }
+        return;
+    }
     let c = app.screens.conversation.conv_mut(&conv);
     match key {
         Some(k) if k == Key::char('R') || k == Key::char('M') => {
@@ -564,14 +578,14 @@ fn fold(app: &mut App, inv: &Invocation, _: &mut Tx) {
             }
         }
         _ => {
-            let Some((stop, open)) = cursor.and_then(|at| rows.into_iter().find(|(f, _)| *f == at))
+            let Some((stop, _)) = cursor.and_then(|at| rows.into_iter().find(|(f, _)| *f == at))
             else {
                 return;
             };
             let to = match key {
                 Some(k) if k == Key::char('o') => true,
                 Some(k) if k == Key::char('c') => false,
-                _ => !open,
+                _ => return,
             };
             c.folds.insert(stop.clone(), to);
             // A fold that opens below the followed cursor keeps the cursor on it.
@@ -580,6 +594,28 @@ fn fold(app: &mut App, inv: &Invocation, _: &mut Tx) {
             }
         }
     }
+}
+
+/// Toggles a fold and gives its stop the reader cursor, including when pressed from the composer.
+fn toggle(app: &mut App, stop: Stop) {
+    let Some(s) = shown(app) else { return };
+    let Some((_, open)) = foldables(&state::items(app, &s))
+        .into_iter()
+        .find(|(f, _)| *f == stop)
+    else {
+        return;
+    };
+    let newest = s.held.and_then(|h| h.newest());
+    let conv = s.conv.clone();
+    let c = app.screens.conversation.conv_mut(&conv);
+    if c.cursor.is_none() {
+        c.paused_at = newest;
+    }
+    c.folds.insert(stop.clone(), !open);
+    c.cursor = Some(stop.clone());
+    c.composing = false;
+    app.focus = crate::app::Focus::Stage;
+    app.screens.conversation.reveal = Some(Reveal::Into(stop));
 }
 
 /// `gd` in an owned conversation: its owner.

@@ -1,0 +1,9 @@
+{"events": [
+  {"t": 0.2, "type": "key", "name": "["}, {"t": 0.25, "type": "key", "name": "t"},
+  {"t": 0.4, "type": "key", "name": "["}, {"t": 0.45, "type": "key", "name": "t"},
+  {"t": 0.8, "type": "tap", "x": 370, "y": 161},
+  {"t": 1.2, "type": "tap", "x": 370, "y": 194},
+  {"t": 1.6, "type": "tap", "x": 370, "y": 194},
+  {"t": 2.0, "type": "tap", "x": 400, "y": 262},
+  {"t": 2.4, "type": "key", "name": "Enter"}
+]}
