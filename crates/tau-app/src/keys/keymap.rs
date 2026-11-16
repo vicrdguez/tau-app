@@ -688,14 +688,13 @@ const NEVER_REPEATED: [&str; 2] = ["readback.confirm", "confirm.keys"];
 
 /// Where each `[builtin]` set is live. The keymap names the sets; `grammar.md` §2, §6 and §10 say
 /// where they act. `timeout_ok` (`jk`) is the editor's own and resolves there, not here.
-const BUILTIN_SCOPES: [(&str, Mode, Ctx); 9] = [
+const BUILTIN_SCOPES: [(&str, Mode, Ctx); 8] = [
     ("list_motions", Mode::Normal, Ctx::List),
     ("reader_motions", Mode::Normal, Ctx::Reader),
     ("reader_motions", Mode::Visual, Ctx::Reader),
     ("editor_normal", Mode::Normal, Ctx::Editor),
     ("editor_normal", Mode::Visual, Ctx::Editor),
     ("editor_insert", Mode::Insert, Ctx::Editor),
-    ("start_insert", Mode::Insert, Ctx::Start),
     ("visual", Mode::Visual, Ctx::Global),
     ("hint", Mode::Hint, Ctx::Hint),
 ];

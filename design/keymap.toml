@@ -68,7 +68,6 @@ editor_normal = ["h", "j", "k", "l", "w", "b", "e", "W", "B", "E", "0", "^", "$"
                  "i", "a", "I", "A", "o", "O", "r", "n", "N", "/", "?", "%"]
 editor_textobjects = ["iw", "aw", "ip", "ap", "is", "as", "i\"", "a\"", "i(", "a(", "i[", "a[", "i{", "a{", "iq", "aq", "ib", "ab"]
 editor_insert = ["<Esc>", "jk", "<C-w>", "<C-u>", "<C-CR>", "<S-Tab>", "<C-t>", "<C-d>", "<C-j>", "<C-k>", "<C-f>", "<C-n>", "<C-p>", "<Tab>", "<BS>"]
-start_insert = ["<M-p>", "<M-w>"]  # the start editor's own Insert keys: start.project and start.workflow (bound in Normal below). No other editor has them (grammar §10).
 visual = ["<Esc>"]                 # leaves Visual, in readers and editors
 hint = ["<Esc>", "a", "s", "d", "f", "g", "h", "j", "k", "l"]
 pending = ["<Esc>"]                # Esc cancels a pending prefix (the which-key head prints it as a chip)
@@ -490,8 +489,9 @@ desc = "start page: project"
 tier = "local"
 kind = "command"
 ctx = ["start"]
-note = "The project picker for the start page. In Insert the same key is the start editor's own (builtin start_insert). Off while create is in flight."
-keys = [{ mode = "n", ctx = "start", seq = "<M-p>", tui = "kitty", tui_alt = "<leader>pp" }]
+note = "The project picker for the start page, in Normal and in Insert (KL14 lets an Insert binding repeat its command's Option chord from Normal). Off while create is in flight."
+keys = [{ mode = "n", ctx = "start", seq = "<M-p>", tui = "kitty", tui_alt = "<leader>pp" },
+        { mode = "i", ctx = "start", seq = "<M-p>", tui = "kitty", tui_alt = "<leader>pp" }]
 
 [[command]]
 id = "start.workflow"
@@ -500,8 +500,9 @@ desc = "start page: workflow or model"
 tier = "local"
 kind = "command"
 ctx = ["start"]
-note = "One flat list: the project's workflows, then one bare-agent row per model. In Insert the same key is the start editor's own (builtin start_insert). Off while create is in flight."
-keys = [{ mode = "n", ctx = "start", seq = "<M-w>", tui = "kitty", tui_alt = "<leader>pw" }]
+note = "One flat list: the project's workflows, then one bare-agent row per model. In Normal and in Insert, like start.project. Off while create is in flight."
+keys = [{ mode = "n", ctx = "start", seq = "<M-w>", tui = "kitty", tui_alt = "<leader>pw" },
+        { mode = "i", ctx = "start", seq = "<M-w>", tui = "kitty", tui_alt = "<leader>pw" }]
 
 [[command]]
 id = "composer.focus"

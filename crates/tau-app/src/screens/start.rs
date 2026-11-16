@@ -108,16 +108,6 @@ impl Screen for Start {
             }
             return true;
         }
-        for k in keys {
-            if k.mods.alt && k.code == Code::Char('p') {
-                project_picker(a, ProjectPurpose::Start);
-                return true;
-            }
-            if k.mods.alt && k.code == Code::Char('w') {
-                workflow_picker(a);
-                return true;
-            }
-        }
         let ed = &mut a.screens.start.editor;
         if ed.mode() == EditMode::Insert {
             keys.iter().all(|k| ed.insert(*k, a.now) == Reply::Handled)

@@ -290,7 +290,7 @@ The draft clears when `create` succeeds. This device then remembers the project 
 
 **Calls:** `projects`, `extensions` and `models` when the page opens; `options {project}` when its project is set or changes; then `create`, `input`.
 
-**Keys:** Insert on open. `⏎` is a new line; `⌘⏎` starts; `M-p` opens the project picker; `M-w` opens the workflow list (Option-p and Option-w can't type `π` and `∑` here). In Insert the two are the start editor's own keys; in Normal they are the commands `start.project` (`:project`) and `start.workflow` (`:workflow`). `Esc` or `jk` leaves Insert; in Normal the composer's hint reads `⌘⏎ start · i writes`, and `i a o` return to Insert.
+**Keys:** Insert on open. `⏎` is a new line; `⌘⏎` starts; `M-p` opens the project picker; `M-w` opens the workflow list (Option-p and Option-w can't type `π` and `∑` here). In both modes they are the commands `start.project` (`:project`) and `start.workflow` (`:workflow`). `Esc` or `jk` leaves Insert; in Normal the composer's hint reads `⌘⏎ start · i writes`, and `i a o` return to Insert.
 
 ### 5.3 Home
 

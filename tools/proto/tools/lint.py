@@ -442,11 +442,14 @@ def check(km: Keymap, protocol_text: str | None = None, cheatsheet_text: str | N
                     add("KL0", f"{cmd.get('id')} binding {k.get('seq')} declares a host-event trigger ({key})", cmd.get("id", ""))
 
     # KL14 Insert whitelist ---------------------------------------------------
+    # The twin clause: Insert may repeat an Option or Command chord its command binds in Normal in the same context (the start page's M-p, M-w).
     ok = INSERT_OK | {"".join(tokenize(s, km.leader)) for s in km.builtin.get("editor_insert", [])}
     for cmd, k, toks in B:
         if k.get("mode") == "i":
             key = "".join(toks)
-            if km.leader in toks or key not in ok:
+            twin = len(toks) == 1 and toks[0].startswith(("<M-", "<D-")) and any(
+                c is cmd and kk.get("mode") == "n" and kk.get("ctx") == k.get("ctx") and tt == toks for c, kk, tt in B)
+            if km.leader in toks or (key not in ok and not twin):
                 add("KL14", f"{cmd.get('id')} Insert binding {k['seq']} is not editing, completion, <Esc>, jk, <C-CR>, <M-CR> or <D-CR> (no leader)", cmd.get("id", ""))
 
     # KL15 dropped in phase 2 (grammar.md §15): pinning is a resolver property, checked by TRAP
