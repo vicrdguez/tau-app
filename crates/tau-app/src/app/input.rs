@@ -35,10 +35,12 @@ impl Moving {
     }
 
     fn moved_since(&self, before: &Self) -> bool {
-        self.floats > before.floats
-            || self.sidebar != before.sidebar
-            || self.details != before.details
-            || (self.stage == before.stage && self.page != before.page)
+        self.stage == before.stage
+            && self.floats >= before.floats
+            && (self.floats > before.floats
+                || self.sidebar != before.sidebar
+                || self.details != before.details
+                || self.page != before.page)
     }
 }
 

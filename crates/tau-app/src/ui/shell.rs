@@ -1,9 +1,9 @@
 //! The one shell every bottom float shares (`spec.md` §6): head, body, foot; `surface.raised`, a
 //! hairline, a 2 px coral top rule, `radius.surface` and the upward shadow.
 
-use rune::{El, col, el, row, text};
+use rune::{El, Transition, col, el, row, text};
 
-use crate::theme::Theme;
+use crate::theme::{Motion, Theme};
 
 /// What a float shows. The frame places it over the stage and clips the page at its top edge.
 pub struct Shell {
@@ -92,14 +92,24 @@ pub fn shell(t: Theme, s: Shell) -> El {
         }
         float = float.child(foot.child(hints));
     }
-    // The coral top rule: a top-only border over the hairline, narrowing round the corners as a
-    // CSS `border-top` does.
-    float.child(
-        el().pin(Some(0.0), Some(0.0), Some(0.0), Some(0.0))
-            .border_sides([2.0, 0.0, 0.0, 0.0], t.c.state.attn)
-            .radius(t.l.radius.surface)
-            .inert(),
-    )
+    col()
+        .w_full()
+        .min_h(0.0)
+        .instant_changes()
+        .transition(Transition::none())
+        .child(
+            t.motion
+                .moves(float.key("float-surface"), t.motion.float)
+                .shrink()
+                .min_h(0.0)
+                .transition(Transition::opacity().springs(Motion::pair(t.motion.float))),
+        )
+        .child(
+            el().pin(Some(0.0), Some(0.0), Some(0.0), Some(0.0))
+                .border_sides([2.0, 0.0, 0.0, 0.0], t.c.state.attn)
+                .radius(t.l.radius.surface)
+                .inert(),
+        )
 }
 
 /// A float's rows body: 30 px rows, 24 px in. The selection is a `surface.cursor.side` band with

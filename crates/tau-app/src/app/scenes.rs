@@ -36,6 +36,10 @@ pub fn all() -> &'static [Scene] {
 /// The frame's own scenes.
 const SCENES: &[Scene] = &[
     ("home-connecting", before_any_frame),
+    ("home-motion-off", |a| {
+        home(a);
+        a.motion = false;
+    }),
     ("home-connecting-800", before_any_frame),
     ("which-key-root", |a| {
         home(a);

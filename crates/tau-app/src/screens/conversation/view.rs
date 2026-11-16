@@ -3,7 +3,7 @@
 //! composer. Sizes follow the prototype (`tools/proto/calm.css` `.ccol`, `.msg`, `.tool`,
 //! `.cstack`, `.comp`).
 
-use rune::{El, ScrollSpec, TextStyle, col, el, icon, row, spacer, text, text_input};
+use rune::{El, ScrollSpec, TextStyle, Transition, col, el, icon, row, spacer, text, text_input};
 use tau_client::shapes::{ConversationState, QueueMode};
 use tau_client::wire::InputMode;
 use tau_client::{EntryId, Label, Wall};
@@ -17,7 +17,7 @@ use crate::content::{line, markdown};
 use crate::copy;
 use crate::editor::EditMode;
 use crate::screens::NOTHING_RECEIVED;
-use crate::theme::Theme;
+use crate::theme::{Motion, Theme};
 use crate::time;
 use crate::ui::{Mark, Part as Fact, Scope, chip, facts, glyphs, mark};
 
@@ -110,12 +110,14 @@ pub fn page(t: Theme, app: &App) -> El {
         },
     };
     let following = conv.is_none_or(|c| c.cursor.is_none());
-    let column = col()
+    let column = t
+        .motion
+        .moves(col().key("conv-column"), t.motion.page)
+        .transition(Transition::none())
         .w_full()
-        .key("conv-column")
         .max_w(t.read.conversation)
         .h_full()
-        .child(title_block(t, app, &s, &model))
+        .child(title_block(t, app, &s, &model).instant_changes())
         .child(transcript(&cx, &s, &items, following))
         .child(stack(t, app, &s, &model, keys && composing));
     row()
@@ -276,19 +278,29 @@ fn item_el(cx: &Draw, item: &Item) -> El {
             text: opened,
             open,
         } => {
-            let mut c = col().w_full().mb(AFTER_MESSAGE).child(
-                cx.band(
-                    stop,
-                    row().w_full().h(16.0).center_y().px(LANE).child(
-                        text(words.clone())
-                            .font(t.ty.ui_small)
-                            .color(t.c.fg.muted)
-                            .truncate(),
+            let mut c = col()
+                .key(format!("{}-row", stop.key()))
+                .clip_rounded(0.0)
+                .w_full()
+                .mb(AFTER_MESSAGE)
+                .child(
+                    cx.band(
+                        stop,
+                        row().w_full().h(16.0).center_y().px(LANE).child(
+                            text(words.clone())
+                                .font(t.ty.ui_small)
+                                .color(t.c.fg.muted)
+                                .truncate(),
+                        ),
                     ),
-                ),
-            );
+                );
             if *open && let Some(src) = opened {
-                c = c.child(prose(t, src).pl(LANE).mt(6.0));
+                c = c.child(
+                    prose(t, src)
+                        .pl(LANE)
+                        .mt(6.0)
+                        .transition(Transition::opacity().springs(Motion::pair(t.motion.page))),
+                );
             }
             c
         }
@@ -587,21 +599,26 @@ fn turn_parts(cx: &Draw, parts: &[Part]) -> El {
                 text: src,
                 open,
             } => {
-                let mut f = col().key(format!("{}-row", stop.key())).w_full().child(
-                    cx.fold_line(
-                        stop,
-                        row().w_full().h(16.0).center_y().px(LANE).child(
-                            text(format!("thinking · {words} words"))
-                                .font(t.ty.ui_small)
-                                .color(t.c.fg.muted),
+                let mut f = col()
+                    .key(format!("{}-row", stop.key()))
+                    .clip_rounded(0.0)
+                    .w_full()
+                    .child(
+                        cx.fold_line(
+                            stop,
+                            row().w_full().h(16.0).center_y().px(LANE).child(
+                                text(format!("thinking · {words} words"))
+                                    .font(t.ty.ui_small)
+                                    .color(t.c.fg.muted),
+                            ),
+                            None,
                         ),
-                        None,
-                    ),
-                );
+                    );
                 if *open {
                     f = f.child(
                         row()
                             .key(format!("{}-body", stop.key()))
+                            .transition(Transition::opacity().springs(Motion::pair(t.motion.page)))
                             .w_full()
                             .pl(LANE)
                             .mt(4.0)
@@ -613,23 +630,27 @@ fn turn_parts(cx: &Draw, parts: &[Part]) -> El {
             Part::Tool(r) => (tool(cx, r), AFTER_ROW),
             Part::Fold { stop, rows, open } => {
                 let names: Vec<&str> = rows.iter().map(|r| r.name.as_str()).collect();
-                let mut f = col().key(format!("{}-row", stop.key())).w_full().child(
-                    cx.fold_line(
-                        stop,
-                        tool_line(
-                            cx,
-                            mark(t, Mark::Ok),
-                            text(format!("{} tool calls", rows.len()))
-                                .font(t.ty.ui)
-                                .color(t.c.fg.default),
-                            names.join(", "),
-                            Outcome::Ok,
+                let mut f = col()
+                    .key(format!("{}-row", stop.key()))
+                    .clip_rounded(0.0)
+                    .w_full()
+                    .child(
+                        cx.fold_line(
+                            stop,
+                            tool_line(
+                                cx,
+                                mark(t, Mark::Ok),
+                                text(format!("{} tool calls", rows.len()))
+                                    .font(t.ty.ui)
+                                    .color(t.c.fg.default),
+                                names.join(", "),
+                                Outcome::Ok,
+                                None,
+                                *open,
+                            ),
                             None,
-                            *open,
                         ),
-                        None,
-                    ),
-                );
+                    );
                 if *open {
                     for r in rows {
                         f = f.child(tool(cx, r).mt(AFTER_ROW));
@@ -672,6 +693,8 @@ fn tool(cx: &Draw, r: &ToolRow) -> El {
     let tint = (r.outcome == Outcome::Failed).then_some(t.c.tint.row_fail);
     let mut c = col()
         .key(format!("{}-row", stop.key()))
+        .transition(Transition::opacity().springs(Motion::pair(t.motion.page)))
+        .clip_rounded(0.0)
         .w_full()
         .child(cx.fold_line(&stop, row_el, tint));
     if let Some(out) = r.shown_output() {
@@ -699,6 +722,7 @@ fn tool(cx: &Draw, r: &ToolRow) -> El {
 fn tool_block(t: Theme, key: String, source: &str, label: Option<&str>) -> El {
     col()
         .key(key)
+        .transition(Transition::opacity().springs(Motion::pair(t.motion.page)))
         .w_full()
         .mt(AFTER_ROW)
         .mb(4.0)
@@ -866,6 +890,13 @@ fn stack(t: Theme, app: &App, s: &Shown, model: &str, composing: bool) -> El {
             );
         }
         let mut unsent = col()
+            .key(format!("unsent-{}", e.id.0))
+            .clip_rounded(0.0)
+            .transition(
+                Transition::offset(0.0, 8.0)
+                    .combined(Transition::opacity())
+                    .springs(Motion::pair(t.motion.page)),
+            )
             .w_full()
             .mb(10.0)
             .child(head)
@@ -962,8 +993,14 @@ fn composer(t: Theme, app: &App, s: &Shown, model: &str, composing: bool) -> El 
         )
         .border_layout()
         .radius(t.l.radius.surface)
-        .child(cap)
-        .child(row().w_full().mt(6.0).min_h(24.0).child(body));
+        .child(cap.instant_changes())
+        .child(
+            row()
+                .w_full()
+                .mt(6.0)
+                .min_h(24.0)
+                .child(body.instant_changes()),
+        );
     if composing {
         c = c.child(
             hints(
@@ -972,10 +1009,15 @@ fn composer(t: Theme, app: &App, s: &Shown, model: &str, composing: bool) -> El 
                 insert,
                 s.state == ConversationState::Running,
             )
+            .instant_changes()
+            .transition(Transition::none())
             .mt(6.0),
         );
     }
-    c.on_press(|a: &mut App| super::compose(a))
+    c.on_press_tx(|a: &mut App, tx| {
+        super::compose(a);
+        tx.instant();
+    })
 }
 
 /// `Esc jk leave Insert · ⌘⏎ steer · M-⏎ follow-up` (running) or `· ⌘⏎ send`; in the composer's

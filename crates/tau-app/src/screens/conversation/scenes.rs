@@ -21,6 +21,11 @@ pub fn all() -> Vec<Scene> {
             compose(a, "Use node:test's snapshot support for the TOML fixtures.");
         }),
         ("conversation-failed", |a| open(a, "render-core", 5)),
+        ("conversation-send-refused", |a| {
+            open(a, "render-core", 8);
+            compose(a, "Keep this draft.");
+            a.link.forget_server();
+        }),
         ("conversation-joined", |a| {
             a.link = played(&[("open render-core #7", 1)]);
             open(a, "render-core", 7);

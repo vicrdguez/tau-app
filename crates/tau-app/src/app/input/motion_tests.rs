@@ -44,6 +44,23 @@ fn moving_only_tracks_the_users_layout_changes() {
         ..before.clone()
     };
     assert!(!new_page.moved_since(&before), "a new page lands");
+    let changed_frame = Moving {
+        details: !before.details,
+        sidebar: None,
+        ..new_page
+    };
+    assert!(
+        !changed_frame.moved_since(&before),
+        "a page change lands its panels too"
+    );
+    let closed_with_change = Moving {
+        page: before.page + 1,
+        ..before.clone()
+    };
+    assert!(
+        !closed_with_change.moved_since(&opened),
+        "closing a float lands the page change"
+    );
 }
 
 #[test]

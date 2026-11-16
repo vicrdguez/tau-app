@@ -310,7 +310,7 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
     let framed = page.framed();
     let place = app.sidebar_place_at(size[0]).filter(|_| framed);
     let groups = app.server.open_groups(&app.open);
-    let sidebar = place.map(|p| {
+    let sidebar = framed.then(|| {
         let s = Sidebar {
             server: &app.server.phase,
             counts: app.server.counts,
@@ -319,7 +319,7 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
             open: &groups,
             scope,
         };
-        (frame::sidebar(t, &s, commands::open_row), p)
+        frame::sidebar(t, &s, commands::open_row)
     });
     let header = if framed {
         frame::header(
@@ -380,6 +380,7 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
         Parts {
             window: size,
             sidebar,
+            sidebar_place: place,
             header,
             notice: app
                 .server
