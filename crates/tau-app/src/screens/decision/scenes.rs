@@ -235,7 +235,6 @@ fn long_on_wire(a: &mut App, refusal: Option<Value>) -> Arc<Wire> {
     let _ = store.save_client(&ClientConfig {
         server: Some(f.url()),
         device: Some(f.device()),
-        theme: None,
     });
     let secrets = Secrets::memory();
     let _ = secrets.save(&f.url(), &f.token());

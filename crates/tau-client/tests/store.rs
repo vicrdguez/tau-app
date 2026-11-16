@@ -51,6 +51,60 @@ fn paired_by_hand(dir: &Path, secrets: Secrets) -> Link {
 }
 
 #[test]
+fn old_client_config_accepts_the_unused_theme() {
+    let config: ClientConfig = toml::from_str(
+        "server = 'https://example.test'\ndevice = 'laptop'\ntheme = 'ember-soft'\n",
+    )
+    .unwrap();
+    assert_eq!(config.server.as_deref(), Some("https://example.test"));
+    assert_eq!(config.device.as_deref(), Some("laptop"));
+}
+
+#[test]
+fn device_files_are_root_wide_and_optional() {
+    let none = Store::none();
+    assert_eq!(none.root(), None);
+    assert_eq!(none.load_device("settings.toml").unwrap(), None);
+    none.save_device("settings.toml", "ignored").unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::at(dir.path().to_path_buf());
+    assert_eq!(store.root(), Some(dir.path()));
+    assert_eq!(store.load_device("settings.toml").unwrap(), None);
+    store
+        .save_device("settings.toml", "reading_width = 600")
+        .unwrap();
+    store.use_server("https://example.test");
+    store.forget_server().unwrap();
+    assert_eq!(
+        store.load_device("settings.toml").unwrap().as_deref(),
+        Some("reading_width = 600")
+    );
+    store
+        .save_device("settings.toml", "motion = false")
+        .unwrap();
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join("settings.toml")).unwrap(),
+        "motion = false"
+    );
+    assert!(!dir.path().join("settings.partial").exists());
+}
+
+#[test]
+fn unreadable_device_files_are_errors_and_failed_saves_keep_the_old_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::at(dir.path().to_path_buf());
+    std::fs::create_dir(dir.path().join("unreadable.toml")).unwrap();
+    assert!(store.load_device("unreadable.toml").is_err());
+    store.save_device("settings.toml", "old").unwrap();
+    std::fs::create_dir(dir.path().join("settings.partial")).unwrap();
+    assert!(store.save_device("settings.toml", "replacement").is_err());
+    assert_eq!(
+        store.load_device("settings.toml").unwrap().as_deref(),
+        Some("old")
+    );
+}
+
+#[test]
 fn state_lives_under_the_root() {
     let dir = tempfile::tempdir().unwrap();
     let _link = paired_by_hand(dir.path(), Secrets::memory());

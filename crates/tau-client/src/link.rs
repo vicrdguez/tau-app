@@ -327,11 +327,9 @@ impl Link {
             }
             Effect::SaveCredentials { url, device, token } => {
                 let _ = self.secrets.save(&url, &token);
-                let ClientConfig { theme, .. } = self.store.client();
                 let _ = self.store.save_client(&ClientConfig {
                     server: Some(url.clone()),
                     device: Some(device.to_string()),
-                    theme,
                 });
                 self.store.use_server(&url);
                 self.token = Some(token);

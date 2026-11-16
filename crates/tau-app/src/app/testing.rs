@@ -82,7 +82,6 @@ pub(crate) fn paired(silent: bool) -> Setup {
         .save_client(&ClientConfig {
             server: Some(f.url()),
             device: Some(f.device()),
-            theme: None,
         })
         .unwrap();
     let secrets = Secrets::memory();

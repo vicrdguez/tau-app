@@ -18,7 +18,6 @@ fn launch(dir: &std::path::Path, url: &str) -> App {
         .save_client(&ClientConfig {
             server: Some(url.into()),
             device: Some("laptop".into()),
-            theme: None,
         })
         .unwrap();
     let f = Fixture::design();
