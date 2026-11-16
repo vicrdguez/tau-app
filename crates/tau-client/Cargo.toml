@@ -1,0 +1,29 @@
+[package]
+name = "tau-client"
+description = "The tau desktop client's link to one tau server: calls, streams, the outbox and what the server last said."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+getrandom = "0.3"
+libc = "0.2"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-platform-verifier = "0.7"
+toml.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = "3"
+
+[dev-dependencies]
+tempfile = "3"
+
+[[test]]
+name = "e2e"
+path = "tests/e2e.rs"
+test = false
+
+[lints]
+workspace = true

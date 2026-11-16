@@ -1,0 +1,11 @@
+> POST /v1/pair {"code":"XEBM-17PG"}
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+Tau-Protocol: 1
+Date: Sun, 15 Nov 2026 17:48:36 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"result":{"device":"phone","token":"tau.phone.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}}

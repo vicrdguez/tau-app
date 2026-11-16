@@ -1,0 +1,13 @@
+> POST /v1/input
+> {"project":"flow","conversation":13,"text":"Will it rain tomorrow?","requestId":"r-w2"}
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+Tau-Protocol: 1
+Date: Sun, 15 Nov 2026 17:51:01 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"result":{"submission":{"id":20,"conversationId":13,"requestId":"client:laptop:r-w2","type":"input","status":"placed","entry":19}}}

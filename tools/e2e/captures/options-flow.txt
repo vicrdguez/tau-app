@@ -1,0 +1,13 @@
+> POST /v1/options
+> {"project":"flow"}
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+Tau-Protocol: 1
+Date: Sun, 15 Nov 2026 17:48:42 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"result":{"items":[{"extension":"websearch","schema":{"type":"object","properties":{"provider":{"enum":["exa","tavily"]},"apiKey":{"type":"string","format":"secret","minLength":1}},"required":["provider","apiKey"],"additionalProperties":false},"value":{},"errors":[{"path":"/provider","keyword":"required","message":"missing"},{"path":"/apiKey","keyword":"required","message":"missing"}]},{"extension":"w1","schema":{"type":"object","properties":{"designer":{"type":"string","format":"model"},"implementer":{"type":"string","format":"model"},"reviewer":{"type":"string","format":"model"},"base":{"type":"string","minLength":1,"default":"main"}},"required":["designer","implementer","reviewer","base"],"additionalProperties":false},"value":{},"errors":[{"path":"/designer","keyword":"required","message":"missing"},{"path":"/implementer","keyword":"required","message":"missing"},{"path":"/reviewer","keyword":"required","message":"missing"}]},{"extension":"w2","schema":{"type":"object","properties":{"model":{"type":"string","format":"model"}},"required":["model"],"additionalProperties":false},"value":{},"errors":[{"path":"/model","keyword":"required","message":"missing"}]}]}}

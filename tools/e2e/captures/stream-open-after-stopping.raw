@@ -1,0 +1,13 @@
+HTTP/1.1 200 OK
+Content-Type: text/event-stream
+Cache-Control: no-store
+Tau-Protocol: 1
+Date: Sun, 15 Nov 2026 17:49:43 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+data: {"ops":[["r",{"conversation":{"id":12},"entries":[],"before":22,"docs":{"pi.agent":{"model":{"provider":"anthropic","modelId":"claude-sonnet-4-5"},"cwd":"/tmp/tau-e2e.XXXXXX/work/bare"},"pi.live":{"runFailure":{"taskId":20,"inputs":[19],"reason":"model_error","detail":"Provider is not configured: anthropic","first":18}},"pi.inbox":{"items":[]},"pi.provider":{"sessionId":"01a1e053-d8e1-750a-9484-6f8ddbfd1ba0"},"pi.usage":{"models":{"anthropic/claude-sonnet-4-5":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"totalTokens":0,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}}},"tools":{}}}}]]}
+
+data: {"end":{"reason":"stopping"}}
+
