@@ -10,7 +10,8 @@
 //! - the composer keeps the text it sent, or loses a draft when `Esc Esc` leaves it;
 //! - the cursor opens anywhere but the last stop with follow on, an upward motion leaves follow
 //!   on, `G` leaves it off, `]t [t ]m [m` stop anywhere but tool rows and message heads;
-//! - `za` leaves the row under the cursor as it was, `zR` or `zM` miss a row;
+//! - `za` or Enter leaves a fold unchanged, moves the cursor away, or `zR` or `zM` miss a row;
+//! - Enter changes a non-foldable stop, or Enter or `:open` toggles while composing;
 //! - `gd` in an owned conversation opens anything but its owner;
 //! - `␣cm` lists other than the server's models with the current one marked, `⏎` sets another
 //!   model than the one under the cursor; `␣ct` lists other than the seven levels or drops the
@@ -318,6 +319,46 @@ fn za_toggles_the_row_under_the_cursor_and_zr_zm_every_row() {
     keys(&mut a, "zM");
     let s = shown(&a).unwrap();
     assert!(foldables(&items(&a, &s)).iter().all(|(_, o)| !*o));
+}
+
+#[test]
+fn enter_toggles_each_foldable_and_keeps_the_cursor_on_it() {
+    for (project, id) in [("notes-cli", 4), ("render-core", 3)] {
+        let mut a = at(project, id);
+        keys(&mut a, "zR");
+        let rows = foldables(&items(&a, &shown(&a).unwrap()));
+        assert!(!rows.is_empty());
+        for (stop, _) in rows {
+            let conv = shown_conv(&a).unwrap();
+            a.screens.conversation.conv_mut(&conv).cursor = Some(stop.clone());
+            for expected in [false, true] {
+                keys(&mut a, "<CR>");
+                assert_eq!(cursor(&a), Some(stop.clone()));
+                assert_eq!(
+                    foldables(&items(&a, &shown(&a).unwrap()))
+                        .into_iter()
+                        .find(|(s, _)| *s == stop),
+                    Some((stop.clone(), expected))
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn enter_on_text_and_enter_or_open_while_composing_leave_folds_alone() {
+    let mut a = at("render-core", 3);
+    keys(&mut a, "[t[t");
+    let before = items(&a, &shown(&a).unwrap());
+    keys(&mut a, "i<CR><Esc><CR>:open<CR>");
+    assert_eq!(items(&a, &shown(&a).unwrap()), before);
+    assert!(inputs(&a).is_empty());
+    keys(&mut a, "<Esc>gg");
+    let stop = cursor(&a);
+    let before = items(&a, &shown(&a).unwrap());
+    keys(&mut a, "<CR>");
+    assert_eq!(cursor(&a), stop);
+    assert_eq!(items(&a, &shown(&a).unwrap()), before);
 }
 
 #[test]

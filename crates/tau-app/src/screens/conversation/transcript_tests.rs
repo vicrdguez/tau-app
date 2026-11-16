@@ -13,6 +13,8 @@
 //! - a running row's count starts anywhere but its message's timestamp, or opens with more than
 //!   the last 6 lines of its output, or starts closed;
 //! - `za` on a row or a fold does nothing, or opening a fold hides its rows' own stops;
+//! - a tool input loses extra fields or multiline strings, duplicates a complete summary,
+//!   loses JSON field order, or treats an empty object as hidden input;
 //! - a thinking block reads the wrong number of words;
 //! - a record with no string `data.text` gets a body, or loses `by a task`;
 //! - `pi.system` reads other than `tools: …`; `pi.reset` and `pi.compaction` vanish;
@@ -310,6 +312,44 @@ fn a_running_row_counts_from_its_message_and_opens_on_its_last_six_lines() {
         Some("line 4\nline 5\nline 6\nline 7\nline 8\nline 9".to_string())
     );
     assert_eq!(row.args, "npm test");
+}
+
+#[test]
+fn tool_input_preserves_only_what_the_summary_loses() {
+    let cases = [
+        (json!({"command": "ls"}), None),
+        (json!({"query": "rune"}), None),
+        (json!({"path": "src/main.rs"}), None),
+        (json!({"text": "hello"}), None),
+        (json!({}), None),
+        (Value::Null, None),
+        (json!([1, 2]), None),
+        (json!({"command": "first\nsecond"}), Some("first\nsecond")),
+        (json!({"query": "first\nsecond"}), Some("first\nsecond")),
+        (json!({"path": "first\nsecond"}), Some("first\nsecond")),
+        (json!({"text": "first\nsecond"}), Some("first\nsecond")),
+        (
+            json!({"command": "ls", "cwd": "/tmp"}),
+            Some("{\n  \"command\": \"ls\",\n  \"cwd\": \"/tmp\"\n}"),
+        ),
+        (
+            json!({"path": "src", "text": "new\ntext"}),
+            Some("{\n  \"path\": \"src\",\n  \"text\": \"new\\ntext\"\n}"),
+        ),
+        (
+            json!({"z": 1, "a": 2}),
+            Some("{\n  \"z\": 1,\n  \"a\": 2\n}"),
+        ),
+        (json!({"command": 7}), Some("{\n  \"command\": 7\n}")),
+    ];
+    for (args, expected) in cases {
+        let h = held(
+            vec![agent(1, json!([call("c", "tool", args.clone())]))],
+            idle(),
+        );
+        let row = first_tool(&build_all(&h));
+        assert_eq!(row.input.as_deref(), expected, "{args}");
+    }
 }
 
 #[test]
