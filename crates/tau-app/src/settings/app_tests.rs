@@ -165,7 +165,7 @@ fn a_change_never_writes_over_a_file_that_is_not_toml() {
 }
 
 #[test]
-fn a_hand_edit_made_since_launch_survives_a_save() {
+fn a_save_that_would_load_different_settings_keeps_the_file_and_reports_unsaved() {
     let dir = device(Some("theme = \"ember\"\n"));
     let mut a = launch(&dir);
     std::fs::write(
@@ -174,9 +174,13 @@ fn a_hand_edit_made_since_launch_survives_a_save() {
     )
     .unwrap();
     next_theme(&mut a);
-    assert_eq!(
-        on_disk(&dir),
-        "theme = \"ember-soft\"\nreading_width = 920\n"
+    assert_eq!(on_disk(&dir), "theme = \"ember\"\nreading_width = 920\n");
+    assert_eq!(a.settings.theme, Variant::EmberSoft);
+    assert_eq!(a.settings.reading.px(), 840.0);
+    let echo = a.echo.as_deref().unwrap();
+    assert!(
+        echo.contains("not saved") && echo.contains("until you quit"),
+        "{echo}"
     );
 }
 

@@ -82,12 +82,19 @@ fn keys<'a>(item: &'a Item, lines: &mut Vec<Rebind<'a>>, problems: &mut Vec<Stri
             ));
             continue;
         };
-        for (design, to) in entries.iter() {
-            let Ok(design) = parse_seq(design) else {
-                problems.push(format!(r#"{command}: "{design}" isn't a key"#));
+        let mut seen = std::collections::HashSet::new();
+        for (spelling, to) in entries.iter() {
+            let Ok(design) = parse_seq(spelling) else {
+                problems.push(format!(r#"{command}: "{spelling}" isn't a key"#));
                 continue;
             };
             let at = format!("{command} {}", written(&design));
+            if !seen.insert(design.clone()) {
+                problems.push(format!(
+                    "{at} is already set in this table; ignoring \"{spelling}\""
+                ));
+                continue;
+            }
             match to.as_str().map(|to| (to, parse_seq(to))) {
                 Some((_, Ok(to))) => lines.push(Rebind {
                     command,
@@ -150,7 +157,7 @@ fn set_key(
         let Some(entries) = commands.get_mut(command).and_then(Item::as_table_like_mut) else {
             return Ok(());
         };
-        if let Some(at) = spelled(entries, design) {
+        while let Some(at) = spelled(entries, design) {
             entries.remove(&at);
         }
         if entries.is_empty() {
@@ -158,18 +165,24 @@ fn set_key(
         }
         return Ok(());
     }
-    let commands = doc
-        .entry("keys")
-        .or_insert_with(|| {
-            let mut t = Table::new();
-            t.set_implicit(true);
-            Item::Table(t)
-        })
+    let commands = doc.entry("keys").or_insert_with(|| {
+        let mut t = Table::new();
+        t.set_implicit(true);
+        Item::Table(t)
+    });
+    let inline = commands.is_inline_table();
+    let commands = commands
         .as_table_like_mut()
         .ok_or_else(|| not_a_table("keys"))?;
     let entries = commands
         .entry(command)
-        .or_insert_with(|| Item::Table(Table::new()))
+        .or_insert_with(|| {
+            if inline {
+                Item::Value(Value::InlineTable(toml_edit::InlineTable::new()))
+            } else {
+                Item::Table(Table::new())
+            }
+        })
         .as_table_like_mut()
         .ok_or_else(|| not_a_table(&format!("keys.\"{command}\"")))?;
     let at = spelled(entries, design).unwrap_or_else(|| written(design));

@@ -149,12 +149,18 @@ pub fn change(app: &mut App, new: Settings, edit: Edit) {
     }
     app.settings = new;
     let store = app.link.store();
+    if store.root().is_none() {
+        return;
+    }
     let saved = store
         .load_device(FILE)
         .map_err(|e| format!("{FILE} can't be read ({})", e.kind()))
         .and_then(|text| {
             let text = text.unwrap_or_default();
             let out = file::write(&text, &new, &edit)?;
+            if file::read(&out).0 != new {
+                return Err(format!("{FILE} would load different settings"));
+            }
             if out == text {
                 return Ok(());
             }

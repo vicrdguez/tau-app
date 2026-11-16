@@ -858,6 +858,33 @@ fn every_key_the_keymap_writes_reads_back_from_its_written_form() {
         let keys = k(s);
         assert_eq!(parse_seq(&written(&keys)), Ok(keys), "{s}");
     }
+    for keys in [
+        vec![Key::char('<'), Key::ctrl('a')],
+        vec![
+            Key::char('<'),
+            Key::char('U'),
+            Key::char('p'),
+            Key::char('>'),
+        ],
+        vec![Key::char('>'), Key::char('<')],
+        vec![Key::char('<'), Key::char('>'), Key::char('<')],
+    ] {
+        assert_eq!(parse_seq(&written(&keys)), Ok(keys));
+    }
+    for c in (32..=126).filter_map(char::from_u32).chain(['é', '界']) {
+        for mask in 0..8 {
+            let keys = vec![Key {
+                code: Code::Char(c),
+                mods: Mods {
+                    ctrl: mask & 1 != 0,
+                    alt: mask & 2 != 0,
+                    cmd: mask & 4 != 0,
+                    shift: false,
+                },
+            }];
+            assert_eq!(parse_seq(&written(&keys)), Ok(keys), "{c} {mask}");
+        }
+    }
     for s in [
         "<leader>cm",
         "<M-m>",

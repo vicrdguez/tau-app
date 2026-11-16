@@ -129,6 +129,8 @@ fn named(name: &str) -> Option<Code> {
         "BS" => Code::Backspace,
         "Del" => Code::Delete,
         "Space" | "leader" => Code::Char(' '),
+        "lt" => Code::Char('<'),
+        "gt" => Code::Char('>'),
         "Up" => Code::Up,
         "Down" => Code::Down,
         "Left" => Code::Left,
@@ -163,7 +165,10 @@ fn parse_angle(inner: &str) -> Option<Key> {
         rest = &rest[2..];
     }
     let code = named(rest)?;
-    if mods == Mods::default() && matches!(code, Code::Char(c) if c != ' ') {
+    if mods == Mods::default()
+        && matches!(code, Code::Char(c) if c != ' ')
+        && !matches!(rest, "lt" | "gt")
+    {
         return None;
     }
     Some(Key { code, mods })
@@ -174,6 +179,8 @@ pub fn written(seq: &[Key]) -> String {
     let mut out = String::new();
     for k in seq {
         let name = match k.code {
+            Code::Char('<') => "lt".to_string(),
+            Code::Char('>') if k.mods != Mods::default() => "gt".to_string(),
             Code::Char(' ') if k.mods == Mods::default() => {
                 out.push_str("<leader>");
                 continue;

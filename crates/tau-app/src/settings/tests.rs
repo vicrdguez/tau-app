@@ -327,6 +327,55 @@ fn a_key_put_back_removes_its_line_and_an_empty_command_table() {
 }
 
 #[test]
+fn duplicate_design_key_spellings_are_reported_and_the_first_wins() {
+    let text =
+        "[keys.\"help.theme\"]\n\"<leader>ht\" = \"<leader>hy\"\n\"<Space>ht\" = \"<leader>hz\"\n";
+    let (s, p) = read(text);
+    assert_eq!(
+        s.keymap,
+        moved(Keymap::design(), "help.theme", "<leader>ht", "<leader>hy")
+    );
+    assert_eq!(p.len(), 1, "{p:?}");
+    assert!(
+        p[0].contains("help.theme") && p[0].contains("already"),
+        "{p:?}"
+    );
+    let new = with(s, |s| {
+        s.keymap = moved(s.keymap, "help.theme", "<leader>ht", "<leader>hq")
+    });
+    let out = write(text, &new, &key_edit("help.theme", "<leader>ht")).unwrap();
+    assert_eq!(read(&out).0, new);
+    let back = with(s, |s| {
+        s.keymap = moved(s.keymap, "help.theme", "<leader>ht", "<leader>ht")
+    });
+    let out = write(text, &back, &key_edit("help.theme", "<leader>ht")).unwrap();
+    assert_eq!(clean(&out), back);
+}
+
+#[test]
+fn inline_key_tables_keep_moves_additions_and_resets() {
+    for text in [
+        "keys = {}\n",
+        "keys = { \"help.theme\" = { \"<leader>ht\" = \"<leader>hy\" } }\n",
+        "[keys]\n\"help.theme\" = { \"<leader>ht\" = \"<leader>hy\" }\n",
+    ] {
+        let mut s = clean(text);
+        let mut text = text.to_string();
+        for (command, from, to) in [
+            ("start.workflow", "<M-w>", "<M-m>"),
+            ("start.workflow", "<M-w>", "<M-n>"),
+            ("help.theme", "<leader>ht", "<leader>hz"),
+            ("start.workflow", "<M-w>", "<M-w>"),
+            ("help.theme", "<leader>ht", "<leader>ht"),
+        ] {
+            s.keymap = moved(s.keymap, command, from, to);
+            text = write(&text, &s, &key_edit(command, from)).unwrap();
+            assert_eq!(clean(&text), s, "{text}");
+        }
+    }
+}
+
+#[test]
 fn a_key_spelled_another_way_is_changed_in_place() {
     let text = "[keys.\"help.theme\"]\n\"<Space>ht\" = \"<leader>hy\"\n";
     let s = with(clean(text), |s| {
