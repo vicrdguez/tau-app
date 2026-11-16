@@ -34,10 +34,11 @@ pub enum Ctx {
     Outbox,
     Server,
     Peek,
+    Settings,
 }
 
 impl Ctx {
-    pub const ALL: [Ctx; 22] = [
+    pub const ALL: [Ctx; 23] = [
         Ctx::Global,
         Ctx::List,
         Ctx::Sidebar,
@@ -60,6 +61,7 @@ impl Ctx {
         Ctx::Outbox,
         Ctx::Server,
         Ctx::Peek,
+        Ctx::Settings,
     ];
 
     pub fn name(self) -> &'static str {
@@ -86,6 +88,7 @@ impl Ctx {
             Ctx::Outbox => "outbox",
             Ctx::Server => "server",
             Ctx::Peek => "peek",
+            Ctx::Settings => "settings",
         }
     }
 
@@ -680,7 +683,7 @@ const ORDER: [(&str, &str); 9] = [
     ("<leader>m", "nwsr"),
     ("<leader>r", "utcp"),
     ("<leader>t", "fshbd"),
-    ("<leader>h", "kt"),
+    ("<leader>h", "kts"),
 ];
 
 /// The `y` of the answer readback and of Confirm: a held key never confirms (`grammar.md` §11).

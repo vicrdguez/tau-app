@@ -95,6 +95,7 @@ confirm = ""
 outbox = ""
 server = ""
 peek = ""
+settings = ""
 
 [groups]
 "<leader>" = "leader"

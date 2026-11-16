@@ -181,6 +181,7 @@ pub fn unavailable(km: Keymap, command: &Command, ctx: Ctx) -> Option<String> {
             Ctx::Outbox => (&[], &["the outbox"]),
             Ctx::Server => (&[], &["the Server float"]),
             Ctx::Peek => (&[], &["the peek"]),
+            Ctx::Settings => (&[], &["the settings float"]),
         };
         views.extend_from_slice(view);
         places.extend_from_slice(place);

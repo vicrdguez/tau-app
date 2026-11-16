@@ -291,7 +291,7 @@ impl Keymap {
             Some(Fixed::Labels)
         } else if decide || matches!(binding.ctx, Ctx::Readback | Ctx::Reply | Ctx::Confirm) {
             Some(Fixed::Answer)
-        } else if binding.ctx.name() == "settings" {
+        } else if binding.ctx == Ctx::Settings {
             Some(Fixed::Settings)
         } else {
             None
@@ -442,6 +442,7 @@ fn place(mode: Mode, ctx: Ctx) -> String {
         Ctx::Outbox => "in the outbox",
         Ctx::Server => "in the Server float",
         Ctx::Peek => "in the peek",
+        Ctx::Settings => "in the settings float",
     };
     match mode {
         Mode::Insert => format!("in Insert {at}"),

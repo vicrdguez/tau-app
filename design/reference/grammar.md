@@ -131,7 +131,7 @@ commands:  n next decision   . find anything   ; commands   y yank to clipboard
 | `␣m` this view | decision: `n` note on paragraph or selection · `w` note on the whole basis. project: `s` save option drafts (`:w`) · `r` reset field to default |
 | `␣r` recover | `u` outbox · `t` retry the call, same body · `c` reconnect now · `p` pair again |
 | `␣t` toggle | `f` follow the run · `s` basis as source text · `h` show hidden failures · `b` sidebar · `d` details panel |
-| `␣h` help | `k` keys cheat sheet · `t` theme |
+| `␣h` help | `k` keys cheat sheet · `t` theme · `s` settings (also `⌘,`) |
 
 Home is `␣oh` and the sidebar's Home row; there is no other key for it.
 

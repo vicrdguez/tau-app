@@ -2,7 +2,7 @@
 //! - a command or key that doesn't exist moves anyway, or names the wrong command (`NoCommand`,
 //!   `NotItsKey`), including a settings.toml line naming a design key an update took away;
 //! - a fixed key moves: `Esc`, a hint label, an answer key, the readback's, reply's or Confirm's
-//!   keys (`Fixed`; the settings float's own keys arrive with that float);
+//!   keys, or the settings float's own (`Fixed`);
 //! - a key moves to `Esc` or `<label>`;
 //! - Insert or a picker takes a key that types (`Typing`), a Normal key starts with a count digit
 //!   (`Count`), a key that changes the server takes a reserved or trap key (`Reserved`), a leader
@@ -117,6 +117,8 @@ fn fixed_keys_stay_where_they_are() {
     assert_eq!(fixed("confirm.keys", "y", "Y"), Fixed::Answer);
     assert_eq!(fixed("readback.pick", "j", "J"), Fixed::Answer);
     assert_eq!(fixed("reply.keys", "q", "Q"), Fixed::Answer);
+    assert_eq!(fixed("settings.keys", "<C-j>", "<C-n>"), Fixed::Settings);
+    assert_eq!(fixed("settings.keys", "<C-x>", "<C-x>"), Fixed::Settings);
 }
 
 #[test]
@@ -482,6 +484,7 @@ fn the_rows_list_each_key_of_each_command_once_with_why_it_is_fixed() {
     assert_eq!(row("float.close", "<Esc>").fixed, Some(Fixed::Leave));
     assert_eq!(row("auth.answer", "<leader>ad").fixed, Some(Fixed::Answer));
     assert_eq!(row("hint.select", "<label>").fixed, Some(Fixed::Labels));
+    assert_eq!(row("settings.keys", "<C-x>").fixed, Some(Fixed::Settings));
     let per_key: std::collections::BTreeSet<(&str, String)> = rows
         .iter()
         .map(|r| (r.command.id.as_str(), written(&r.design)))
