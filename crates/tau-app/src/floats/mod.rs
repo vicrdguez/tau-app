@@ -10,6 +10,7 @@ pub mod outbox;
 pub mod project_bind;
 pub mod project_picker;
 pub mod server;
+pub mod settings;
 pub mod sheet;
 pub mod which_key;
 
@@ -19,6 +20,7 @@ use rune::{El, TextEdit, row, text, text_input};
 
 use crate::keys::{Command, Ctx, Key, Keymap, Mode};
 use crate::screens::ScreenFloat;
+use crate::settings::Settings;
 use crate::theme::Theme;
 use crate::ui::{Badge, Scope, Shell, float_hint, float_row, glyphs, shell, title};
 
@@ -66,6 +68,8 @@ pub enum Float {
     Confirm(Confirm),
     /// `:jumps`, the keys cheat sheet.
     Sheet(Sheet),
+    /// `␣hs`, `:settings`, `⌘,`.
+    Settings(settings::SettingsFloat),
     /// A float a screen family owns: the peek float, the readback, a picker of its own.
     Screen(Box<dyn ScreenFloat>),
 }
@@ -93,6 +97,10 @@ impl Float {
         })
     }
 
+    pub fn settings() -> Float {
+        Float::Settings(settings::SettingsFloat::new(focused_edit()))
+    }
+
     pub fn cmdline() -> Float {
         Float::CmdLine(CmdLine {
             line: focused_edit(),
@@ -105,13 +113,16 @@ impl Float {
         match self {
             Float::Picker(_) | Float::CmdLine(_) | Float::Sheet(_) => Ctx::Picker,
             Float::Confirm(_) => Ctx::Confirm,
+            Float::Settings(_) => Ctx::Settings,
             Float::Screen(f) => f.scope().ctx,
         }
     }
 
     pub fn mode(&self) -> Mode {
         match self {
-            Float::Picker(_) | Float::CmdLine(_) | Float::Sheet(_) => Mode::Command,
+            Float::Picker(_) | Float::CmdLine(_) | Float::Sheet(_) | Float::Settings(_) => {
+                Mode::Command
+            }
             Float::Confirm(_) => Mode::Readback,
             Float::Screen(f) => f.scope().mode,
         }
@@ -119,7 +130,9 @@ impl Float {
 
     pub fn badge(&self) -> Badge {
         match self {
-            Float::Picker(_) | Float::CmdLine(_) | Float::Sheet(_) => Badge::Command,
+            Float::Picker(_) | Float::CmdLine(_) | Float::Sheet(_) | Float::Settings(_) => {
+                Badge::Command
+            }
             Float::Confirm(_) => Badge::ReadbackPlain,
             Float::Screen(f) => f.badge(),
         }
@@ -138,6 +151,7 @@ impl Float {
             Float::Picker(p) => Some(&mut p.query),
             Float::CmdLine(c) => Some(&mut c.line),
             Float::Sheet(s) => Some(&mut s.query),
+            Float::Settings(s) => Some(&mut s.query),
             Float::Confirm(_) => None,
             Float::Screen(f) => f.edit_mut(),
         }
@@ -252,7 +266,7 @@ fn plural(n: usize, one: &str, many: &str) -> String {
 
 /// The top float in its shell. `ctx` is where the keys were before it opened, for the palette's
 /// "runs here" test; `history` is the echo's history.
-pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String]) -> El {
+pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String], settings: &Settings) -> El {
     let scope = f.scope();
     let hint = |seqs: &[&str], word: &str| float_hint(t, scope, seqs, word);
     match f {
@@ -407,6 +421,7 @@ pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String]) -> El {
             },
         ),
         Float::Sheet(s) => sheet::view(t, scope, s),
+        Float::Settings(s) => settings::view(t, s, settings),
         // The app draws a screen's float: it reads the app's state.
         Float::Screen(_) => rune::el(),
     }
@@ -423,5 +438,7 @@ pub fn cursor_step(key: Key) -> Option<i64> {
     }
 }
 
+#[cfg(test)]
+mod settings_tests;
 #[cfg(test)]
 mod tests;

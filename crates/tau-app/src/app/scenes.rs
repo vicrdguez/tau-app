@@ -106,6 +106,18 @@ const SCENES: &[Scene] = &[
         home(a);
         a.open_float(Float::palette());
     }),
+    ("settings", |a| {
+        home(a);
+        a.open_float(Float::settings());
+    }),
+    ("settings-capture", |a| {
+        home(a);
+        settings_capture(a, "<M-m>");
+    }),
+    ("settings-refused", |a| {
+        home(a);
+        settings_capture(a, "<M-p><CR>");
+    }),
     ("cmdline", |a| {
         home(a);
         let mut f = Float::cmdline();
@@ -125,6 +137,15 @@ const SCENES: &[Scene] = &[
         }));
     }),
 ];
+
+/// The settings float filtered to the start page's workflow key, taking `seq` as its new key.
+fn settings_capture(a: &mut App, seq: &str) {
+    a.open_float(Float::settings());
+    a.float_edit().replace_text("workflow");
+    for key in crate::keys::parse_seq(&format!("<CR>{seq}")).expect("a key sequence") {
+        super::input::press(a, key, false, &mut rune::Tx::default());
+    }
+}
 
 /// Presses `seq` long enough ago for which-key to be due.
 fn pending(a: &mut App, seq: &str) {

@@ -66,6 +66,9 @@ pub fn on_field_key(app: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
 
 /// One key. False hands it on (a float's field types it).
 pub fn press(app: &mut App, key: Key, repeat: bool, tx: &mut Tx) -> bool {
+    if crate::floats::settings::capturing(app) {
+        return crate::floats::settings::capture(app, key, repeat);
+    }
     if app.keys.is_idle() {
         app.echo = None;
         if crate::yank::key(app, key, tx) {
@@ -124,6 +127,9 @@ fn region(app: &mut App, keys: &[Key], count: Option<u32>) -> bool {
     if let Some(screen) = screens::holder(app) {
         return screens::get(screen).keys(app, keys, count);
     }
+    if matches!(app.floats.last(), Some((Float::Settings(_), _))) {
+        return crate::floats::settings::other_keys(app, keys);
+    }
     if let Some((f, _)) = app.floats.last_mut() {
         return float_keys(f, &app.history, keys);
     }
@@ -165,7 +171,7 @@ fn float_keys(f: &mut Float, history: &[String], keys: &[Key]) -> bool {
             c.cursor = 0;
             false
         }
-        Float::Confirm(_) | Float::Screen(_) => true,
+        Float::Confirm(_) | Float::Settings(_) | Float::Screen(_) => true,
     }
 }
 

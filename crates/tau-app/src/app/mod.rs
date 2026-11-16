@@ -348,7 +348,7 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
                 Focus::Sidebar => crate::keys::Ctx::Sidebar,
                 Focus::Stage => page.ctx(app),
             };
-            Some(floats::view(t, f, ctx, &app.messages))
+            Some(floats::view(t, f, ctx, &app.messages, &app.settings))
         }
         None if app.which_key_shown => app
             .settings

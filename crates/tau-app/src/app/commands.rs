@@ -72,6 +72,8 @@ fn frame() -> HashMap<&'static str, Handler> {
     t.insert("help.keys", |a, _, _| {
         a.open_float(Float::Sheet(Sheet::keys(a.settings.keymap)))
     });
+    t.insert("help.settings", |a, _, _| a.open_float(Float::settings()));
+    t.insert("settings.keys", floats::settings::keys);
     t.insert("picker.keys", picker_keys);
     t.insert("confirm.keys", confirm_keys);
     t.extend(crate::nav::handlers());
