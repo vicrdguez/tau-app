@@ -1,0 +1,8 @@
+{
+  "events": [
+    { "t": 0.1, "type": "key", "name": " " },
+    { "t": 0.15, "type": "key", "name": "h" },
+    { "t": 0.2, "type": "key", "name": "s" },
+    { "t": 0.5, "type": "tap", "x": 400, "y": 612 }
+  ]
+}

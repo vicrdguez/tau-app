@@ -362,7 +362,10 @@ pub fn view(t: Theme, f: &SettingsFloat, s: &Settings) -> El {
                 line(t, &k.command.desc, about, ex, key)
             }
         };
-        body = body.child(float_row(t, here, content).on_press(move |a: &mut App| choose(a, i)));
+        body = body.child(float_row(t, here, content).on_press_tx(move |a: &mut App, tx| {
+            choose(a, i);
+            tx.instant();
+        }));
     }
     let hint = |seqs: &[&str], word: &str| float_hint(t, scope, seqs, word);
     let mut hints = match (f.capture.as_ref(), rows.get(f.cursor)) {

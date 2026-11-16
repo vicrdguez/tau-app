@@ -248,6 +248,9 @@ pub fn frame(t: Theme, p: Parts) -> El {
     if let Some(overlay) = p.overlay {
         root = root.child(overlay);
     }
+    if !t.motion.on {
+        root = root.token_motion(rune::Spring::NONE);
+    }
     root
 }
 
