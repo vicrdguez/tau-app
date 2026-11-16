@@ -15,7 +15,6 @@ use tau_client::{DecisionRef, LinkPhase, WriteId};
 
 use super::reader::record;
 use super::standing::{answer_on, number, send_again_on};
-use super::tokens_json;
 use crate::app::{App, Stage};
 use crate::copy::AnswerAction;
 use crate::keys::{Ctx, Mode};
@@ -64,10 +63,7 @@ pub struct Readback {
 
 /// `tau.client_ms.readback_arm`, in seconds.
 pub fn arm() -> f64 {
-    tokens_json()["tau"]["client_ms"]["readback_arm"]
-        .as_f64()
-        .unwrap_or(400.0)
-        / 1000.0
+    f64::from(crate::theme::tokens().layout.readback_arm_ms) / 1000.0
 }
 
 impl ScreenFloat for Readback {

@@ -1,46 +1,15 @@
-use std::sync::LazyLock;
-
 use rune::{Color, TextStyle};
 use rune_kit::MarkdownStyle;
 use rune_kit::syntax::{Syntax, SyntaxTheme};
-use serde::Deserialize;
-use serde_json::Value;
 
 use crate::theme::Theme;
 
-// These tokens are not exposed by theme::Layout yet. Keep their values in tokens.json.
-static TOKENS: LazyLock<Value> = LazyLock::new(|| {
-    serde_json::from_str(include_str!("../../../../design/tokens.json")).expect("design tokens")
-});
-
-#[derive(Deserialize)]
-pub(super) struct Metrics {
-    pub paragraph_gap: f32,
-    pub list_indent: f32,
-    pub table_cell: [f32; 2],
-    pub quote_bar: f32,
-    pub code_rule: f32,
-    pub code_padding: [f32; 2],
-    pub image_placeholder: f32,
-    pub task_box: f32,
-}
-
-pub(super) static METRICS: LazyLock<Metrics> = LazyLock::new(|| {
-    serde_json::from_value(TOKENS["tau"]["layout"]["markdown"].clone())
-        .expect("tau.layout.markdown")
-});
-
-/// The width a table fits before it scrolls: the reading measure (`visual-language.md` §3), or
-/// the peek's column inside its padding and its content bar's 2 px and 12 px.
-pub(super) fn column(peek: bool) -> f32 {
-    if !peek {
-        return TOKENS["tau"]["layout"]["decision"]["text"]
-            .as_f64()
-            .expect("prose measure") as f32;
+pub(super) fn column(t: Theme, peek: bool) -> f32 {
+    if peek {
+        t.l.peek.width - 2.0 * t.l.peek.padding - 14.0
+    } else {
+        t.read.measure
     }
-    let p = &TOKENS["tau"]["layout"]["peek"];
-    let n = |k: &str| p[k].as_f64().expect("tau.layout.peek") as f32;
-    n("width") - 2.0 * n("padding") - 14.0
 }
 
 /// The fonts a Markdown's blocks use: full, or stepped down in the peek (`spec.md` §5.4).
@@ -103,7 +72,7 @@ pub(super) fn prose(
     quote: bool,
     width: f32,
 ) -> MarkdownStyle {
-    let m = &*METRICS;
+    let m = &t.l.markdown;
     let (body, text) = if quote {
         (f.body.italic(), t.c.fg.alt)
     } else {
@@ -144,17 +113,14 @@ pub(super) fn prose(
 /// Code colours, never weight or slant (`visual-language.md` §4.7).
 pub(super) fn syntax(t: Theme) -> SyntaxTheme {
     let mut s = SyntaxTheme::neutral(!t.variant.is_light());
-    for (kind, key) in [
-        (Syntax::Keyword, "keyword"),
-        (Syntax::String, "string"),
-        (Syntax::Number, "constant"),
-        (Syntax::Type, "type"),
-        (Syntax::Function, "function"),
+    for (kind, color) in [
+        (Syntax::Keyword, t.c.syntax.keyword.0),
+        (Syntax::String, t.c.syntax.string.0),
+        (Syntax::Number, t.c.syntax.constant.0),
+        (Syntax::Type, t.c.syntax.r#type.0),
+        (Syntax::Function, t.c.syntax.function.0),
     ] {
-        let value = TOKENS["variants"][t.variant.name()]["syntax"][key]["color"]
-            .as_str()
-            .expect("syntax colour");
-        s = s.with(kind, rune::color::hex(value).expect("syntax hex colour"));
+        s = s.with(kind, color);
     }
     for (kind, color) in [
         (Syntax::Comment, t.c.fg.muted),

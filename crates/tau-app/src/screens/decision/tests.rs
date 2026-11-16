@@ -15,8 +15,8 @@
 //! - `dd` and `u` lose a draft for good; drafts don't survive a relaunch, or leak between
 //!   decisions; `]n` skips a passage.
 
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 
 use rune::{KeyEvent, Tx};

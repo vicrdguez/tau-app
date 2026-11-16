@@ -12,10 +12,10 @@ use tau_client::{DecisionId, DecisionRef, Known};
 use super::doc::{Doc, Kind, byte_of};
 use super::margin::{self, place};
 use super::notes::Draft;
+use super::now;
 use super::reader::{self, record, shown};
 use super::standing::{Standing, Then, ThenMark, standing, then};
 use super::state::{Anchor, Cursor};
-use super::{decision_layout, now};
 use crate::app::{App, Focus};
 use crate::assets::carbon;
 use crate::content::{Paint, Tint, line, markdown};
@@ -70,7 +70,7 @@ fn keys_on_page(app: &App) -> bool {
 }
 
 fn full(t: Theme, app: &App, d: &DecisionRef, v: &DecisionView) -> El {
-    let l = decision_layout();
+    let l = &t.l.decision;
     let s = &app.screens.decision;
     let live = app.link.server().inbox.value().map(|i| i.liveness(d));
     let unsettled = app.link.outbox().answer_unsettled(d);
@@ -82,16 +82,16 @@ fn full(t: Theme, app: &App, d: &DecisionRef, v: &DecisionView) -> El {
     let keys = keys_on_page(app) && s.editing.is_none();
     let selection = reader::selection(app, d);
     let stage_w = stage_width(t, app);
-    let folded = stage_w < l.fold_notes_below;
+    let folded = stage_w < t.read.fold_notes_below;
     let column_w = if folded {
-        (stage_w - 32.0).min(l.text)
+        (stage_w - 32.0).min(t.read.measure)
     } else {
-        l.text
+        t.read.measure
     };
     let left = if folded {
         (stage_w - column_w) / 2.0
     } else {
-        (stage_w - l.block) / 2.0
+        (stage_w - t.read.decision_block) / 2.0
     }
     .max(16.0);
 

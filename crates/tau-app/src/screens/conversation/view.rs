@@ -3,8 +3,6 @@
 //! composer. Sizes follow the prototype (`tools/proto/calm.css` `.ccol`, `.msg`, `.tool`,
 //! `.cstack`, `.comp`).
 
-use std::sync::LazyLock;
-
 use rune::{El, ScrollSpec, TextStyle, col, el, icon, row, spacer, text, text_input};
 use tau_client::shapes::{ConversationState, QueueMode};
 use tau_client::wire::InputMode;
@@ -26,19 +24,6 @@ use crate::ui::{Mark, Part as Fact, Scope, chip, facts, glyphs, mark, printed};
 /// The transcript's scroll viewport.
 pub const TRANSCRIPT: &str = "conv-transcript";
 
-/// The conversation column and prose measure from the reading layout tokens.
-static WIDTHS: LazyLock<(f32, f32)> = LazyLock::new(|| {
-    let tokens: serde_json::Value =
-        serde_json::from_str(include_str!("../../../../../design/tokens.json"))
-            .expect("design tokens");
-    let layout = &tokens["tau"]["layout"];
-    (
-        layout["work_column"]["conversation"]
-            .as_f64()
-            .expect("conversation column") as f32,
-        layout["decision"]["text"].as_f64().expect("prose measure") as f32,
-    )
-});
 /// Agent text, headers and rows sit 12 px in from the column, so the cursor's band and bar span
 /// it whole (prototype `.ccol .tool`, `.ccol .mh`).
 const LANE: f32 = 12.0;
@@ -127,7 +112,8 @@ pub fn page(t: Theme, app: &App) -> El {
     let following = conv.is_none_or(|c| c.cursor.is_none());
     let column = col()
         .w_full()
-        .max_w(WIDTHS.0)
+        .key("conv-column")
+        .max_w(t.read.conversation)
         .h_full()
         .child(title_block(t, app, &s, &model))
         .child(transcript(&cx, &s, &items, following))
@@ -377,7 +363,7 @@ fn item_el(cx: &Draw, item: &Item) -> El {
                     markdown(t, src)
                         .streaming(true)
                         .build()
-                        .max_w(WIDTHS.1)
+                        .max_w(t.read.measure)
                         .grow(1.0),
                 ),
             )
@@ -518,7 +504,7 @@ fn input(cx: &Draw, head: EntryId, at: Option<i64>, body: &[Body]) -> El {
 fn prose(t: Theme, src: &str) -> El {
     markdown(t, src)
         .build()
-        .max_w(WIDTHS.1)
+        .max_w(t.read.measure)
         .grow(1.0)
         .min_w(0.0)
 }

@@ -6,13 +6,13 @@ mod bar;
 mod header;
 mod sidebar;
 
-use rune::{El, Spring, SpringPair, Transition, col, el, row};
+use rune::{El, Transition, col, el, row};
 
 pub use bar::{Bar, bar};
 pub use header::{Crumb, Header, Segment, SegmentKind, header};
 pub use sidebar::{OpenGroup, OpenRow, Row, Sidebar, row_key, sidebar};
 
-use crate::theme::Theme;
+use crate::theme::{Motion, Theme};
 use crate::ui::{NoticeAction, Scope};
 
 /// A place: a page of every project (`spec.md` §3.1). Faults has no sidebar row.
@@ -173,15 +173,11 @@ pub fn frame(t: Theme, p: Parts) -> El {
     if let Some(float) = p.float {
         // The page stops at the float's top edge: the insets beside and under it show
         // `surface.read`, never a line of the page.
-        let f = l.float_fade_ms / 1000.0;
         stage = stage.child(
             col()
                 .key("bottom-float")
                 .animated_changes()
-                .transition(
-                    Transition::opacity()
-                        .springs(SpringPair::new(Spring::new(f, 0.0), Spring::new(f, 0.0))),
-                )
+                .transition(Transition::opacity().springs(Motion::pair(t.motion.float)))
                 .w_full()
                 .fill(t.c.surface.read)
                 .px(l.float.inset_x)

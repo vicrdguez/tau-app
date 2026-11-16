@@ -76,6 +76,7 @@ struct RawPalette {
     text: Text,
     content: Content,
     tint: Tint,
+    syntax: SyntaxColors,
 }
 
 #[derive(Deserialize)]
@@ -312,8 +313,62 @@ pub struct CountTag {
     pub mark: f32,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub struct ReadingTokens {
+    pub measure: f32,
+    pub min: f32,
+    pub max: f32,
+    pub step: f32,
+    pub conversation_room: f32,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub struct Decision {
+    pub gap: f32,
+    pub notes_margin: f32,
+    pub fold_margin: f32,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub struct Markdown {
+    pub paragraph_gap: f32,
+    pub list_indent: f32,
+    pub table_cell: [f32; 2],
+    pub quote_bar: f32,
+    pub code_rule: f32,
+    pub code_padding: [f32; 2],
+    pub image_placeholder: f32,
+    pub task_box: f32,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct SyntaxColor(pub Color);
+
+impl<'de> Deserialize<'de> for SyntaxColor {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Raw {
+            color: String,
+        }
+        let raw = Raw::deserialize(d)?;
+        hex_colour(&raw.color).map(SyntaxColor)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub struct SyntaxColors {
+    pub keyword: SyntaxColor,
+    pub string: SyntaxColor,
+    pub constant: SyntaxColor,
+    pub r#type: SyntaxColor,
+    pub function: SyntaxColor,
+}
+
 #[derive(Deserialize)]
 struct RawLayout {
+    reading: ReadingTokens,
+    decision: Decision,
+    markdown: Markdown,
     window: [f32; 2],
     min_window: [f32; 2],
     sidebar: Sidebar,
@@ -331,6 +386,9 @@ struct RawLayout {
 /// The frame's sizes and the timings the UI keeps.
 #[derive(Clone, Copy, Debug)]
 pub struct Layout {
+    pub reading: ReadingTokens,
+    pub decision: Decision,
+    pub markdown: Markdown,
     pub window: [f32; 2],
     pub min_window: [f32; 2],
     pub sidebar: Sidebar,
@@ -349,7 +407,7 @@ pub struct Layout {
     pub height: Heights,
     pub count_tag: CountTag,
     pub whichkey_delay_ms: f32,
-    pub float_fade_ms: f32,
+    pub readback_arm_ms: f32,
 }
 
 /// One of the client's own small drawings: a single SVG path.
@@ -391,6 +449,7 @@ struct RawIcon {
 #[derive(Deserialize)]
 struct RawClientMs {
     whichkey_delay: f32,
+    readback_arm: f32,
 }
 
 #[derive(Deserialize)]
@@ -471,6 +530,7 @@ pub(super) fn parse(json: &str) -> Result<Tokens, TokenError> {
             text: p.text,
             content: p.content,
             tint: p.tint,
+            syntax: p.syntax,
             float_shadow: s?,
         });
     }
@@ -488,6 +548,9 @@ pub(super) fn parse(json: &str) -> Result<Tokens, TokenError> {
     }
     let l = raw.tau.layout;
     let layout = Layout {
+        reading: l.reading,
+        decision: l.decision,
+        markdown: l.markdown,
         window: l.window,
         min_window: l.min_window,
         sidebar: l.sidebar,
@@ -505,7 +568,7 @@ pub(super) fn parse(json: &str) -> Result<Tokens, TokenError> {
         height: raw.height,
         count_tag: raw.tau.icon.count_tag,
         whichkey_delay_ms: raw.tau.client_ms.whichkey_delay,
-        float_fade_ms: raw.motion_ms.float_fade,
+        readback_arm_ms: raw.tau.client_ms.readback_arm,
     };
     let icon = raw.tau.icon;
     let marks = Marks {
@@ -517,6 +580,7 @@ pub(super) fn parse(json: &str) -> Result<Tokens, TokenError> {
         key_return: icon.key_return,
     };
     Ok(Tokens {
+        float_fade_ms: raw.motion_ms.float_fade,
         palettes,
         ty: type_scale(&all_types)?,
         layout,

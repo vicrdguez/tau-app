@@ -11,7 +11,7 @@ use crate::theme::Theme;
 
 use super::line;
 use super::outline::{Cut, Item, Node};
-use super::style::{Fonts, METRICS, column, fonts, prose, syntax};
+use super::style::{Fonts, column, fonts, prose, syntax};
 
 /// A paint over ranges of the prepared source.
 pub(super) struct Mark {
@@ -85,7 +85,7 @@ impl Render<'_> {
         let gap = if self.peek {
             8.0
         } else {
-            METRICS.paragraph_gap
+            self.t.l.markdown.paragraph_gap
         };
         match (node, self.peek) {
             (Node::Heading(1, _), false) => (0.0, 12.0),
@@ -154,7 +154,7 @@ impl Render<'_> {
             }
             (ranges, h)
         });
-        let width = column(self.peek) - flow.inset;
+        let width = column(self.t, self.peek) - flow.inset;
         rune_kit::Markdown::new(text)
             .streaming(self.streaming && flow.tail)
             .scroll_wide(true)
@@ -168,7 +168,7 @@ impl Render<'_> {
     /// stays plain, so colour never moves under it.
     fn code(&self, f: &Fonts, lang: Option<&str>, cut: &Cut, tail: bool) -> El {
         let t = self.t;
-        let m = &*METRICS;
+        let m = &t.l.markdown;
         let (code, marks) = self.local(cut);
         let code = code.strip_suffix('\n').unwrap_or(&code).to_string();
         let coloured = if self.streaming && tail {
@@ -235,7 +235,11 @@ impl Render<'_> {
     /// tabular, or a task's box.
     fn list(&self, f: &Fonts, start: Option<u64>, items: &[Item], flow: Flow) -> El {
         let t = self.t;
-        let indent = if self.peek { 18.0 } else { METRICS.list_indent };
+        let indent = if self.peek {
+            18.0
+        } else {
+            t.l.markdown.list_indent
+        };
         let space = rune::text::measure("x x", &[], f.body, None).0
             - rune::text::measure("xx", &[], f.body, None).0;
         let inner = Flow {
@@ -286,7 +290,7 @@ impl Render<'_> {
 
     fn task(&self, f: &Fonts, done: bool) -> El {
         let t = self.t;
-        let size = METRICS.task_box;
+        let size = t.l.markdown.task_box;
         let mut b = row()
             .size(size, size)
             .center()
@@ -319,14 +323,18 @@ impl Render<'_> {
             body,
             Flow {
                 quote: true,
-                inset: flow.inset + METRICS.quote_bar + QUOTE_PAD,
+                inset: flow.inset + t.l.markdown.quote_bar + QUOTE_PAD,
                 ..flow
             },
         ));
         row()
             .role("blockquote")
             .w_full()
-            .child(el().w(METRICS.quote_bar).h_full().fill(t.c.border.strong))
+            .child(
+                el().w(t.l.markdown.quote_bar)
+                    .h_full()
+                    .fill(t.c.border.strong),
+            )
             .child(inner.grow(1.0).shrink().pl(QUOTE_PAD))
     }
 
@@ -341,7 +349,7 @@ impl Render<'_> {
         row()
             .role("image")
             .w_full()
-            .h(METRICS.image_placeholder)
+            .h(t.l.markdown.image_placeholder)
             .center_y()
             .px(12.0)
             .border(1.0, t.c.border.hairline)
