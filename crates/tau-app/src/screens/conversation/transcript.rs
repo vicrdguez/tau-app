@@ -432,14 +432,17 @@ fn summary(args: &Value) -> (String, Option<String>) {
             };
             (summary, input)
         }
-        None => (
-            if args.is_null() {
+        None => {
+            let summary = if args.is_null() {
                 String::new()
             } else {
                 args.to_string()
-            },
-            args.as_object().filter(|o| !o.is_empty()).map(|_| pretty()),
-        ),
+            };
+            let input = (args.as_object().is_some_and(|o| !o.is_empty())
+                || summary.chars().count() > SUMMARY_CHARS)
+                .then(pretty);
+            (summary, input)
+        }
     }
 }
 

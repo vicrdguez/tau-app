@@ -92,6 +92,40 @@ fn running(tools: Value) -> Value {
     json!({"pi.live": {"run": {"taskId": 8, "turns": 6}, "tools": tools}})
 }
 
+#[test]
+fn non_object_tool_input_is_available_when_the_summary_exceeds_the_row() {
+    for (args, input) in [
+        (Value::Null, None),
+        (json!(true), None),
+        (json!(123), None),
+        (json!([1, 2]), None),
+        (json!("x".repeat(46)), None),
+        (
+            json!("x".repeat(47)),
+            Some(format!("\"{}\"", "x".repeat(47))),
+        ),
+        (
+            json!(["x".repeat(45)]),
+            Some(format!("[\n  \"{}\"\n]", "x".repeat(45))),
+        ),
+    ] {
+        let h = held(
+            vec![agent(1, json!([call("call", "custom", args.clone())]))],
+            idle(),
+        );
+        let items = build(&h, &HashMap::from([(Stop::Tool("call".into()), true)]));
+        let row = turn_parts(&items)
+            .into_iter()
+            .find_map(|p| match p {
+                Part::Tool(row) => Some(row),
+                _ => None,
+            })
+            .unwrap();
+        assert!(row.open);
+        assert_eq!(row.input, input, "arguments {args}");
+    }
+}
+
 fn build_all(h: &Held) -> Vec<Item> {
     build(h, &HashMap::new())
 }
