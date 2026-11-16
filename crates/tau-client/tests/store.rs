@@ -104,6 +104,60 @@ fn unreadable_device_files_are_errors_and_failed_saves_keep_the_old_file() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn device_saves_follow_absolute_and_relative_symlinks() {
+    use std::os::unix::fs::symlink;
+    for relative in [false, true] {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("client");
+        let dotfiles = dir.path().join("dotfiles");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::create_dir_all(&dotfiles).unwrap();
+        let target = dotfiles.join("preferences.toml");
+        std::fs::write(&target, "theme = \"ember\"\n").unwrap();
+        let link_target = if relative {
+            PathBuf::from("../dotfiles/preferences.toml")
+        } else {
+            target.clone()
+        };
+        let path = root.join("settings.toml");
+        symlink(&link_target, &path).unwrap();
+        let store = Store::at(root);
+        store
+            .save_device("settings.toml", "theme = \"ember-soft\"\n")
+            .unwrap();
+        assert_eq!(std::fs::read_link(&path).unwrap(), link_target);
+        assert_eq!(
+            std::fs::read_to_string(&target).unwrap(),
+            "theme = \"ember-soft\"\n"
+        );
+        assert_eq!(
+            store.load_device("settings.toml").unwrap().as_deref(),
+            Some("theme = \"ember-soft\"\n")
+        );
+        assert!(!dotfiles.join("preferences.partial").exists());
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn an_unwritable_symlink_target_is_an_error_without_replacing_the_link() {
+    use std::os::unix::fs::{PermissionsExt, symlink};
+    let dir = tempfile::tempdir().unwrap();
+    let target_dir = tempfile::tempdir().unwrap();
+    let target = target_dir.path().join("preferences.toml");
+    std::fs::write(&target, "old").unwrap();
+    let path = dir.path().join("settings.toml");
+    symlink(&target, &path).unwrap();
+    std::fs::set_permissions(target_dir.path(), std::fs::Permissions::from_mode(0o555)).unwrap();
+    let result = Store::at(dir.path().to_path_buf()).save_device("settings.toml", "new");
+    std::fs::set_permissions(target_dir.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
+    assert!(result.is_err(), "{result:?}");
+    assert_eq!(std::fs::read_link(&path).unwrap(), target);
+    assert_eq!(std::fs::read_to_string(&target).unwrap(), "old");
+}
+
 #[test]
 fn state_lives_under_the_root() {
     let dir = tempfile::tempdir().unwrap();

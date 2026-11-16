@@ -140,6 +140,29 @@ fn the_theme_key_saves_the_theme_and_keeps_the_comments() {
     assert_eq!(launch(&dir).settings.theme, Variant::EmberSoft);
 }
 
+#[cfg(unix)]
+#[test]
+fn a_read_only_link_target_reports_that_the_change_is_not_saved() {
+    use std::os::unix::fs::{PermissionsExt, symlink};
+    let dir = device(None);
+    let target_dir = tempfile::tempdir().unwrap();
+    let target = target_dir.path().join(FILE);
+    std::fs::write(&target, "theme = \"ember\"\n").unwrap();
+    symlink(&target, dir.path().join(FILE)).unwrap();
+    let mut a = launch(&dir);
+    std::fs::set_permissions(target_dir.path(), std::fs::Permissions::from_mode(0o555)).unwrap();
+    next_theme(&mut a);
+    std::fs::set_permissions(target_dir.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
+    assert_eq!(a.settings.theme, Variant::EmberSoft);
+    let echo = a.echo.as_deref().unwrap();
+    assert!(
+        echo.contains("can't be written") && echo.contains("not saved"),
+        "{echo}"
+    );
+    assert_eq!(std::fs::read_link(dir.path().join(FILE)).unwrap(), target);
+    assert_eq!(on_disk(&dir), "theme = \"ember\"\n");
+}
+
 #[test]
 fn the_theme_key_starts_a_file_where_there_is_none() {
     let dir = device(None);

@@ -71,7 +71,13 @@ impl Store {
         let Some(root) = self.root() else {
             return Ok(());
         };
-        write_whole(&root.join(name), text.as_bytes())
+        let path = root.join(name);
+        let path = if path.is_symlink() {
+            path.canonicalize()?
+        } else {
+            path
+        };
+        write_whole(&path, text.as_bytes())
     }
 
     pub fn client(&self) -> ClientConfig {
