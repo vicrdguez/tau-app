@@ -41,11 +41,35 @@ Fonts load at run time from `$TAU_ASSETS/fonts`, which every command sets. The p
 | `open` | the open items in the sidebar's order: open, close, cycle |
 | `ui` | primitives that take the theme and plain data: rows, chips and hints, count tags, the mode badge, group heads, facts lines, the container, the text field, the notice band, the float shell, the wordmark |
 | `frame` | the sidebar, the stage header, the bottom bar, the notice band and the layout of every region at any window size |
-| `floats` | which-key, the palette, the `:` line, `:messages`, Confirm (and `gx`'s, `open_url`), and the sheet (`:jumps`, the `␣hk` cheat sheet generated from `keymap.toml`); `Float::Screen` holds a screen's own float |
+| `floats` | which-key, the palette, the `:` line, `:messages`, Confirm (and `gx`'s, `open_url`), the sheet (`:jumps`, the `␣hk` cheat sheet generated from `keymap.toml`), and the settings float (`settings.rs`); `Float::Screen` holds a screen's own float |
+| `settings` | this device's `Settings` (theme, reading width, motion, keymap), read from `settings.toml` at launch and changed only through `settings::change` (§ Settings); `file.rs` is the pure TOML read and write |
 | `nav` | the jumplist (`C-o C-i :jumps`, kept on this device) and hint mode (`gs`), over each screen's anchor and targets |
 | `yank` | `y{obj}` and `␣y{obj}` from the readers: the operator waiting for its object, plain-text sentences, the register |
 | `app` | the state (`App`), the rune wiring (`spec`, `view`, `poll`), key dispatch (`input`), the command tables (`commands`), the link in the app (`link`), what the frame shows of the server (`server`) and the headless scenes (`scenes`) |
 | `screens` | one family per file or folder: `connect`, `start`, `home`, `places`, `project`, `peek`, `conversation`, `decision` (§ Screens) |
+
+## Settings
+
+`App::settings` is one `Copy` value: the theme variant, the reading `Measure`, the motion flag and the `Keymap` with this device's moved keys. `App::theme()` derives the `Theme` from it each frame, so a change shows on the next frame everywhere: colours, the reading column, every printed key.
+
+**The file.** `settings.toml` at the link's store root, beside `client.toml` (`TAU_CLIENT_DIR` or `~/.config/tau`). The fixture link has no root, so scenes, tests on `App::default()` and `--demo` read and write nothing.
+
+```toml
+theme = "ember-soft"      # ember | ember-soft | ember-light
+reading_width = 880       # px, 600 to 1200
+motion = false
+
+[keys."start.workflow"]   # the command id from keymap.toml
+"<M-w>" = "<M-m>"         # its key as keymap.toml writes it = the key you press instead
+```
+
+`settings::load` runs once at launch. It never fails: each problem (unreadable, not TOML, an unknown key, a wrong type, a width out of range, a `[keys]` line the keymap refuses) is one line in `:messages`, the echo says `settings.toml: 2 problems · :messages`, and every other value still applies. All `[keys]` lines go to `Keymap::rebind_all` together, so a swap written in the file loads.
+
+`settings::change(app, new, edit)` is the only write path. It applies `new` at once, then re-reads the file and rewrites only the key `edit` names with `toml_edit`, so comments, unknown keys and hand edits made since launch stay. A key put back to its design key loses its line, and an empty command table goes with it. A file that can't be read or isn't TOML is never written over; the change lasts until quit and the echo says why.
+
+**The float** (`floats/settings.rs`, `␣hs`, `:settings`, `⌘,`) lists the values in `Field::ALL`, a hairline, then `Keymap::key_rows()`. Typing filters; `C-j C-k` (Down Up) move; `C-h C-l` (Left Right) and `⏎` change a value; `⏎` on a key row takes a new key and `C-x` puts back the design's. While a row takes a key, `input::press` hands every key to `floats::settings::capture` before the keymap: `⏎` keeps it if `Keymap::rebind` allows it, `Esc` and `C-c` cancel, Backspace takes one back, auto-repeats and a fifth key are ignored, and a refusal stays on the row and in the echo. Scenes: `settings`, `settings-capture`, `settings-refused`; `tools/scripts/settings-rebind.json` plays the whole rebind on the `start` scene.
+
+**A fifth setting** is a field on `Settings`, a variant in `Field` and its `ALL`, and the match arms the compiler then asks for: `Field::key`, `label`, `shown`, `choices`, `step`, and the read and write arms in `settings/file.rs`. Its row, its keys and its save follow. Add a test per value it can be given to `settings/tests.rs` first.
 
 ## The link in the app
 

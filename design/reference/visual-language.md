@@ -117,7 +117,7 @@ The stage is the surface with the most contrast against text; chrome regions are
 
 **Derivation.** Ember's new values come from the sketch (`e12-tau-calm`). Soft keeps Ember's step from the surface below: `raised` is `side` plus 2 per channel; `sunken` is `read` minus 4; `hairline` is `subtle`'s old value minus 2. Light lifts: `raised` is lighter than `read`, so a float or the composer reads as a sheet of paper on the page, and `sunken` is darker. Light's hairline is the old `subtle` plus 2. Light's `side`, `cursor.read` and `current` were moved in the calm challenge so that its fill cues reach Ember's step (§4.4); `current` is a token of its own because Light's `cursor.side` can't get darker without losing the badge against the bar.
 
-The theme is the `theme` key in `~/.config/tau/client.toml` (`ember`, `ember-soft`, `ember-light`, `auto`); `␣ht` switches live within one frame, and nothing reflows.
+The theme is the `theme` key in `~/.config/tau/settings.toml` (`ember`, `ember-soft`, `ember-light`); `␣ht` and the settings float (`␣hs`) switch it live within one frame and save it, and nothing reflows.
 
 ### 4.2 Hues: one hue, one family
 

@@ -82,7 +82,7 @@ The screens you act in are the start page, Home, Conversation, Decision and Proj
 | A decision record | `decision` | §5.6, "Refreshing" |
 | Projects, extensions, models, options | the calls | on connect, on opening their views and pickers, after each write |
 
-**Device-local state**, never sent (`client.md` §8): the server URL and device name (`~/.config/tau/client.toml`); the token (macOS Keychain); theme; the sidebar's visibility and the details panel's; the open items, their order and each one's cursor; each place's filter and cursor; the last project used and the last workflow per project; the start page's draft; each conversation's composer draft; each decision's note drafts; the outbox; the label cache; hidden faults and hidden failed runs; the since-you-left base; the jumplist. `fixture.json` → `local` shows one instance.
+**Device-local state**, never sent (`client.md` §8): the server URL and device name (`~/.config/tau/client.toml`); the token (macOS Keychain); the theme, the reading width, motion and any key moved (`settings.toml` beside `client.toml`, changed in the settings float, `␣hs` `:settings` `⌘,`, and by `␣ht`); the sidebar's visibility and the details panel's; the open items, their order and each one's cursor; each place's filter and cursor; the last project used and the last workflow per project; the start page's draft; each conversation's composer draft; each decision's note drafts; the outbox; the label cache; hidden faults and hidden failed runs; the since-you-left base; the jumplist. `fixture.json` → `local` shows one instance.
 
 ---
 
@@ -98,7 +98,7 @@ Window 1512 × 982 logical px (a 14″ MacBook Pro, maximised), with the sidebar
 | Notice band (when a state needs one) | top of the stage, its width, 38 px for one line, 56 px when its sentence takes two; pushes the page down | `surface.side` | offline, refused, revoked, superseded, a stream that keeps failing |
 | Peek (Home and the places, stage ≥ 1000 px) | 1072, 44, 440, 912; a hairline at its left and no line inside | `surface.read` | the cursor row, live (§5.4) |
 | Details panel (`␣td`) | 1272, 44, 240, 912; a hairline at its left | `surface.read` | a view's secondary facts (§4.5) |
-| Bottom float | 260 to 1500, foot at y 946, up to 40 % of the window tall | `surface.raised`, the float shell (§6) | which-key, palette, `:` line, find, pickers, filter, bind, confirm, readback, outbox, Server, the peek float |
+| Bottom float | 260 to 1500, foot at y 946, up to 40 % of the window tall | `surface.raised`, the float shell (§6) | which-key, palette, `:` line, settings, find, pickers, filter, bind, confirm, readback, outbox, Server, the peek float |
 | Bottom bar | 0, 956, 1512, 26 | `surface.bar` | mode badge · pending keys · echo · save state of option drafts; at its right end, while the sidebar is hidden, the count tags and any abnormal server state (§4.3) |
 
 With the sidebar hidden, the stage and its header start at x 0; the window controls sit at the header's left and its content starts at x 88. A float covers the stage only, never the sidebar or the bottom bar; the page is clipped at the float's top edge, and the insets beside and under the float show `surface.read`.
