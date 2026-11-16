@@ -432,7 +432,7 @@ tier = "local"
 kind = "command"
 jump = true
 ctx = ["list", "reader"]
-note = "A row: its object (an event: the conversation it names; a fault: its decision, else its conversation). In the sidebar: the place or open item, and the stage gets the keys. In readers: a details link, a #id, a choice (moves the cursor there), an option field (opens its editor or picker)."
+note = "A row: its object (an event: the conversation it names; a fault: its decision, else its conversation). In the sidebar: the place or open item, and the stage gets the keys. In readers: a details link, a #id, a choice (moves the cursor there), an option field (opens its editor or picker). In a conversation reader: toggles the foldable stop under the cursor, including tool rows, tool groups and thinking folds; does nothing on other stops or while composing."
 keys = [{ mode = "n", ctx = "list", seq = "<CR>" }, { mode = "n", ctx = "list", seq = "l" }, { mode = "n", ctx = "reader", seq = "<CR>" }]
 
 [[command]]
@@ -611,7 +611,7 @@ desc = "toggle fold"
 tier = "local"
 kind = "command"
 ctx = ["reader"]
-note = "Tool blocks, folded tool groups, thinking blocks, long inputs."
+note = "Tool blocks, folded tool groups, thinking blocks, long inputs. In a conversation reader, za and Enter toggle the fold under the cursor; a press also toggles a tool row, tool group or thinking line and puts the cursor there. An opened tool row shows full input above output when its summary omits fields or lines."
 keys = [{ mode = "n", ctx = "reader", seq = "za" }, { mode = "n", ctx = "reader", seq = "zo" }, { mode = "n", ctx = "reader", seq = "zc" },
         { mode = "n", ctx = "reader", seq = "zR" }, { mode = "n", ctx = "reader", seq = "zM" }]
 

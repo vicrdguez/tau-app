@@ -16,7 +16,10 @@
 //! The cursor rests on a header line, a tool row, a fold or one top-level Markdown block of a
 //! message body (a paragraph, a list item, a code block): the design's line cursor inside text
 //! stands on the block that holds the line. `pi.reset` and `pi.compaction` are quiet chrome lines,
-//! `context reset` and `earlier context summarised`, whose text `za` opens.
+//! `context reset` and `earlier context summarised`, whose text `za` or Enter opens. A press on a
+//! tool row, tool group or thinking line toggles it and places the cursor there. Enter and `za`
+//! toggle the fold under the reader cursor, never while composing. An opened tool row shows its
+//! full input above the output when its summary omits fields or lines.
 
 mod details;
 mod floats;
