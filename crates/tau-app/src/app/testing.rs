@@ -115,6 +115,29 @@ pub(crate) fn linked(dir: tempfile::TempDir, secrets: Secrets, silent: bool) -> 
     }
 }
 
+/// The app as launched on a device whose files are in `dir`, paired with the fixture's server at
+/// `url`.
+pub(crate) fn launch(dir: &std::path::Path, url: &str) -> crate::app::App {
+    let store = Store::at(dir.to_path_buf());
+    store
+        .save_client(&ClientConfig {
+            server: Some(url.into()),
+            device: Some("laptop".into()),
+        })
+        .unwrap();
+    let f = fixture();
+    let secrets = Secrets::memory();
+    secrets.save(url, &f.token()).unwrap();
+    crate::app::App::launch(Link::with_transport(
+        LinkConfig {
+            dir: Some(dir.to_path_buf()),
+            secrets,
+            ..LinkConfig::standard()
+        },
+        Arc::new(FixtureTransport::new(f)),
+    ))
+}
+
 /// Pumps until nothing changes, as frames would.
 pub(crate) fn settle(link: &mut Link) {
     for _ in 0..30 {

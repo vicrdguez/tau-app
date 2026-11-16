@@ -151,6 +151,7 @@ impl App {
     pub fn launch(link: Link) -> App {
         let mut app = App::new(link);
         local::load(&mut app);
+        crate::settings::load(&mut app);
         let paired = !matches!(
             app.link.status().phase,
             LinkPhase::NotPaired | LinkPhase::Pairing

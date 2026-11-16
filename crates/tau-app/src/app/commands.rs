@@ -14,6 +14,7 @@ use crate::floats::{self, CmdLine, Float, Picker, PickerKind, Sheet};
 use crate::frame::{Place, Row};
 use crate::keys::{Code, Command, Key};
 use crate::screens::{self, ScreenId};
+use crate::settings::{self, Edit, Field};
 
 /// A command as the keys (or the palette, or `:`) ran it.
 pub struct Invocation<'k> {
@@ -41,7 +42,8 @@ fn frame() -> HashMap<&'static str, Handler> {
         }
     });
     t.insert("help.theme", |a, _, tx| {
-        a.settings.theme = a.settings.theme.next();
+        let next = Field::Theme.step(&a.settings, 1);
+        settings::change(a, next, Edit::Field(Field::Theme));
         tx.instant();
     });
     t.insert("open.home", |a, _, _| a.show(Stage::Place(Place::Home)));

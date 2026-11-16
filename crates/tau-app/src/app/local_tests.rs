@@ -4,34 +4,11 @@
 //! leaves in-memory state that can be saved again; polling writes files.
 
 use super::*;
+use crate::app::testing::launch;
 use crate::screens::conversation::transcript::Stop;
 use crate::screens::decision::{notes::Draft, state::Cursor};
 use crate::screens::home::list::RowId;
-use std::sync::Arc;
-use tau_client::fixture::FixtureTransport;
-use tau_client::store::{ClientConfig, Secrets, Store};
-use tau_client::{ConvRef, DecisionRef, Fixture, LinkConfig};
-
-fn launch(dir: &std::path::Path, url: &str) -> App {
-    let store = Store::at(dir.to_path_buf());
-    store
-        .save_client(&ClientConfig {
-            server: Some(url.into()),
-            device: Some("laptop".into()),
-        })
-        .unwrap();
-    let f = Fixture::design();
-    let secrets = Secrets::memory();
-    secrets.save(url, &f.token()).unwrap();
-    App::launch(Link::with_transport(
-        LinkConfig {
-            dir: Some(dir.to_path_buf()),
-            secrets,
-            ..LinkConfig::standard()
-        },
-        Arc::new(FixtureTransport::new(f)),
-    ))
-}
+use tau_client::{ConvRef, DecisionRef, Fixture};
 
 #[test]
 fn restart_restores_device_state_without_restoring_the_stage() {
