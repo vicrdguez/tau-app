@@ -83,7 +83,7 @@ pub struct ToolRow {
     pub name: String,
     /// The arguments as one line: a command, a query, a path, else the JSON.
     pub args: String,
-    /// The full arguments when the one-line summary loses fields or lines.
+    /// The full arguments when the summary loses fields or lines, or exceeds the row width.
     pub input: Option<String>,
     pub outcome: Outcome,
     /// The `timestamp` of the message that made the call, for a running row's count (D12).
@@ -406,12 +406,15 @@ fn texts(id: EntryId, content: usize, source: &str) -> Vec<Text> {
         .collect()
 }
 
+// The narrowest tool row shows about this many characters.
+const SUMMARY_CHARS: usize = 48;
+
 /// A tool call's one-line summary and the input it leaves out.
 fn summary(args: &Value) -> (String, Option<String>) {
     let field = ["command", "query", "path", "text"]
         .into_iter()
         .find_map(|key| args.get(key)?.as_str().map(|value| (key, value)));
-    let pretty = || serde_json::to_string_pretty(args).expect("JSON arguments");
+    let pretty = || serde_json::to_string_pretty(args).unwrap_or_else(|_| args.to_string());
     match field {
         Some((key, value)) => {
             let first = value.lines().next().unwrap_or_default();
@@ -422,7 +425,7 @@ fn summary(args: &Value) -> (String, Option<String>) {
             };
             let input = if args.as_object().is_some_and(|o| o.len() > 1) {
                 Some(pretty())
-            } else if value.lines().count() > 1 {
+            } else if value.lines().count() > 1 || summary.chars().count() > SUMMARY_CHARS {
                 Some(value.to_string())
             } else {
                 None

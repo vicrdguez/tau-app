@@ -353,6 +353,25 @@ fn tool_input_preserves_only_what_the_summary_loses() {
 }
 
 #[test]
+fn long_single_line_arguments_remain_readable() {
+    for (command, expanded) in [
+        ("x".repeat(48), false),
+        ("x".repeat(49), true),
+        ("é".repeat(48), false),
+    ] {
+        let h = held(
+            vec![agent(
+                1,
+                json!([call("c", "bash", json!({"command": command}))]),
+            )],
+            idle(),
+        );
+        let row = first_tool(&build_all(&h));
+        assert_eq!(row.input.as_deref(), expanded.then_some(command.as_str()));
+    }
+}
+
+#[test]
 fn za_opens_a_finished_row_and_closes_a_running_one() {
     let h = held(
         vec![
