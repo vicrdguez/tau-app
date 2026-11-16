@@ -228,7 +228,19 @@ The failed `×` replaces the octagon everywhere: the sidebar, Home, the lists, t
 
 ## 7. Motion
 
-A 600 ms state-change tint on a row (rows never move); a 90 ms fade for floats, whose coral top rule is at full opacity from the first frame. The sidebar and the details panel show and hide at once, with no slide. Reduced Motion sets every duration to 0.
+Motion shows what your own key or press just did. Each motion uses a critically damped rune spring, with no overshoot. The `motion_ms` tokens specify perceptual durations, not a deadline for the last settling frame.
+
+- Floats fade in on the 90 ms `float_fade` spring. Their coral top rule is outside the fading surface and has full opacity from the first frame. A key that closes a float removes it at once.
+- The sidebar slides from the window's left edge and back on the 200 ms `panel` spring, beside the stage or over it. Beside, the stage moves with it. The sidebar stays opaque on exit, so its text never mixes with the page beneath it.
+- The details panel slides from the stage's right edge on the same `panel` spring. The page beside it moves to its new position. Panel contents take their new layout without separate entrance fades.
+- A sent message enters above the composer, rising 8 px as it fades in on the 180 ms `page` spring. The composer shrinks to its empty height and the transcript moves with it. When the server takes the input, the unsent row becomes a transcript message at once.
+- A fold, including a tool row, tool group, thinking block or chrome line, opens and closes on the `page` spring. Its moving edge clips the content while the rows below follow.
+
+Everything else lands within one frame. This includes cursor moves and their scrolls, page changes, mode changes, the theme, reading width, which-key, the echo, hint labels, typing, and anything the server changes. Streaming text, new entries, state words and unsent rows becoming messages never start motion. A motion already running may finish.
+
+Inside a conversation, only folds, the unsent stack and the layout they displace animate. A press that focuses the composer lands at once. A page change or a key that closes a float lands the whole change, even if panel state changes with it.
+
+Motion off, or the system's Reduce Motion, sets every duration to 0. There are no animation islands or animated key commits with motion off.
 
 ## 8. Chrome and content
 
