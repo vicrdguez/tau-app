@@ -5,3 +5,8 @@ tools/proto/index.html
 tools/proto/tokens.css
 tools/proto/fixture.js
 tools/proto/keymap.js
+/target
+/result
+/result-*
+.direnv
+.audit/

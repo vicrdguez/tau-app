@@ -2,7 +2,7 @@
 
 Written before the code, one list per module. Each failure names the test that would catch it. Tests live in
 `tests/`, feed the public seams (the engine's inputs and the model the UI reads), and take their data from
-`design/fixture.json` and the server traffic recorded in `tools/e2e/captures/` where a shape matters.
+`design/fixture.json` and the real server streams recorded in `crates/tau-client/tests/data/` where a shape matters.
 
 ## ops (`tests/ops.rs`)
 

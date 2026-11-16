@@ -11,10 +11,7 @@ fn frames(chunks: &[&[u8]]) -> Vec<Frame> {
 }
 
 fn recorded(name: &str) -> Vec<u8> {
-    let path = format!(
-        "{}/../../tools/e2e/captures/{name}",
-        env!("CARGO_MANIFEST_DIR")
-    );
+    let path = format!("{}/tests/data/{name}", env!("CARGO_MANIFEST_DIR"));
     let raw = std::fs::read(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
     let body = raw
         .windows(4)
