@@ -19,6 +19,7 @@ use rune::{KeyEvent, Tx};
 
 use super::*;
 use crate::keys::{Code, Key, parse_seq};
+use crate::theme::Variant;
 
 /// The fixture's open items.
 fn app() -> App {
@@ -107,9 +108,9 @@ fn under_1000_px_space_t_b_does_what_ctrl_h_does() {
 fn space_h_t_switches_the_theme() {
     let mut a = app();
     keys(&mut a, "<leader>ht");
-    assert_eq!(a.variant, Variant::EmberSoft);
+    assert_eq!(a.settings.theme, Variant::EmberSoft);
     keys(&mut a, "<leader>ht<leader>ht");
-    assert_eq!(a.variant, Variant::Ember);
+    assert_eq!(a.settings.theme, Variant::Ember);
 }
 
 #[test]
@@ -260,7 +261,7 @@ fn an_unknown_colon_name_says_so() {
 fn the_command_line_keeps_its_history() {
     let mut a = app();
     keys(&mut a, ":theme<CR>");
-    assert_eq!(a.variant, Variant::EmberSoft);
+    assert_eq!(a.settings.theme, Variant::EmberSoft);
     keys(&mut a, ":<Up>");
     let Some((Float::CmdLine(c), _)) = a.floats.last() else {
         panic!("the : line")
@@ -303,7 +304,7 @@ fn the_palette_runs_the_chosen_command() {
     };
     input::press(&mut a, cmd_k, false, &mut Tx::default());
     keys(&mut a, "sidebar");
-    let rows: Vec<&str> = floats::palette_rows(a.keymap, "sidebar")
+    let rows: Vec<&str> = floats::palette_rows(a.settings.keymap, "sidebar")
         .iter()
         .map(|c| c.id.as_str())
         .collect();

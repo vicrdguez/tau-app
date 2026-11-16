@@ -347,18 +347,21 @@ fn answer_commands_away_from_a_decision_say_where_they_run() {
 fn the_answer_resolves_only_in_the_views_normal_mode() {
     let mut t = review_with_drafts();
     assert!(
-        t.app.scope().lit(t.app.keymap, "<leader>ad"),
+        t.app.scope().lit(t.app.settings.keymap, "<leader>ad"),
         "Normal, the stage has the keys"
     );
     assert_eq!(segments(&t.app)[0].kind, SegmentKind::Answer);
     t.keys("<C-h>");
     assert!(
-        !t.app.scope().lit(t.app.keymap, "<leader>ad"),
+        !t.app.scope().lit(t.app.settings.keymap, "<leader>ad"),
         "the sidebar has the keys"
     );
     t.keys("<C-l><leader>mw");
     assert_eq!(t.app.badge(), Badge::Insert);
-    assert!(!t.app.scope().lit(t.app.keymap, "<leader>ad"), "Insert");
+    assert!(
+        !t.app.scope().lit(t.app.settings.keymap, "<leader>ad"),
+        "Insert"
+    );
 }
 
 #[test]

@@ -68,6 +68,6 @@ fn cursor_and_theme_changes_are_not_motion() {
     let mut app = App::default();
     let before = Moving::of(&app);
     app.sidebar_cursor = Row::New;
-    app.variant = app.variant.next();
+    app.settings.theme = app.settings.theme.next();
     assert!(!Moving::of(&app).moved_since(&before));
 }

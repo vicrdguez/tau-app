@@ -38,7 +38,7 @@ const SCENES: &[Scene] = &[
     ("home-connecting", before_any_frame),
     ("home-motion-off", |a| {
         home(a);
-        a.motion = false;
+        a.settings.motion = false;
     }),
     ("home-connecting-800", before_any_frame),
     ("which-key-root", |a| {
@@ -58,7 +58,7 @@ const SCENES: &[Scene] = &[
     }),
     ("home-light", |a| {
         home(a);
-        a.variant = Variant::EmberLight;
+        a.settings.theme = Variant::EmberLight;
     }),
     ("sidebar-hidden", |a| {
         home(a);
@@ -131,7 +131,7 @@ fn pending(a: &mut App, seq: &str) {
     let scope = a.scope();
     for key in crate::keys::parse_seq(seq).expect("a key sequence") {
         a.keys
-            .press(a.keymap, scope.mode, scope.ctx, key, false, -1.0);
+            .press(a.settings.keymap, scope.mode, scope.ctx, key, false, -1.0);
     }
     a.which_key_shown = true;
 }

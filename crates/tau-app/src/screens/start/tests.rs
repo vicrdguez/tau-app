@@ -197,7 +197,8 @@ fn picker(a: &mut App) -> Option<String> {
 
 fn workflow_on_m_m(a: &mut App) {
     let (from, to) = (parse_seq("<M-w>").unwrap(), parse_seq("<M-m>").unwrap());
-    a.keymap = a
+    a.settings.keymap = a
+        .settings
         .keymap
         .rebind("start.workflow", &from, &to)
         .expect("M-m is free on the start page");

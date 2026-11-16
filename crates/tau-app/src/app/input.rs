@@ -73,12 +73,16 @@ pub fn press(app: &mut App, key: Key, repeat: bool, tx: &mut Tx) -> bool {
         }
     }
     let scope = app.scope();
-    match app
-        .keys
-        .press(app.keymap, scope.mode, scope.ctx, key, repeat, app.now)
-    {
+    match app.keys.press(
+        app.settings.keymap,
+        scope.mode,
+        scope.ctx,
+        key,
+        repeat,
+        app.now,
+    ) {
         Outcome::Pending => {
-            tx.wake_after(super::which_key_delay(app.keymap));
+            tx.wake_after(super::which_key_delay(app.settings.keymap));
             true
         }
         Outcome::Cancelled | Outcome::Ignored => true,
