@@ -1,0 +1,11 @@
+{"events": [
+  {"t": 0.10, "type": "key", "name": "Escape"},
+  {"t": 0.15, "type": "key", "name": " "}, {"t": 0.17, "type": "key", "name": "h"}, {"t": 0.19, "type": "key", "name": "s"},
+  {"t": 0.30, "type": "type", "text": "workflow", "every": 0.001},
+  {"t": 0.40, "type": "key", "name": "Enter"},
+  {"t": 0.50, "type": "key", "name": "m", "alt": true},
+  {"t": 0.60, "type": "key", "name": "Enter"},
+  {"t": 0.80, "type": "key", "name": "Escape"},
+  {"t": 0.90, "type": "key", "name": "w", "alt": true},
+  {"t": 1.00, "type": "key", "name": "m", "alt": true}
+]}
