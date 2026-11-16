@@ -36,14 +36,8 @@ fn k(seq: &str) -> Vec<Key> {
 
 /// `km` with `command`'s key `design` typed as `to`.
 fn moved(km: Keymap, command: &str, design: &str, to: &str) -> Keymap {
-    let c = km
-        .commands()
-        .iter()
-        .position(|c| c.id == command)
-        .expect("a command");
-    let bindings = km.bound_as(c, &k(design));
-    assert!(!bindings.is_empty(), "{command} has {design}");
-    km.moving(&bindings, &k(to))
+    km.rebind(command, &k(design), &k(to))
+        .expect("the move is allowed")
 }
 
 /// Presses every key of `seq` and returns the last outcome.

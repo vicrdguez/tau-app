@@ -569,8 +569,12 @@ impl Keymap {
         }
     }
 
+    /// Every binding as the design writes it.
+    pub(super) fn designed(&self) -> &'static [Binding] {
+        &self.design.bindings
+    }
+
     /// Command `command`'s bindings the design writes as `design`, by index.
-    #[cfg(test)]
     pub(super) fn bound_as(&self, command: usize, design: &[Key]) -> Vec<usize> {
         let b = &self.design.bindings;
         (0..b.len())
@@ -580,7 +584,6 @@ impl Keymap {
 
     /// This map with `bindings` typed as `to`, which puts back the design's key where it is
     /// theirs. Unchecked: `rebind` validates first.
-    #[cfg(test)]
     pub(super) fn moving(self, bindings: &[usize], to: &[Key]) -> Keymap {
         let mut moved: Vec<Moved> = self
             .moved
@@ -651,7 +654,7 @@ impl Keymap {
                 })
     }
 
-    fn group_label(&self, prefix: &[Key]) -> Option<&'static str> {
+    pub(super) fn group_label(&self, prefix: &[Key]) -> Option<&'static str> {
         let design: &'static Design = self.design;
         design
             .groups
