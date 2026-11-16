@@ -9,6 +9,8 @@ use std::sync::LazyLock;
 use rune::Color;
 use rune::{Family, Spring, SpringPair};
 
+use crate::keys::Keymap;
+
 pub use tokens::{
     Border, Content, CountTag, Fg, Float, Gaps, Heights, Kind, Layout, ListColumn, Marks,
     NoticeBand, PathMark, Peek, Radius, Rule, Sidebar, StageHeader, State, Surface, Text,
@@ -101,7 +103,8 @@ pub fn tokens() -> &'static Tokens {
     &TOKENS
 }
 
-/// What a view draws with: the current palette over the shared type scale and layout.
+/// What a view draws with: the current palette over the shared type scale and layout, and the
+/// keys this device types (`t.keymap`), which every printed key follows.
 #[derive(Clone, Copy, Debug)]
 pub struct Theme {
     pub variant: Variant,
@@ -110,6 +113,7 @@ pub struct Theme {
     pub l: &'static Layout,
     pub read: Reading,
     pub motion: Motion,
+    pub keymap: Keymap,
 }
 
 impl Theme {
@@ -133,6 +137,7 @@ impl Theme {
                 },
                 on: motion,
             },
+            keymap: Keymap::design(),
         }
     }
 }

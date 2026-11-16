@@ -5,7 +5,7 @@ use rune::{El, Tx, icon, row, text};
 
 use crate::assets::{carbon, marks};
 use crate::theme::Theme;
-use crate::ui::{Scope, chip, glyphs, printed};
+use crate::ui::{Scope, chip, glyphs};
 
 /// One part of the breadcrumb.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -91,7 +91,8 @@ pub fn header<S: 'static>(t: Theme, h: &Header, on_toggle: fn(&mut S, &mut Tx)) 
 }
 
 fn segment(t: Theme, scope: Scope, answer_solid: bool, s: &Segment) -> El {
-    let lit = scope.lit(s.seq);
+    let key = t.keymap.chip(s.seq, scope.mode, scope.ctx);
+    let lit = key.lit;
     let pill = t.l.radius.pill;
     match s.kind {
         SegmentKind::Off => row()
@@ -119,7 +120,7 @@ fn segment(t: Theme, scope: Scope, answer_solid: bool, s: &Segment) -> El {
                 .fill(t.c.state.attn)
                 .child(icon(&marks::DIAMOND, 11.0).color(knock))
                 .child(
-                    glyphs(&printed(s.seq), t.ty.key, knock)
+                    glyphs(&key.printed, t.ty.key, knock)
                         .h(18.0)
                         .px(5.0)
                         .radius(pill)

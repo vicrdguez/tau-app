@@ -22,7 +22,7 @@ use tau_client::{Link, LinkPhase};
 
 use crate::floats::{self, Float};
 use crate::frame::{self, Bar, Header, Parts, Place, Row, Sidebar, SidebarPlace};
-use crate::keys::{Keys, Mode, keymap};
+use crate::keys::{Keymap, Keys, Mode};
 use crate::open::{Item, OpenItems};
 use crate::screens::{self, Screens};
 use crate::theme::{Theme, Variant, tokens};
@@ -49,6 +49,8 @@ pub enum Focus {
 
 pub struct App {
     pub variant: Variant,
+    /// The keys this device types: the design's, with any it moved.
+    pub keymap: Keymap,
     /// The window's size in points, as last laid out.
     pub window: [f32; 2],
     /// Seconds since launch (the virtual clock when headless).
@@ -112,6 +114,7 @@ impl App {
     fn new(link: Link) -> App {
         App {
             variant: Variant::Ember,
+            keymap: Keymap::design(),
             window: tokens().layout.window,
             now: 0.0,
             focus: Focus::Stage,
@@ -155,7 +158,10 @@ impl App {
     }
 
     pub fn theme(&self) -> Theme {
-        Theme::of(self.variant)
+        Theme {
+            keymap: self.keymap,
+            ..Theme::of(self.variant)
+        }
     }
 
     /// Where the keys are: the top float, else the sidebar, else the stage's page.
@@ -343,7 +349,8 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
             };
             Some(floats::view(t, f, ctx, &app.messages))
         }
-        None if app.which_key_shown => keymap()
+        None if app.which_key_shown => app
+            .keymap
             .which_key(app.keys.pending(), scope.mode, scope.ctx)
             .map(|wk| {
                 let why = |id: &str| page.unavailable(app, id);
@@ -389,7 +396,7 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
 /// the link into `App::server`, and runs each screen's `poll`.
 pub fn poll(app: &mut App, now: f64, tx: &mut Tx) -> bool {
     app.now = now;
-    let due = app.floats.is_empty() && app.keys.which_key_due(now, keymap().whichkey_delay_ms());
+    let due = app.floats.is_empty() && app.keys.which_key_due(now, app.keymap.whichkey_delay_ms());
     let reveal = std::mem::take(&mut app.reveal_float_target) || (due && !app.which_key_shown);
     let mut changed = due != app.which_key_shown;
     app.which_key_shown = due;
@@ -419,8 +426,8 @@ pub fn spec(fonts: &'static [&'static [u8]]) -> AppSpec<App> {
 }
 
 /// How long a pending prefix waits before which-key shows.
-pub fn which_key_delay() -> Duration {
-    Duration::from_secs_f64(keymap().whichkey_delay_ms() / 1000.0)
+pub fn which_key_delay(km: Keymap) -> Duration {
+    Duration::from_secs_f64(km.whichkey_delay_ms() / 1000.0)
 }
 
 #[cfg(test)]

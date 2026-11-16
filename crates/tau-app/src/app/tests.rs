@@ -303,7 +303,7 @@ fn the_palette_runs_the_chosen_command() {
     };
     input::press(&mut a, cmd_k, false, &mut Tx::default());
     keys(&mut a, "sidebar");
-    let rows: Vec<&str> = floats::palette_rows("sidebar")
+    let rows: Vec<&str> = floats::palette_rows(a.keymap, "sidebar")
         .iter()
         .map(|c| c.id.as_str())
         .collect();
@@ -345,6 +345,9 @@ fn space_t_d_toggles_details_only_where_it_applies() {
 #[test]
 fn every_handler_names_a_command_in_the_keymap() {
     for id in commands::handled() {
-        assert!(keymap().command(id).is_some(), "{id} is not in keymap.toml");
+        assert!(
+            Keymap::design().command(id).is_some(),
+            "{id} is not in keymap.toml"
+        );
     }
 }

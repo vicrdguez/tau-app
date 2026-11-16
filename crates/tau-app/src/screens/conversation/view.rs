@@ -19,7 +19,7 @@ use crate::editor::EditMode;
 use crate::screens::NOTHING_RECEIVED;
 use crate::theme::Theme;
 use crate::time;
-use crate::ui::{Mark, Part as Fact, Scope, chip, facts, glyphs, mark, printed};
+use crate::ui::{Mark, Part as Fact, Scope, chip, facts, glyphs, mark};
 
 /// The transcript's scroll viewport.
 pub const TRANSCRIPT: &str = "conv-transcript";
@@ -981,11 +981,16 @@ fn composer(t: Theme, app: &App, s: &Shown, model: &str, composing: bool) -> El 
 /// `Esc jk leave Insert · ⌘⏎ steer · M-⏎ follow-up` (running) or `· ⌘⏎ send`; in the composer's
 /// Normal mode `⌘⏎ send · Esc back to the conversation`.
 fn hints(t: Theme, scope: Scope, insert: bool, running: bool) -> El {
-    let key = |seq: &str, lit: bool| {
+    let key = |seq: &str, always_lit: bool| {
+        let typed = t.keymap.chip(seq, scope.mode, scope.ctx);
         glyphs(
-            &printed(seq),
+            &typed.printed,
             t.ty.hint,
-            if lit { t.c.fg.alt } else { t.c.fg.muted },
+            if always_lit || typed.lit {
+                t.c.fg.alt
+            } else {
+                t.c.fg.muted
+            },
         )
     };
     let word = |w: &str| text(w.to_string()).font(t.ty.ui_small).color(t.c.fg.muted);
@@ -999,22 +1004,16 @@ fn hints(t: Theme, scope: Scope, insert: bool, running: bool) -> El {
             word("leave Insert"),
         ]));
         groups.push(group(vec![
-            key("<D-CR>", scope.lit("<D-CR>")),
+            key("<D-CR>", false),
             word(if running { "steer" } else { "send" }),
         ]));
         if running {
-            groups.push(group(vec![
-                key("<M-CR>", scope.lit("<M-CR>")),
-                word("follow-up"),
-            ]));
+            groups.push(group(vec![key("<M-CR>", false), word("follow-up")]));
         }
     } else {
+        groups.push(group(vec![key("<D-CR>", false), word("send")]));
         groups.push(group(vec![
-            key("<D-CR>", scope.lit("<D-CR>")),
-            word("send"),
-        ]));
-        groups.push(group(vec![
-            key("<Esc>", scope.lit("<Esc>")),
+            key("<Esc>", false),
             word("back to the conversation"),
         ]));
     }

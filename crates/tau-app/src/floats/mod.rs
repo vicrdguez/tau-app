@@ -17,7 +17,7 @@ pub use sheet::{Sheet, SheetRow};
 
 use rune::{El, TextEdit, row, text, text_input};
 
-use crate::keys::{Command, Ctx, Key, Mode, keymap};
+use crate::keys::{Command, Ctx, Key, Keymap, Mode};
 use crate::screens::ScreenFloat;
 use crate::theme::Theme;
 use crate::ui::{Badge, Scope, Shell, float_hint, float_row, glyphs, shell, title};
@@ -151,8 +151,8 @@ fn matches(query: &str, hay: &[&str]) -> bool {
 
 /// Why `command` can't run where the keys are (`ctx`), or `None` when it can. A command of the
 /// views says which to open (`open a decision first`); any other names where it runs.
-pub fn unavailable(command: &Command, ctx: Ctx) -> Option<String> {
-    if keymap().applies(command, ctx) {
+pub fn unavailable(km: Keymap, command: &Command, ctx: Ctx) -> Option<String> {
+    if km.applies(command, ctx) {
         return None;
     }
     let mut views = Vec::new();
@@ -203,17 +203,16 @@ fn either(words: &[&str]) -> String {
 }
 
 /// The palette's rows for `query`, in the keymap's order.
-pub fn palette_rows(query: &str) -> Vec<&'static Command> {
-    keymap()
-        .palette()
+pub fn palette_rows(km: Keymap, query: &str) -> Vec<&'static Command> {
+    km.palette()
         .filter(|c| matches(query, &[&c.desc, &c.ex]))
         .collect()
 }
 
 /// The `:` line's completions: commands whose name starts with the word typed.
-pub fn completions(line: &str) -> Vec<&'static Command> {
+pub fn completions(km: Keymap, line: &str) -> Vec<&'static Command> {
     let word = line.split_whitespace().next().unwrap_or("");
-    keymap().ex_completions(word)
+    km.ex_completions(word)
 }
 
 /// The messages a `:messages` picker shows for `query`.
@@ -257,13 +256,13 @@ pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String]) -> El {
     let hint = |seqs: &[&str], word: &str| float_hint(t, scope, seqs, word);
     match f {
         Float::Picker(p) if p.kind == PickerKind::Palette => {
-            let rows = palette_rows(&p.query.text);
+            let rows = palette_rows(t.keymap, &p.query.text);
             let mut body = rune::col().w_full();
             for (i, c) in rows.iter().enumerate().take(12) {
-                let here = unavailable(c, ctx).is_none();
+                let here = unavailable(t.keymap, c, ctx).is_none();
                 let fg = if here { t.c.fg.default } else { t.c.fg.muted };
                 let mut keys = row().center_y().gap(8.0).w(120.0);
-                for k in keymap().keys_of(c, Mode::Normal) {
+                for k in t.keymap.keys_of(c, Mode::Normal) {
                     keys = keys.child(glyphs(&k, t.ty.mono_small, t.c.fg.muted));
                 }
                 let content = row()
@@ -284,7 +283,7 @@ pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String]) -> El {
                                     .shrink()
                                     .min_w(0.0),
                             )
-                            .children(unavailable(c, ctx).map(|r| {
+                            .children(unavailable(t.keymap, c, ctx).map(|r| {
                                 text(format!("· {r}"))
                                     .font(t.ty.ui_small)
                                     .color(t.c.fg.muted)
@@ -349,7 +348,7 @@ pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String]) -> El {
             )
         }
         Float::CmdLine(c) => {
-            let rows = completions(&c.line.text);
+            let rows = completions(t.keymap, &c.line.text);
             let mut body = rune::col().w_full();
             for (i, cmd) in rows.iter().enumerate().take(8) {
                 let content = row()

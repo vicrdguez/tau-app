@@ -16,7 +16,8 @@ pub enum Outcome<'k> {
         command: &'k Command,
         count: Option<u32>,
         applies: bool,
-        /// The keys that ran it (`]b` or `[b`), without the count.
+        /// The keys that ran it (`]b` or `[b`), without the count; the design's keys when this
+        /// device moved the binding.
         keys: Vec<Key>,
     },
     /// A key of a builtin set completed (`gg`, `j`, `<BS>`): the region's own handler takes it.
@@ -39,15 +40,15 @@ pub struct Keys {
 
 impl Keys {
     /// Resolves one key in `mode` and `ctx`. `repeat` is an OS auto-repeat; `now` is in seconds.
-    pub fn press<'k>(
+    pub fn press(
         &mut self,
-        km: &'k Keymap,
+        km: Keymap,
         mode: Mode,
         ctx: Ctx,
         key: Key,
         repeat: bool,
         now: f64,
-    ) -> Outcome<'k> {
+    ) -> Outcome<'static> {
         if key == Key::plain(Code::Esc) && !self.is_idle() {
             self.reset();
             return Outcome::Cancelled;
@@ -73,8 +74,8 @@ impl Keys {
         }
         let keys = std::mem::take(&mut self.pending);
         let count = self.count.take();
-        match look.exact {
-            Some(Target::Command(i)) => {
+        match (look.exact, look.via) {
+            (Some(Target::Command(i)), Some(via)) => {
                 let command = &km.commands()[i];
                 if repeat && !command.repeats() {
                     return Outcome::Ignored;
@@ -84,11 +85,11 @@ impl Keys {
                     command,
                     count: count.filter(|_| command.countable),
                     applies,
-                    keys,
+                    keys: km.handed(via, keys),
                 }
             }
-            Some(Target::Builtin) => Outcome::Builtin { keys, count },
-            None => Outcome::Unbound { keys, count },
+            (Some(Target::Builtin), _) => Outcome::Builtin { keys, count },
+            _ => Outcome::Unbound { keys, count },
         }
     }
 

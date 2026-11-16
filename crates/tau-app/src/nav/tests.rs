@@ -137,7 +137,9 @@ fn jumps_lists_the_entries_newest_last_and_enter_goes_to_the_one_chosen() {
 }
 
 fn run_ex(a: &mut App, name: &str) {
-    let command = crate::keys::keymap().by_ex(name).expect("an ex name");
+    let command = crate::keys::Keymap::design()
+        .by_ex(name)
+        .expect("an ex name");
     crate::app::commands::run(
         a,
         &crate::app::Invocation {

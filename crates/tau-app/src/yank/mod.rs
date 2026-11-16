@@ -11,7 +11,7 @@ pub mod objects;
 use rune::Tx;
 
 use crate::app::{App, Handler, Invocation};
-use crate::keys::{Code, Ctx, Key, Mode, keymap};
+use crate::keys::{Code, Ctx, Key, Mode};
 use crate::screens;
 
 /// What `y` takes.
@@ -70,7 +70,7 @@ pub fn shown(app: &App) -> String {
 fn start(app: &mut App, inv: &Invocation, tx: &mut Tx) {
     let clipboard = inv.command.id == "yank.clipboard";
     let scope = app.scope();
-    let in_reader = keymap().chain(scope.ctx).contains(&Ctx::Reader);
+    let in_reader = app.keymap.chain(scope.ctx).contains(&Ctx::Reader);
     if !in_reader || screens::holder(app) != Some(screens::of(&app.stage)) {
         app.say("nothing to yank here");
         return;

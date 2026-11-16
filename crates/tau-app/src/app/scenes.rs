@@ -126,14 +126,8 @@ const SCENES: &[Scene] = &[
 fn pending(a: &mut App, seq: &str) {
     let scope = a.scope();
     for key in crate::keys::parse_seq(seq).expect("a key sequence") {
-        a.keys.press(
-            crate::keys::keymap(),
-            scope.mode,
-            scope.ctx,
-            key,
-            false,
-            -1.0,
-        );
+        a.keys
+            .press(a.keymap, scope.mode, scope.ctx, key, false, -1.0);
     }
     a.which_key_shown = true;
 }

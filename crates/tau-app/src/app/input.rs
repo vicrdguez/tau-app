@@ -8,7 +8,7 @@ use super::commands::{self, Invocation};
 use super::{App, Focus};
 use crate::floats::Float;
 use crate::frame::Row;
-use crate::keys::{Code, Key, Outcome, from_rune, keymap};
+use crate::keys::{Code, Key, Outcome, from_rune};
 use crate::screens;
 
 /// The window's `on_key`. What a key changes lands at once (`visual-language.md` §7: rows never
@@ -44,10 +44,10 @@ pub fn press(app: &mut App, key: Key, repeat: bool, tx: &mut Tx) -> bool {
     let scope = app.scope();
     match app
         .keys
-        .press(keymap(), scope.mode, scope.ctx, key, repeat, app.now)
+        .press(app.keymap, scope.mode, scope.ctx, key, repeat, app.now)
     {
         Outcome::Pending => {
-            tx.wake_after(super::which_key_delay());
+            tx.wake_after(super::which_key_delay(app.keymap));
             true
         }
         Outcome::Cancelled | Outcome::Ignored => true,
