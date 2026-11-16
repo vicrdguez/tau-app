@@ -1,0 +1,6 @@
+{"events": [
+  {"t": 0.10, "type": "key", "name": "G"},
+  {"t": 0.30, "type": "key", "name": "k"},
+  {"t": 0.40, "type": "key", "name": "c"}, {"t": 0.42, "type": "key", "name": "c"},
+  {"t": 0.50, "type": "type", "text": "Is three enough?"}
+]}

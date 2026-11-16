@@ -1,0 +1,47 @@
+{
+  "events": [
+    {
+      "t": 0.1,
+      "type": "key",
+      "name": "Escape"
+    },
+    {
+      "t": 0.2,
+      "type": "type",
+      "text": " pb",
+      "every": 0.001
+    },
+    {
+      "t": 0.3,
+      "type": "type",
+      "text": "scratchx",
+      "every": 0.001
+    },
+    {
+      "t": 0.4,
+      "type": "key",
+      "name": "Backspace"
+    },
+    {
+      "t": 0.5,
+      "type": "key",
+      "name": "Tab"
+    },
+    {
+      "t": 0.6,
+      "type": "type",
+      "text": "/home/vrod/src/scratch",
+      "every": 0.001
+    },
+    {
+      "t": 0.7,
+      "type": "key",
+      "name": "Escape"
+    },
+    {
+      "t": 0.8,
+      "type": "key",
+      "name": "Enter"
+    }
+  ]
+}

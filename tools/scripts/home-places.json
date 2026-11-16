@@ -1,0 +1,8 @@
+{"events":[
+ {"t":0.1,"type":"key","name":"]"},{"t":0.12,"type":"key","name":"g"},
+ {"t":0.2,"type":"key","name":"x"},
+ {"t":0.3,"type":"key","name":" "},{"t":0.32,"type":"key","name":"o"},{"t":0.34,"type":"key","name":"c"},
+ {"t":0.5,"type":"key","name":" "},{"t":0.52,"type":"key","name":"p"},{"t":0.54,"type":"key","name":"f"},
+ {"t":0.7,"type":"type","text":"notes"},{"t":0.8,"type":"key","name":"Enter"},
+ {"t":1.0,"type":"tap","x":201,"y":178}
+]}
