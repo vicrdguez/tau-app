@@ -1,6 +1,43 @@
-# tau app
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/svg/tau-wordmark-on-dark-coral.svg">
+    <source media="(prefers-color-scheme: light)" srcset="brand/svg/tau-wordmark-on-light-coral.svg">
+    <img alt="tau" src="brand/svg/tau-wordmark-on-light-coral.svg" height="72">
+  </picture>
+</p>
 
-The desktop app for tau, a native rune window onto one tau server. This repository holds the Rust app, its client library, the design, and the tools that check them. The tau core is in another repository.
+<p align="center">
+  The desktop app for <a href="https://github.com/vicrdguez/tau">tau</a>: a native, keyboard-first window onto one tau server.
+</p>
+
+<p align="center">
+  Built in Rust on <a href="https://github.com/anomalyco/rune">rune</a> · themed in <a href="https://github.com/ember-theme">Ember</a> · built and run with Nix
+</p>
+
+---
+
+The app shows what needs you (open decisions), what broke (failed runs and faulted tasks), what runs (conversations) and what happened (events), across every project on the server. It knows no workflow of its own: it is complete for the bare agent and shows any workflow through the core's own shapes. Keys follow nvim and Doom Emacs habits: modes, a leader with which-key, the `:` line and pickers rising from the bottom.
+
+<table>
+  <tr>
+    <td width="50%"><img alt="The start page" src="design/mockups/start.png"></td>
+    <td width="50%"><img alt="Home: what needs you, what failed, what runs and what happened" src="design/mockups/home.png"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>The start page</sub></td>
+    <td align="center"><sub>Home</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img alt="A conversation with a run in progress" src="design/mockups/conversation-streaming.png"></td>
+    <td width="50%"><img alt="Answering a decision through the readback" src="design/mockups/readback-answer.png"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>A conversation, mid-run</sub></td>
+    <td align="center"><sub>Answering a decision</sub></td>
+  </tr>
+</table>
+
+<p align="center"><sub>Renders from the design package in <code>design/mockups/</code>.</sub></p>
 
 ## What is here
 
@@ -9,24 +46,13 @@ The desktop app for tau, a native rune window onto one tau server. This reposito
 | [`crates/tau-app/`](crates/tau-app/README.md) | The native UI, screens, keymap, theme, and headless scenes. |
 | [`crates/tau-client/`](crates/tau-client/README.md) | Pairing, HTTP, streams, persistence, and the read-only server model. |
 | [`nix/`](nix/README.md) | Release packaging, assets, checks, and checkout commands. |
-| [`design/`](design/README.md) | The design package: the spec, the connection rules, the keymap and its grammar, the visual language and tokens, test data in the protocol's shapes, the failure catalogue, open questions, evidence, mockups and wireframes. **Start here.** |
-| [`brand/`](brand/README.md) | The tau logo: mark, wordmark and app icons, as SVG and PNG, in each colour version. The client uses a few of these; `design/brand/` lists which and where. |
-| [`tools/proto/`](tools/proto/README.md) | An HTML prototype that renders every state of the design and checks it against the design's rules, plus the keymap lint. It reproduces the design's mockups byte-identically. |
+| [`design/`](design/README.md) | The design package: the spec, the connection rules, the keymap and its grammar, the visual language and tokens, test data in the protocol's shapes, the failure catalogue, mockups and wireframes. **Start here.** |
+| [`brand/`](brand/README.md) | The tau logo: mark, wordmark and app icons, as SVG and PNG, in each colour version. |
+| [`tools/proto/`](tools/proto/README.md) | An HTML prototype that renders every state of the design and checks it against the design's rules, plus the keymap lint. |
 
-## The core
+## The server
 
-The app talks to the tau core over HTTP and server-sent events. The core lives in the `render-core` branch of the tau repository; read `docs/protocol.md` and `docs/host.md` there first. Where the design and the core disagree, the core wins.
-
-The design was made against the core as of 2026-11-14. The core's files have moved since and its docs are being reworded, but its substance is unchanged. `design/README.md` maps the old paths the design cites to the current ones. `design/core-reconciliation.md` compares the design's protocol claims with the current core; the client follows the core where they differ.
-
-## Status
-
-- **Design:** finished, 2026-11-15. It went through two passes, each challenged once, with every finding settled. The prototype passes every check on all 47 states.
-- **Open:** three owner defaults (`design/open-questions.md`): D3 (an input shows as `input`, not "you"), D11 (the app opens on the start page) and D12 (no duration on a finished tool row).
-- The native app and client library are implemented. Rune renders the design's fixture scenes and the UI talks to a real tau server.
-- The real-server UI gate pairs through Connect, binds a project, starts a bare conversation on `faux/echo`, and checks the rendered echo reply.
-- Nix provides the release package, macOS bundle, isolated checks, and the cumulative verification command below. Linux outputs are defined but have not been built or run on Linux in this work.
-- Visual differences and pinned Rune renderer limits are recorded in [`crates/tau-app/README.md`](crates/tau-app/README.md#pinned-rune-kit-limits).
+The app talks to a [tau](https://github.com/vicrdguez/tau) server over HTTP and server-sent events. tau's own docs define the protocol. Where this repository and tau disagree, tau wins.
 
 ## Build and run
 
