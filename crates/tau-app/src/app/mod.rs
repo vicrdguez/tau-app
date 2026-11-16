@@ -428,6 +428,8 @@ mod float_tests;
 #[cfg(test)]
 mod local_tests;
 #[cfg(test)]
+mod reading_layout_tests;
+#[cfg(test)]
 mod server_tests;
 #[cfg(test)]
 mod state_scene_tests;
