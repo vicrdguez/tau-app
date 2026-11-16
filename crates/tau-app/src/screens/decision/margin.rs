@@ -1,6 +1,6 @@
 //! The notes margin (`spec.md` §5.6 "The notes margin"): its head, the note on the whole, the
 //! earlier requests, then each passage's note beside its passage, stacked 12 px apart; a note
-//! pushed below its passage gets a leader. Under 1016 px the same items fold into the column.
+//! pushed below its passage gets a leader. Under 1256 px the same items fold into the column.
 
 use rune::{El, col, el, icon, row, text, text_input};
 
@@ -70,7 +70,7 @@ pub fn whole(t: Theme, body: &str) -> El {
             text(body.to_string())
                 .font(t.ty.ui)
                 .color(t.c.fg.default)
-                .wrap()
+                .wrap_anywhere()
                 .mt(4.0),
         )
 }
@@ -94,7 +94,7 @@ pub fn note(t: Theme, state: &str, mine: bool, body: &str) -> El {
             text(body.to_string())
                 .font(t.ty.ui)
                 .color(t.c.fg.default)
-                .wrap()
+                .wrap_anywhere()
                 .mt(3.0),
         )
 }
@@ -110,6 +110,7 @@ pub fn editing(t: Theme, scope: Scope, e: &Editing, keys: bool) -> El {
     let mut edit = e.editor.edit.clone();
     edit.focused &= keys;
     let field = text_input(&edit, t.ty.ui)
+        .wrap_anywhere()
         .caret(t.c.state.attn, t.c.surface.selection)
         .color(t.c.fg.default)
         .on_edit(|a: &mut App| a.screens.decision.edit_mut())

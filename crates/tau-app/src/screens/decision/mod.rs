@@ -7,7 +7,7 @@
 //!   no reply), the `then` task's row of the table, and when `␣ad` and `␣ar` are on.
 //! - `notes`: the drafts on this device per decision, with undo, saved at each change.
 //! - `reader`: the cursor's keys, Visual, `c{motion}`, `␣mn`, `␣mw`, `]n [n`, `i`, `dd`, `u`.
-//! - `view` and `margin`: the page and the notes margin, folded into the column under 1016 px.
+//! - `view` and `margin`: the page and the notes margin, folded into the column under 1256 px.
 //! - `readback`: `␣ad` and `␣ar`, the 400 ms arm, and every reply of §5.7's table.
 //! - `scenes`: the mockups' states on the fixture link.
 //!
@@ -81,11 +81,11 @@ fn decision_layout() -> DecisionLayout {
     let d = &tokens_json()["tau"]["layout"]["decision"];
     let n = |k: &str, or: f32| d[k].as_f64().map_or(or, |v| v as f32);
     DecisionLayout {
-        text: n("text", 600.0),
+        text: n("text", 840.0),
         gap: n("gap", 48.0),
         notes_margin: n("notes_margin", 320.0),
-        block: n("block", 968.0),
-        fold_notes_below: n("fold_notes_below", 1016.0),
+        block: n("block", 1208.0),
+        fold_notes_below: n("fold_notes_below", 1256.0),
     }
 }
 

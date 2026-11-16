@@ -1,7 +1,9 @@
-//! The conversation page (`spec.md` §5.5): the 640 px column, centred left of the details panel,
+//! The conversation page (`spec.md` §5.5): the 880 px column, centred left of the details panel,
 //! holds the title block, the transcript and, at its foot, the queue, the unsent rows and the
 //! composer. Sizes follow the prototype (`tools/proto/calm.css` `.ccol`, `.msg`, `.tool`,
 //! `.cstack`, `.comp`).
+
+use std::sync::LazyLock;
 
 use rune::{El, ScrollSpec, TextStyle, col, el, icon, row, spacer, text, text_input};
 use tau_client::shapes::{ConversationState, QueueMode};
@@ -24,10 +26,19 @@ use crate::ui::{Mark, Part as Fact, Scope, chip, facts, glyphs, mark, printed};
 /// The transcript's scroll viewport.
 pub const TRANSCRIPT: &str = "conv-transcript";
 
-/// `tokens.json` `layout.work_column.conversation`.
-const COLUMN: f32 = 640.0;
-/// Prose wraps at the 600 px measure inside the column (`visual-language.md` §3).
-const MEASURE: f32 = 600.0;
+/// The conversation column and prose measure from the reading layout tokens.
+static WIDTHS: LazyLock<(f32, f32)> = LazyLock::new(|| {
+    let tokens: serde_json::Value =
+        serde_json::from_str(include_str!("../../../../../design/tokens.json"))
+            .expect("design tokens");
+    let layout = &tokens["tau"]["layout"];
+    (
+        layout["work_column"]["conversation"]
+            .as_f64()
+            .expect("conversation column") as f32,
+        layout["decision"]["text"].as_f64().expect("prose measure") as f32,
+    )
+});
 /// Agent text, headers and rows sit 12 px in from the column, so the cursor's band and bar span
 /// it whole (prototype `.ccol .tool`, `.ccol .mh`).
 const LANE: f32 = 12.0;
@@ -110,7 +121,7 @@ pub fn page(t: Theme, app: &App) -> El {
     let following = conv.is_none_or(|c| c.cursor.is_none());
     let column = col()
         .w_full()
-        .max_w(COLUMN)
+        .max_w(WIDTHS.0)
         .h_full()
         .child(title_block(t, app, &s, &model))
         .child(transcript(&cx, &s, &items, following))
@@ -360,7 +371,7 @@ fn item_el(cx: &Draw, item: &Item) -> El {
                     markdown(t, src)
                         .streaming(true)
                         .build()
-                        .max_w(MEASURE)
+                        .max_w(WIDTHS.1)
                         .grow(1.0),
                 ),
             )
@@ -499,7 +510,11 @@ fn input(cx: &Draw, head: EntryId, at: Option<i64>, body: &[Body]) -> El {
 
 /// One Markdown block in the reading measure.
 fn prose(t: Theme, src: &str) -> El {
-    markdown(t, src).build().max_w(MEASURE).grow(1.0).min_w(0.0)
+    markdown(t, src)
+        .build()
+        .max_w(WIDTHS.1)
+        .grow(1.0)
+        .min_w(0.0)
 }
 
 /// Blocks of a message body, each a cursor stop.
@@ -884,6 +899,7 @@ fn composer(t: Theme, app: &App, s: &Shown, model: &str, composing: bool) -> El 
             let mut edit = e.edit.clone();
             edit.focused = true;
             text_input(&edit, t.ty.prose)
+                .wrap_anywhere()
                 .caret(t.c.state.attn, t.c.surface.selection)
                 .color(t.c.fg.default)
                 .on_edit(composer_edit)

@@ -16,6 +16,7 @@ pub(super) fn view(t: Theme, a: &App) -> El {
     let mut edit = s.editor.edit.clone();
     edit.focused = insert;
     let input = text_input(&edit, t.ty.prose)
+        .wrap_anywhere()
         .caret(t.c.state.attn, t.c.surface.selection)
         .color(t.c.fg.default)
         .placeholder("What do you want to work on?", t.c.fg.muted)

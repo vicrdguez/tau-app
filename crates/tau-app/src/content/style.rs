@@ -21,7 +21,6 @@ pub(super) struct Metrics {
     pub quote_bar: f32,
     pub code_rule: f32,
     pub code_padding: [f32; 2],
-    pub clip_fade: f32,
     pub image_placeholder: f32,
     pub task_box: f32,
 }
@@ -31,11 +30,13 @@ pub(super) static METRICS: LazyLock<Metrics> = LazyLock::new(|| {
         .expect("tau.layout.markdown")
 });
 
-/// The width a table fits before it scrolls: the 600 px measure (`visual-language.md` §3), or
+/// The width a table fits before it scrolls: the reading measure (`visual-language.md` §3), or
 /// the peek's column inside its padding and its content bar's 2 px and 12 px.
 pub(super) fn column(peek: bool) -> f32 {
     if !peek {
-        return 600.0;
+        return TOKENS["tau"]["layout"]["decision"]["text"]
+            .as_f64()
+            .expect("prose measure") as f32;
     }
     let p = &TOKENS["tau"]["layout"]["peek"];
     let n = |k: &str| p[k].as_f64().expect("tau.layout.peek") as f32;

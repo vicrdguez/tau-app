@@ -164,7 +164,7 @@ impl Render<'_> {
     }
 
     /// Square, on `surface.code`, a gold rule at its left and the language at its top right;
-    /// lines never wrap and scroll under a fade. While streaming, the line still arriving
+    /// lines wrap inside the column. While streaming, the line still arriving
     /// stays plain, so colour never moves under it.
     fn code(&self, f: &Fonts, lang: Option<&str>, cut: &Cut, tail: bool) -> El {
         let t = self.t;
@@ -204,28 +204,22 @@ impl Render<'_> {
         let body = rich(code, spans)
             .font(f.code)
             .color(t.c.fg.default)
+            .wrap_anywhere()
             .text_highlights(highlights);
-        let viewport = col()
-            .key("scroll")
-            .w_full()
-            .scroll_x()
-            .scroll_edge_fade(m.clip_fade)
-            .child(
-                col()
-                    .pl(pad_x - m.code_rule)
-                    .pr(pad_x)
-                    .pt(pad_y[0])
-                    .pb(pad_y[1])
-                    .child(body),
-            );
+        let body = col()
+            .pl(pad_x - m.code_rule)
+            .pr(pad_x)
+            .pt(pad_y[0])
+            .pb(pad_y[1])
+            .child(body);
         let mut frame = row()
             .role("code")
             .w_full()
             .fill(t.c.surface.code)
             .child(el().w(m.code_rule).h_full().fill(t.c.kind.code))
-            .child(viewport.grow(1.0).shrink().min_w(0.0));
+            .child(body.grow(1.0).shrink().min_w(0.0));
         if let Some(lang) = lang {
-            // The peek has no room above its code: the label sits over the first line's fade.
+            // The peek has no room above its code: the label sits over the first line.
             let top = if self.peek { 6.0 } else { 3.0 };
             frame = frame.child(
                 line(t, lang, t.ty.ui_small, t.c.kind.code)

@@ -69,10 +69,10 @@ Chrome is told from content by lane, surface, size and case, not by face: conten
 
 ## 3. Reading layout
 
-- **Measure:** prose is at most 80 average characters of Etoile at 14 px: **600 px**, computed at startup from a reference paragraph. The conversation's column is 640 px so that containers and tool rows have room around their text; prose in it still wraps at 600 px. Wider panes centre the column.
+- **Measure:** prose in reading columns wraps at **840 px**, about 112 average characters of Etoile at 14 px. The conversation's column is 880 px so that containers and tool rows have room around their text. Forms keep their 600/640 px columns. Wider panes centre the column.
 - **Wrapping:** rune's native wrap (UAX #14), no inserted hyphens, no inserted characters: copied text equals the source bytes. IDs, paths, key names and inline code up to 40 characters never break: inline code is a drawn pill; IDs and paths in prose are transparent pills, only when they contain a break opportunity (`-`, `/`, `.`). A longer token wraps anywhere.
 - **Line breaks:** in every rendered Markdown (basis, inputs, agent text, records, peek), a single newline is a line break, as in a chat or a GitHub comment. Paragraphs are separated by a blank line.
-- **Blocks that don't wrap** (code and tables) start at the text column's left edge and grow right to the pane's content edge, or to the column's edge where a margin or a panel sits beside it (the decision's notes margin, the details panel); beyond it they scroll, and each clipped edge shows a 32 px fade, a 2 px `fg.muted` edge rule and a `caret--right`.
+- **Blocks that don't wrap** (tables) start at the text column's left edge and grow right to the pane's content edge, or to the column's edge where a margin or a panel sits beside it (the decision's notes margin, the details panel); beyond it they scroll, and each clipped edge shows a 32 px fade, a 2 px `fg.muted` edge rule and a `caret--right`.
 - **Truncation:** labels end in `…`; paths keep their leaf (`…/notes-cli`); IDs never truncate, and a span that holds one (a faulted task's `after w1:6:design#1`) shows whole or not at all; the one exception is a faulted task's kind in a Failed row, which is cut with `…` before its `after` span drops (`spec.md` §4.7); a facts or since-line drops whole parts from its end; numbers and times drop whole, never cut. Rows drop whole fields from the right.
 - **Rows are plain text.** Extension and agent text in a row is one `ui` line: no Markdown, no bold, control characters escaped, paired inline-code backticks dropped, cut at the end.
 - **Markdown blocks** (CommonMark plus GFM tables, task lists, strikethrough, autolinks, footnotes; GFM alerts; a `mermaid` fence is an ordinary code block in v1, §9):
@@ -86,7 +86,7 @@ Chrome is told from content by lane, surface, size and case, not by face: conten
 | Table | header 600 `fg.alt` with a 1 px `border.strong` rule; 1 px `border.hairline` row rules; no vertical rules; cells 6 × 12 px; grows right, then scrolls |
 | Blockquote | a 3 px `border.strong` bar, Etoile italic `fg.alt` |
 | Alert | the quote shape plus the kind word; no icon, no hue |
-| Code block | `surface.code`, a 2 px gold left rule, the language label top-right in gold `ui.small`, `mono` 13/20, never wraps; square |
+| Code block | `surface.code`, a 2 px gold left rule, the language label top-right in gold `ui.small`, `mono` 13/20, wraps at spaces and inside tokens wider than the column; square |
 | Inline code | gold on a `surface.code` pill, `radius.pill` |
 | Link | prose face, salmon, 1 pt solid underline; `kind.link_active` under the cursor; `gx` opens after a confirm showing the URL |
 | Emphasis | italic neutral; **bold** 700 in steel |
