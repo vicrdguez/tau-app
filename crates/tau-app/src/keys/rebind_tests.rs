@@ -83,8 +83,6 @@ fn clash_with(r: Result<Keymap, Refusal>) -> (Overlap, Option<&'static str>, Mod
     }
 }
 
-// ───────────── refusals, one kind each ─────────────
-
 #[test]
 fn an_unknown_command_is_refused() {
     assert_eq!(
@@ -240,8 +238,6 @@ fn contexts_that_never_meet_share_a_key() {
     );
 }
 
-// ───────────── shadows ─────────────
-
 #[test]
 fn a_shadowing_key_stays_fixed_so_its_parent_is_never_uncovered() {
     for to in ["X", "l"] {
@@ -261,8 +257,6 @@ fn a_shadowing_key_stays_fixed_so_its_parent_is_never_uncovered() {
         Some(("view.close", k("x")))
     );
 }
-
-// ───────────── putting back, repeating ─────────────
 
 #[test]
 fn putting_back_the_design_key_leaves_the_design() {
@@ -334,8 +328,6 @@ fn the_same_move_twice_gives_the_same_map() {
     assert_eq!(moved(design(), "item.next", "]b", "]o"), once);
     assert_eq!(moved(once, "item.next", "]b", "]o"), once);
 }
-
-// ───────────── settings.toml: every line at once ─────────────
 
 #[test]
 fn a_swap_written_in_one_file_loads() {
@@ -426,8 +418,6 @@ fn what_is_saved_loads_back_as_the_same_map() {
     assert_eq!(design().rebind_all(&saved), (km, vec![]));
 }
 
-// ───────────── dispatch after a move ─────────────
-
 #[test]
 fn the_key_that_moved_away_is_unbound_afterwards() {
     let km = moved(design(), "start.workflow", "<M-w>", "<M-m>");
@@ -461,8 +451,6 @@ fn a_moved_key_runs_in_every_mode_its_binding_had() {
         );
     }
 }
-
-// ───────────── the float's rows ─────────────
 
 #[test]
 fn the_rows_list_each_key_of_each_command_once_with_why_it_is_fixed() {

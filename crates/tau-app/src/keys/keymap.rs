@@ -304,7 +304,6 @@ static DESIGN: LazyLock<Design> = LazyLock::new(|| {
 });
 
 impl Keymap {
-    /// The design's own keys.
     pub fn design() -> Keymap {
         Keymap {
             design: &DESIGN,
@@ -572,7 +571,6 @@ impl Keymap {
         }
     }
 
-    /// Every binding as the design writes it.
     pub(super) fn designed(&self) -> &'static [Binding] {
         &self.design.bindings
     }
@@ -667,7 +665,6 @@ impl Keymap {
     }
 }
 
-/// One is the other or starts it.
 pub(super) fn overlap(a: &[Key], b: &[Key]) -> bool {
     a.starts_with(b) || b.starts_with(a)
 }

@@ -49,7 +49,6 @@ pub enum Focus {
 }
 
 pub struct App {
-    /// This device's theme, reading width, motion and keys.
     pub settings: Settings,
     /// The system's Reduce Motion, as rune last reported it.
     pub reduced_motion: bool,

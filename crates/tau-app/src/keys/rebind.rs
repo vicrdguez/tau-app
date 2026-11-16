@@ -251,7 +251,6 @@ impl Keymap {
         })
     }
 
-    /// The rules for `to` on one binding in `mode` and `ctx`.
     fn allowed(&self, mode: Mode, ctx: Ctx, local: bool, to: &[Key]) -> Result<(), Refusal> {
         let is = |seq: &str| parse_seq(seq).is_ok_and(|k| k == to);
         let chord = matches!(to, [k] if k.mods.ctrl || k.mods.alt || k.mods.cmd);

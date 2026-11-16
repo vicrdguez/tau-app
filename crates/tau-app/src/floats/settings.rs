@@ -91,7 +91,6 @@ fn this(a: &mut App) -> Option<&mut SettingsFloat> {
     }
 }
 
-/// The row under the cursor.
 fn selected(a: &App) -> Option<Row> {
     let Some((Float::Settings(f), _)) = a.floats.last() else {
         return None;

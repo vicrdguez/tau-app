@@ -10,7 +10,6 @@ use crate::theme::{Measure, Theme, Variant, tokens};
 
 pub const FILE: &str = "settings.toml";
 
-/// This device's choices, in one place.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Settings {
     pub theme: Variant,
@@ -78,7 +77,6 @@ impl Field {
         }
     }
 
-    /// The values it takes.
     pub fn choices(self) -> String {
         match self {
             Field::Theme => "ember, ember-soft or ember-light".to_string(),

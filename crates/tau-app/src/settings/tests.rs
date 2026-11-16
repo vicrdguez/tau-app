@@ -48,8 +48,6 @@ fn key_edit(command: &'static str, design: &str) -> Edit {
     }
 }
 
-// ───────────── reading ─────────────
-
 #[test]
 fn no_text_is_every_default() {
     assert_eq!(clean(""), Settings::default());
@@ -247,8 +245,6 @@ fn a_swap_of_two_keys_loads() {
     );
 }
 
-// ───────────── writing ─────────────
-
 fn with(s: Settings, f: impl FnOnce(&mut Settings)) -> Settings {
     let mut s = s;
     f(&mut s);
@@ -436,8 +432,6 @@ fn what_is_saved_loads_back_as_what_was_set() {
     assert!(text.starts_with(HEADER), "{text}");
     assert_eq!(clean(&text), s);
 }
-
-// ───────────── the values the float steps ─────────────
 
 #[test]
 fn theme_and_motion_wrap_and_the_width_is_held_at_its_ends() {
