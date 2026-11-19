@@ -310,10 +310,14 @@ fn rows(rt: &Runtime<App>) -> Vec<(String, [f32; 4])> {
         .collect()
 }
 
-/// What the float would cover rides its edge once the edge reaches it, `float.inset_x` above
-/// it, and only then; it never moves down while the float rises or up while it lowers.
-fn rides(edge: f32, rest: [f32; 4], now: [f32; 4], label: &str) {
-    let gap = crate::theme::tokens().layout.float.inset_x;
+/// What the float would cover rides its edge once the edge reaches it, `float.inset_x` above it
+/// or as far as it stood above the stage's `foot` if that is less, and only then.
+fn rides(foot: f32, edge: f32, rest: [f32; 4], now: [f32; 4], label: &str) {
+    let gap = crate::theme::tokens()
+        .layout
+        .float
+        .inset_x
+        .min(foot - bottom(rest));
     assert!((now[0] - rest[0]).abs() < 0.01, "{label}: moved sideways");
     if now[1] < rest[1] - 0.5 {
         let at = edge - bottom(now);
@@ -354,12 +358,13 @@ fn the_start_composer_moves_only_when_a_float_would_cover_it() {
 
     let mut rt = window("start", (800.0, 600.0));
     key(&mut rt, rune::Key::Escape);
+    let foot = foot(&rt);
     let rest = rect(&rt, "start-block").unwrap();
     palette(&mut rt);
     let g = glide(&mut rt, 40, "start-block");
     let e = edges(&rt, &g);
     for (i, (_, b)) in g.iter().enumerate() {
-        rides(e[i], rest, b.unwrap(), &format!("rising, frame {i}"));
+        rides(foot, e[i], rest, b.unwrap(), &format!("rising, frame {i}"));
     }
     assert!(
         g.last().unwrap().1.unwrap()[1] < rest[1] - 10.0,
@@ -373,7 +378,7 @@ fn the_start_composer_moves_only_when_a_float_would_cover_it() {
         let b = b.unwrap();
         assert!(b[1] >= last - 0.01, "lowering, frame {i}: moved up");
         last = b[1];
-        rides(e[i], rest, b, &format!("lowering, frame {i}"));
+        rides(foot, e[i], rest, b, &format!("lowering, frame {i}"));
     }
     assert_eq!(rect(&rt, "start-block"), Some(rest), "back where it was");
 }
@@ -413,7 +418,7 @@ fn a_covered_home_row_rides_the_edge_with_the_rows_above() {
     );
     for (i, (edge, now)) in frames_seen.iter().enumerate() {
         let r = now.iter().find(|(k, _)| *k == last).unwrap().1;
-        rides(*edge, cursor, r, &format!("frame {i}"));
+        rides(foot, *edge, cursor, r, &format!("frame {i}"));
         let dy = r[1] - cursor[1];
         for (k, was) in before.iter().filter(|(_, was)| bottom(*was) <= rest_edge) {
             let r = now
@@ -560,4 +565,123 @@ fn a_leaving_float_holds_no_field() {
     key(&mut rt, ch('y'));
     frames(&mut rt, 40);
     assert!(rt.state.floats.is_empty(), "bound");
+}
+
+/// Every page with a cursor holds what it acts on above a float that would cover it (`spec.md`
+/// §4), at 800 × 600, where the palette reaches furthest: the row, line or field rides the edge,
+/// and one the palette doesn't reach (Projects has three rows) stays put.
+#[test]
+fn every_page_holds_what_you_act_on_above_the_edge() {
+    type Case = (
+        &'static str,
+        fn(&mut Runtime<App>),
+        fn(&App) -> String,
+        bool,
+    );
+    let at_end = |rt: &mut Runtime<App>| key(rt, ch('G'));
+    let cases: [Case; 4] = [
+        (
+            "timeline",
+            at_end,
+            |a| {
+                format!(
+                    "list-{:?}",
+                    screens::places::settings(a).cursor.id.as_ref().unwrap()
+                )
+            },
+            true,
+        ),
+        (
+            "projects",
+            at_end,
+            |a| {
+                format!(
+                    "project-row-{}",
+                    a.screens.project.list_cursor.as_ref().unwrap()
+                )
+            },
+            false,
+        ),
+        (
+            "project",
+            at_end,
+            |a| match a.screens.project.cursor.as_ref().unwrap() {
+                screens::project::Target::Field(f) => format!("option-{}-{}", f.extension, f.key),
+                screens::project::Target::Work(p) => format!("work-{p:?}"),
+            },
+            true,
+        ),
+        ("decision-long", at_end, |_| "decision-cursor".into(), true),
+    ];
+    for (scene, place, target, covered) in cases {
+        let mut rt = window(scene, (800.0, 600.0));
+        place(&mut rt);
+        frames(&mut rt, 30);
+        let key = target(&rt.state);
+        let rest = rect(&rt, &key).unwrap_or_else(|| panic!("{scene}: no {key}"));
+        palette(&mut rt);
+        let g = glide(&mut rt, 40, &key);
+        let e = edges(&rt, &g);
+        assert_eq!(
+            bottom(rest) > e[e.len() - 1],
+            covered,
+            "{scene}: whether the palette would cover {key}"
+        );
+        for (i, (_, r)) in g.iter().enumerate() {
+            rides(
+                foot(&rt),
+                e[i],
+                rest,
+                r.unwrap(),
+                &format!("{scene}, frame {i}"),
+            );
+        }
+    }
+}
+
+/// A conversation's cursor on a tool row above the queue: once the queue, riding the float's
+/// edge, reaches it, it rides with them the same distance above the edge on every frame, rather
+/// than jumping above them once the float is up. It comes back down the same way.
+#[test]
+fn a_conversation_cursor_rides_the_queue_up_and_down() {
+    let mut rt = window("conversation-streaming", (1512.0, 982.0));
+    key(&mut rt, ch('k'));
+    frames(&mut rt, 30);
+    let stop = "conv-fold-toolu_04";
+    let rest = rect(&rt, stop).expect("the cursor on the last fold");
+    let check = |g: &[(Option<Drawn>, Option<[f32; 4]>)], e: &[f32], way: &str| {
+        let mut held = None;
+        for (i, (_, r)) in g.iter().enumerate() {
+            let r = r.unwrap();
+            if (r[1] - rest[1]).abs() < 0.5 {
+                assert!(
+                    held.is_none(),
+                    "{way}, frame {i}: back at rest before the end"
+                );
+                continue;
+            }
+            assert!(r[1] < rest[1], "{way}, frame {i}: moved down");
+            let at = e[i] - bottom(r);
+            let held = *held.get_or_insert(at);
+            assert!(
+                (at - held).abs() <= 1.0,
+                "{way}, frame {i}: {at} above the edge, not {held}"
+            );
+        }
+    };
+    palette(&mut rt);
+    let g = glide(&mut rt, 40, stop);
+    let e = edges(&rt, &g);
+    assert!(
+        g[g.len() - 1].1.unwrap()[1] < rest[1] - 50.0,
+        "the queue would cover it"
+    );
+    check(&g, &e, "rising");
+    key(&mut rt, rune::Key::Escape);
+    let mut g = glide(&mut rt, 40, stop);
+    let mut e = edges(&rt, &g);
+    g.reverse();
+    e.reverse();
+    check(&g, &e, "lowering");
+    assert_eq!(rect(&rt, stop), Some(rest), "back where it was");
 }

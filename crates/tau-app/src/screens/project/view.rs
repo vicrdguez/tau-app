@@ -101,6 +101,7 @@ fn work_row(t: Theme, a: &App, label: &str, value: String, place: Place) -> El {
         .child(rune::spacer())
         .child(text(value).font(t.ty.ui_small).color(t.c.fg.alt));
     selected(t, a, &Target::Work(place), r)
+        .key(format!("work-{place:?}"))
         .on_press(move |a: &mut App| {
             a.screens.project.cursor = Some(Target::Work(place));
         })
@@ -426,12 +427,13 @@ fn projects(t: Theme, a: &App) -> El {
                     );
                 }
                 body = body.child(
-                    r.on_press(move |a: &mut App| {
-                        a.screens.project.list_cursor = Some(name.clone())
-                    })
-                    .on_double_press_tx(|a: &mut App, tx| {
-                        crate::app::commands::run_id(a, "list.open", tx)
-                    }),
+                    r.key(format!("project-row-{name}"))
+                        .on_press(move |a: &mut App| {
+                            a.screens.project.list_cursor = Some(name.clone())
+                        })
+                        .on_double_press_tx(|a: &mut App, tx| {
+                            crate::app::commands::run_id(a, "list.open", tx)
+                        }),
                 );
             }
         }

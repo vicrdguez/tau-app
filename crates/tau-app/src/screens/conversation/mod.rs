@@ -242,16 +242,6 @@ impl Screen for Conversation {
         Room::Shrink
     }
 
-    fn reveal_target(&self, app: &App, tx: &mut Tx) {
-        if following(app) {
-            tx.scroll_to_bottom(view::TRANSCRIPT);
-        } else if let Some(s) = shown(app)
-            && let Some(stop) = current_stop(app, &s)
-        {
-            tx.scroll_into_view(stop.key());
-        }
-    }
-
     fn shown(&self, app: &mut App) {
         if let Some(c) = shown_conv(app) {
             app.screens.conversation.conv_mut(&c).composing = false;

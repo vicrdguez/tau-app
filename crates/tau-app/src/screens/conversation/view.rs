@@ -24,6 +24,8 @@ use crate::ui::{Mark, Part as Fact, Scope, chip, facts, glyphs, mark};
 
 /// The transcript's scroll viewport.
 pub const TRANSCRIPT: &str = "conv-transcript";
+/// What the transcript scrolls.
+const DOC: &str = "conv-doc";
 
 /// Agent text, headers and rows sit 12 px in from the column, so the cursor's band and bar span
 /// it whole (prototype `.ccol .tool`, `.ccol .mh`).
@@ -111,6 +113,10 @@ pub fn page(t: Theme, app: &App) -> El {
         },
     };
     let following = conv.is_none_or(|c| c.cursor.is_none());
+    let ride = cursor
+        .as_ref()
+        .filter(|_| !following && app.float_drawn())
+        .and_then(|c| ride(t, &c.key()));
     let stage = crate::screens::stage_width(t, app);
     let mut width = (stage - 32.0).min(t.read.conversation);
     let mut left = (stage - width) / 2.0;
@@ -126,7 +132,7 @@ pub fn page(t: Theme, app: &App) -> El {
         .w(width)
         .h_full()
         .child(title_block(t, app, &s, &model).instant_changes())
-        .child(transcript(&cx, &s, &items, following))
+        .child(transcript(&cx, &s, &items, following, ride))
         .child(stack(t, app, &s, &model, keys && composing));
     row().w_full().h_full().pl(left).child(column)
 }
@@ -234,9 +240,21 @@ fn facts_line(t: Theme, s: &Shown, model: &str) -> El {
     facts(t, parts)
 }
 
-fn transcript(cx: &Draw, s: &Shown, items: &[Item], following: bool) -> El {
+/// The `sticky_bottom` inset that holds the cursor's stop above the transcript's foot while the
+/// foot rides a bottom float's edge (`spec.md` §4): the stop stays put until the foot comes
+/// within `float.inset_x` of it, or of the room it had under it if that is less, then rides it.
+fn ride(t: Theme, stop: &str) -> Option<f32> {
+    use rune::memo::{layout_with, window_layout_with};
+    let bottom = |r: [f32; 4]| r[1] + r[3];
+    let foot = layout_with(TRANSCRIPT, bottom)? + layout_with(crate::frame::FLOAT_BAND, |r| r[3])?;
+    let under = foot - window_layout_with(stop, bottom)?;
+    let below = layout_with(DOC, bottom)? - layout_with(stop, bottom)?;
+    Some(t.l.float.inset_x.min(under) - below)
+}
+
+fn transcript(cx: &Draw, s: &Shown, items: &[Item], following: bool, ride: Option<f32>) -> El {
     let t = cx.t;
-    let mut doc = col().w_full().pb(8.0);
+    let mut doc = col().key(DOC).w_full().pb(8.0);
     match s.held.map(|h| &h.docs) {
         Some(tau_client::Known::Gone { .. }) => {
             doc = doc.child(
@@ -258,6 +276,9 @@ fn transcript(cx: &Draw, s: &Shown, items: &[Item], following: bool) -> El {
     }
     for item in items {
         doc = doc.child(item_el(cx, item));
+    }
+    if let Some(inset) = ride {
+        doc = doc.sticky_bottom(inset);
     }
     col()
         .key(TRANSCRIPT)

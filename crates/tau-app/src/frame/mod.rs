@@ -281,9 +281,9 @@ pub fn frame(t: Theme, p: Parts) -> El {
 /// The page's column. The page stands in a port whose foot is the float's top edge, as both glide
 /// on one spring. A page that shrinks lays out in the port; one that lifts keeps its whole height,
 /// and `sticky_bottom` holds its target above the port's foot, worked out by rune on every frame
-/// from where the foot is drawn.
-fn page_box(t: Theme, page: El, room: Room, stage_h: f32, band_h: f32, float: bool) -> El {
-    let full = rune::memo::layout_with("page-box", |r| r[3]).unwrap_or(stage_h);
+/// from where the foot is drawn. `first` is the page's height until it has been laid out.
+fn page_box(t: Theme, page: El, room: Room, first: f32, band_h: f32, float: bool) -> El {
+    let full = rune::memo::layout_with("page-box", |r| r[3]).unwrap_or(first);
     let port = (full - band_h).max(0.0);
     let page = page
         .w_full()

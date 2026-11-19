@@ -39,6 +39,18 @@ impl App {
             .closed
     }
 
+    /// Whether a bottom float is drawn: a float, which-key, or one on its way out.
+    pub fn float_drawn(&self) -> bool {
+        !self.floats.is_empty() || self.which_key() || self.leaving_here().is_some()
+    }
+
+    /// The float on its way out, while it is drawn: on the page it closed on, with motion on.
+    fn leaving_here(&self) -> Option<&Leaving> {
+        self.leaving
+            .as_ref()
+            .filter(|l| self.theme().motion.on && l.stage == self.stage)
+    }
+
     /// [`App::leave`] for a float its owner took off the stack to act on its choice.
     pub fn closed(&mut self, f: Float, opener: Focus) {
         self.leave(Closed::Float(Box::new(f), opener), self.stage.clone());
@@ -72,11 +84,7 @@ pub(super) fn view(
     if app.which_key() {
         return which_key(t, app, page, app.keys.pending(), scope, width).map(BottomFloat::Shown);
     }
-    let l = app
-        .leaving
-        .as_ref()
-        .filter(|l| t.motion.on && l.stage == app.stage)?;
-    match &l.closed {
+    match &app.leaving_here()?.closed {
         Closed::Float(f, opener) => Some(float(t, app, page, f, *opener)),
         Closed::WhichKey(keys, scope) => which_key(t, app, page, keys, *scope, width),
     }

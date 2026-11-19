@@ -231,9 +231,6 @@ pub trait Screen: Sync {
     /// already).
     fn shown(&self, _app: &mut App) {}
 
-    /// What the page scrolls into view when a bottom float makes it shorter (`Room::Shrink`).
-    fn reveal_target(&self, _app: &App, _tx: &mut Tx) {}
-
     /// Something the link reports, once; every family hears every event.
     fn on_event(&self, _app: &mut App, _event: &LinkEvent) {}
 

@@ -63,7 +63,6 @@ pub struct App {
     /// The float that closed last, until its edge is down.
     leaving: Option<bottom::Leaving>,
     pub keys: Keys,
-    reveal_float_target: bool,
     pub stage: Stage,
     /// The open item shown last, for `]b [b` from a place.
     pub last_item: Option<Item>,
@@ -123,7 +122,6 @@ impl App {
             floats: Vec::new(),
             leaving: None,
             keys: Keys::default(),
-            reveal_float_target: false,
             stage: Stage::Place(Place::Home),
             last_item: None,
             open: OpenItems::default(),
@@ -262,7 +260,6 @@ impl App {
     }
 
     pub fn open_float(&mut self, f: Float) {
-        self.reveal_float_target = true;
         self.leaving = None;
         self.keys.reset();
         let opener = self.floats.last().map_or(self.focus, |(_, o)| *o);
@@ -409,14 +406,10 @@ pub fn poll(app: &mut App, now: f64, tx: &mut Tx) -> bool {
     if rises && app.theme().motion.on {
         input::float_moves(app.theme(), tx);
     }
-    let reveal = std::mem::take(&mut app.reveal_float_target) || rises;
     let mut changed = rises | bottom::poll(app, tx);
     changed |= link::pump(app, tx);
     for id in screens::ALL {
         changed |= screens::get(id).poll(app, now, tx);
-    }
-    if reveal {
-        screens::page(app).reveal_target(app, tx);
     }
     changed
 }
