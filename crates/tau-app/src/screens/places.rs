@@ -6,7 +6,7 @@ mod tests;
 use super::home::list::{self, Cursor, ListRow, RowId};
 use super::{NOTHING_RECEIVED, Screen, home};
 use crate::app::{App, Handler, Stage};
-use crate::frame::{Crumb, Place};
+use crate::frame::{Crumb, Place, Room};
 use crate::keys::{Ctx, Key};
 use crate::theme::Theme;
 use crate::ui::Mark;
@@ -450,10 +450,14 @@ impl Screen for Places {
         }
         home::motion(app, keys, count)
     }
-    fn reveal_target(&self, app: &App, tx: &mut Tx) {
-        if let Some(id) = &settings(app).cursor.id {
-            tx.scroll_into_view(format!("list-{id:?}"));
-        }
+    fn room(&self, app: &App) -> Room {
+        Room::Lift(
+            settings(app)
+                .cursor
+                .id
+                .as_ref()
+                .map(|id| format!("list-{id:?}")),
+        )
     }
     fn shown(&self, app: &mut App) {
         load(app);

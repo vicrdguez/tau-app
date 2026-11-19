@@ -3,6 +3,7 @@
 //! and fills `App::server`, the plain data the frame reads. What the stage shows is a screen's
 //! (`crate::screens`).
 
+mod bottom;
 pub mod commands;
 pub mod input;
 pub mod link;
@@ -20,7 +21,7 @@ pub use server::{Hidden, ItemFacts, ServerView, conv_ref, decision_ref};
 
 use tau_client::{Link, LinkPhase};
 
-use crate::floats::{self, Float};
+use crate::floats::Float;
 use crate::frame::{self, Bar, Header, Parts, Place, Row, Sidebar, SidebarPlace};
 use crate::keys::{Keymap, Keys, Mode};
 use crate::open::{Item, OpenItems};
@@ -59,6 +60,8 @@ pub struct App {
     pub focus: Focus,
     /// The floats, the top one holding the keys, each with the region that opened it.
     pub floats: Vec<(Float, Focus)>,
+    /// The float that closed last, until its edge is down.
+    leaving: Option<bottom::Leaving>,
     pub keys: Keys,
     reveal_float_target: bool,
     pub stage: Stage,
@@ -118,6 +121,7 @@ impl App {
             now: 0.0,
             focus: Focus::Stage,
             floats: Vec::new(),
+            leaving: None,
             keys: Keys::default(),
             reveal_float_target: false,
             stage: Stage::Place(Place::Home),
@@ -259,13 +263,22 @@ impl App {
 
     pub fn open_float(&mut self, f: Float) {
         self.reveal_float_target = true;
+        self.leaving = None;
         self.keys.reset();
         let opener = self.floats.last().map_or(self.focus, |(_, o)| *o);
         self.floats.push((f, opener));
     }
 
-    pub fn close_float(&mut self) -> Option<Float> {
-        self.floats.pop().map(|(f, _)| f)
+    /// Takes the top float off and lets it leave; what it held is still there to read.
+    pub fn close_float(&mut self) -> Option<&Float> {
+        let (f, opener) = self.floats.pop()?;
+        match self.leave(
+            bottom::Closed::Float(Box::new(f), opener),
+            self.stage.clone(),
+        ) {
+            bottom::Closed::Float(f, _) => Some(f),
+            bottom::Closed::WhichKey(..) => None,
+        }
     }
 
     /// The top float's input, for its field's `on_edit`.
@@ -346,27 +359,7 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
     let peek = (page.has_peek(app) && stage_w >= t.l.peek.from_stage_px)
         .then(|| screens::get(screens::ScreenId::Peek).view(t, app));
     let details = (page.has_details(app) && app.details_visible).then(|| page.details(t, app));
-    let float_w = stage_w - 2.0 * t.l.float.inset_x;
-    let float = match app.floats.last() {
-        Some((Float::Screen(f), _)) => Some(f.view(t, app)),
-        Some((f, opener)) => {
-            let ctx = match opener {
-                Focus::Sidebar => crate::keys::Ctx::Sidebar,
-                Focus::Stage => page.ctx(app),
-            };
-            Some(floats::view(t, f, ctx, &app.messages, &app.settings))
-        }
-        None if app.which_key() => app
-            .settings
-            .keymap
-            .which_key(app.keys.pending(), scope.mode, scope.ctx)
-            .map(|wk| {
-                let why = |id: &str| page.unavailable(app, id);
-                floats::which_key::view(t, &wk, scope.ctx, &why, float_w)
-            }),
-        None => None,
-    }
-    .map(|f| f.on_layout_tx(|_: &mut App, _, tx| input::reveal_float_cursor(tx)));
+    let float = bottom::view(t, app, page, scope, stage_w - 2.0 * t.l.float.inset_x);
     let bar = frame::bar(
         t,
         Bar {
@@ -391,6 +384,7 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
                 .as_ref()
                 .map(|n| frame::notice(t, scope, n)),
             page: page.view(t, app),
+            room: page.room(app),
             peek,
             details,
             float,
@@ -405,14 +399,18 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
     })
 }
 
-/// Runs at the start of every frame: keeps the clock, shows which-key when its delay is up, pumps
-/// the link into `App::server`, and runs each screen's `poll`.
+/// Runs at the start of every frame: keeps the clock, raises which-key when its delay is up, lets
+/// a closed float go once it is down, pumps the link into `App::server`, and runs each screen's
+/// `poll`.
 pub fn poll(app: &mut App, now: f64, tx: &mut Tx) -> bool {
     let was = app.which_key();
     app.now = now;
     let rises = app.which_key() && !was;
+    if rises && app.theme().motion.on {
+        input::float_moves(app.theme(), tx);
+    }
     let reveal = std::mem::take(&mut app.reveal_float_target) || rises;
-    let mut changed = rises;
+    let mut changed = rises | bottom::poll(app, tx);
     changed |= link::pump(app, tx);
     for id in screens::ALL {
         changed |= screens::get(id).poll(app, now, tx);

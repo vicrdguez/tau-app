@@ -109,7 +109,12 @@ impl ScreenFloat for Bind {
                     .single_line()
                     .caret(t.c.state.attn, t.c.surface.selection)
                     .color(t.c.fg.default)
-                    .on_edit(move |a: &mut App| {
+                    .on_input_key(crate::app::input::on_field_key)
+                    .label(label)
+                    .key(format!("bind-{label}"));
+                // A closed bind float is drawn as it leaves: rune must not reach its fields then.
+                let input = if active {
+                    input.on_edit(move |a: &mut App| {
                         let f = crate::screens::top_float::<Bind>(a).expect("bind field");
                         if part == Part::Name {
                             &mut f.name.edit
@@ -117,9 +122,9 @@ impl ScreenFloat for Bind {
                             &mut f.directory.edit
                         }
                     })
-                    .on_input_key(crate::app::input::on_field_key)
-                    .label(label)
-                    .key(format!("bind-{label}"));
+                } else {
+                    input
+                };
                 let mut value = row().center_y().gap(12.0).child(
                     ui::text_field(t, edit.focused, input)
                         .w(if part == Part::Name { 220.0 } else { 380.0 })

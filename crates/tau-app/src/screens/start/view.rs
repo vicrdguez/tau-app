@@ -21,6 +21,10 @@ fn control(t: Theme, scope: ui::Scope, seq: &'static str, id: &str, name: &str, 
     .key(id)
 }
 
+/// The wordmark, the composer and the start line, which ride a float's edge if it would cover
+/// them.
+pub(super) const BLOCK: &str = "start-block";
+
 pub(super) fn view(t: Theme, a: &App) -> El {
     let s = &a.screens.start;
     let active = a.focus == Focus::Stage && a.floats.is_empty() && s.pending.is_none();
@@ -181,6 +185,7 @@ pub(super) fn view(t: Theme, a: &App) -> El {
         }
     }
     let mut content = col()
+        .key(BLOCK)
         .w(640.0)
         .max_w((a.window[0] - 32.0).max(0.0))
         .mt(-80.0)
@@ -207,7 +212,7 @@ pub(super) fn view(t: Theme, a: &App) -> El {
                 ),
         );
     }
-    // 32.5% of the page's available height, including when a float takes room below it.
+    // 32.5 % of the stage's height: a float never takes room from it (`Room::Lift`).
     col()
         .w_full()
         .h_full()

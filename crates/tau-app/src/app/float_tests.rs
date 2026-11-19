@@ -1,8 +1,8 @@
-//! A float can shrink the viewport while leaving its selected row below the clipped edge.
-//! The same failure applies to which-key, which opens without App::open_float. Conversation
-//! queue and composer must shrink with the page, never remain behind the float. The answer
-//! readback, which grows with its notes, must not hide the page twice: once by the frame and once
-//! more by a page that also makes room for it.
+//! A float can cover the page's cursor row or target and leave it under its edge. The same failure
+//! applies to which-key, which opens without App::open_float. A conversation's queue and composer
+//! must rise with the float's edge, never stay behind the float. The answer readback, which grows
+//! with its notes, must not hide the page twice: once by the frame and once more by a page that
+//! also makes room for it.
 //!
 //! A float's own selection can leave its body (`spec.md` §6), at 800 × 600 above all:
 //! - moving down puts the selected row behind the foot, or moving back up puts it under the head;

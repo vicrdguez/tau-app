@@ -230,15 +230,15 @@ The failed `×` replaces the octagon everywhere: the sidebar, Home, the lists, t
 
 Motion shows what your own key or press just did. Each motion uses a critically damped rune spring, with no overshoot. The `motion_ms` tokens specify perceptual durations, not a deadline for the last settling frame.
 
-- Floats fade in on the 90 ms `float_fade` spring. Their coral top rule is outside the fading surface and has full opacity from the first frame. A key that closes a float removes it at once.
+- A bottom float, which-key included, is one opaque surface at the stage's foot, and its top edge is the only thing that moves: it glides on the 200 ms `panel` spring whenever the float's height changes. Opening rises from behind the bottom bar, the coral top rule and the head leading. Closing is the same motion back down; the float is inert from the key that closes it, and the next key acts on the page at once. A new height (which-key's next table, a query that keeps fewer rows, a float that replaces another) glides from wherever the edge is, while the content changes at once. The page is hidden up to the edge on every frame. What the float would cover rides the edge: it stays still until the edge reaches it, then keeps the same distance above it on every frame, and comes back down with it (`spec.md` §4). Nothing the edge doesn't reach moves.
 - The sidebar slides from the window's left edge and back on the 200 ms `panel` spring, beside the stage or over it. Beside, the stage moves with it. The sidebar stays opaque on exit, so its text never mixes with the page beneath it.
 - The details panel slides from the stage's right edge on the same `panel` spring. The page beside it moves to its new position. Panel contents take their new layout without separate entrance fades.
 - A sent message enters above the composer, rising 8 px as it fades in on the 180 ms `page` spring. The composer shrinks to its empty height and the transcript moves with it. When the server takes the input, the unsent row becomes a transcript message at once.
 - A fold, including a tool row, tool group, thinking block or chrome line, opens and closes on the `page` spring. Its moving edge clips the content while the rows below follow.
 
-Everything else lands within one frame. This includes cursor moves and their scrolls, page changes, mode changes, the theme, reading width, which-key, the echo, hint labels, typing, and anything the server changes. Streaming text, new entries, state words and unsent rows becoming messages never start motion. A motion already running may finish.
+Everything else lands within one frame. This includes cursor moves and their scrolls, page changes, mode changes, the theme, reading width, the echo, hint labels, typing, everything inside a float, and anything the server changes. Streaming text, new entries, state words and unsent rows becoming messages never start motion. A motion already running may finish.
 
-Inside a conversation, only folds, the unsent stack and the layout they displace animate. A press that focuses the composer lands at once. A page change or a key that closes a float lands the whole change, even if panel state changes with it.
+Inside a conversation, only folds, the unsent stack, a float's edge and the layout they displace animate. A press that focuses the composer lands at once. A page change lands the whole change, even if panel state changes with it, and a float that closes with it is gone on that frame.
 
 Motion off, or the system's Reduce Motion, sets every duration to 0. There are no animation islands or animated key commits with motion off.
 

@@ -331,10 +331,12 @@ fn picker_keys(a: &mut App, inv: &Invocation, tx: &mut Tx) {
     if key != Key::plain(Code::Enter) || nothing_to_choose {
         return;
     }
+    let keymap = a.settings.keymap;
     match a.close_float() {
         Some(Float::Picker(p)) if p.kind == PickerKind::Palette => {
-            if let Some(command) =
-                floats::palette_rows(a.settings.keymap, &p.query.text).get(p.cursor)
+            if let Some(command) = floats::palette_rows(keymap, &p.query.text)
+                .get(p.cursor)
+                .copied()
             {
                 let applies = a.settings.keymap.applies(command, a.scope().ctx);
                 run(
@@ -349,7 +351,10 @@ fn picker_keys(a: &mut App, inv: &Invocation, tx: &mut Tx) {
                 );
             }
         }
-        Some(Float::CmdLine(c)) => run_ex(a, c.line.text.trim(), tx),
+        Some(Float::CmdLine(c)) => {
+            let line = c.line.text.trim().to_string();
+            run_ex(a, &line, tx)
+        }
         Some(Float::Sheet(s)) => {
             if let (Some(choose), Some(&i)) = (s.choose, s.shown().get(s.cursor)) {
                 choose(a, i);
@@ -389,10 +394,12 @@ fn run_ex(a: &mut App, line: &str, tx: &mut Tx) {
 /// Confirm's keys: `y` runs its step, `n Esc q` cancel.
 fn confirm_keys(a: &mut App, inv: &Invocation, tx: &mut Tx) {
     let yes = inv.keys.first() == Some(&Key::char('y'));
-    if let Some(Float::Confirm(c)) = a.close_float()
-        && yes
-        && let Some(step) = c.on_yes
-    {
+    let step = match a.floats.last_mut() {
+        Some((Float::Confirm(c), _)) if yes => c.on_yes.take(),
+        _ => None,
+    };
+    a.close_float();
+    if let Some(step) = step {
         step(a, tx);
     }
 }

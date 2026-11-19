@@ -42,6 +42,63 @@ fn key(rt: &mut Runtime<App>, key: rune::Key) {
     rt.frame(FRAME);
 }
 
+fn palette(rt: &mut Runtime<App>) {
+    rt.key(KeyEvent {
+        key: ch('k'),
+        mods: Mods {
+            cmd: true,
+            ..Mods::default()
+        },
+    });
+    rt.frame(FRAME);
+}
+
+fn rect(rt: &Runtime<App>, key: &str) -> Option<[f32; 4]> {
+    rt.elements()
+        .into_iter()
+        .find(|e| e.key.as_deref() == Some(key) && !e.exiting)
+        .map(|e| e.rect)
+}
+
+fn bottom(r: [f32; 4]) -> f32 {
+    r[1] + r[3]
+}
+
+/// The stage's foot, where a float rises from.
+fn foot(rt: &Runtime<App>) -> f32 {
+    bottom(rect(rt, "stage").unwrap())
+}
+
+/// The float's top edge on each of `n` frames, with the rect of `rider`.
+fn glide(rt: &mut Runtime<App>, n: usize, rider: &str) -> Vec<(Option<Drawn>, Option<[f32; 4]>)> {
+    let mut out = vec![(drawn(rt), rect(rt, rider))];
+    for _ in 1..n {
+        rt.frame(FRAME);
+        out.push((drawn(rt), rect(rt, rider)));
+    }
+    out
+}
+
+/// The edges a glide drew, the stage's foot where no float was.
+fn edges(rt: &Runtime<App>, g: &[(Option<Drawn>, Option<[f32; 4]>)]) -> Vec<f32> {
+    let foot = foot(rt);
+    g.iter()
+        .map(|(d, _)| d.as_ref().map_or(foot, |d| d.rect[1]))
+        .collect()
+}
+
+/// How many frames the edge was between `from` and `to`, not at either.
+fn moving_frames(edges: &[f32], from: f32, to: f32) -> usize {
+    let (lo, hi) = (from.min(to), from.max(to));
+    edges
+        .iter()
+        .filter(|e| **e > lo + 0.5 && **e < hi - 0.5)
+        .count()
+}
+
+/// The farthest the edge may travel in one frame: a spring's step from rest, at its fastest.
+const MOST_PER_FRAME: f32 = 90.0;
+
 fn ch(c: char) -> rune::Key {
     rune::Key::Text(c.to_string())
 }
@@ -50,6 +107,7 @@ fn ch(c: char) -> rune::Key {
 #[derive(Clone, Debug, PartialEq)]
 struct Drawn {
     rect: [f32; 4],
+    opacity: f32,
     words: Vec<String>,
 }
 
@@ -64,6 +122,7 @@ fn drawn(rt: &Runtime<App>) -> Option<Drawn> {
     let inside = format!("{}/", s.path);
     Some(Drawn {
         rect: s.rect,
+        opacity: s.opacity,
         words: els
             .iter()
             .filter(|e| e.path.starts_with(&inside))
@@ -139,4 +198,366 @@ fn which_key_stays_up_for_the_whole_sequence() {
             "frame {frame}"
         );
     }
+}
+
+/// Waits for which-key, or opens the palette, and returns the frames of the rise from there.
+fn rise(
+    rt: &mut Runtime<App>,
+    which_key: bool,
+    rider: &str,
+) -> Vec<(Option<Drawn>, Option<[f32; 4]>)> {
+    if which_key {
+        key(rt, ch(' '));
+        while drawn(rt).is_none() {
+            rt.frame(FRAME);
+        }
+    } else {
+        palette(rt);
+    }
+    glide(rt, 40, rider)
+}
+
+/// The palette and which-key rise from the stage's foot, opaque, over at least six frames, and the
+/// composer rides their edge the same distance above it on every frame.
+#[test]
+fn a_float_rises_from_the_foot_with_the_composer_on_its_edge() {
+    for which_key in [false, true] {
+        let mut rt = window("conversation-streaming", (1512.0, 982.0));
+        let foot = foot(&rt);
+        let gap = foot - bottom(rect(&rt, "composer-container").unwrap());
+        let g = rise(&mut rt, which_key, "composer-container");
+        let e = edges(&rt, &g);
+        let rest = *e.last().unwrap();
+        assert!(rest < foot - 150.0, "{which_key}: {e:?}");
+        assert!(
+            e[0] > rest + 150.0,
+            "{which_key}: it starts at the foot: {e:?}"
+        );
+        assert!(
+            e.windows(2).all(|w| w[1] <= w[0] + 0.01),
+            "{which_key}: {e:?}"
+        );
+        assert!(moving_frames(&e, foot, rest) >= 6, "{which_key}: {e:?}");
+        for (i, (d, composer)) in g.iter().enumerate() {
+            let d = d.as_ref().expect("a float on every frame");
+            assert_eq!(d.opacity, 1.0, "{which_key}, frame {i}");
+            let at = d.rect[1] - bottom(composer.unwrap());
+            assert!(
+                (at - gap).abs() <= 1.0,
+                "{which_key}, frame {i}: {at} above, not {gap}"
+            );
+        }
+    }
+}
+
+/// `Esc` lowers the float the way it rose: its edge glides to the foot over at least six frames,
+/// still showing what it showed, with the composer on it. The float holds no keys from `Esc` on.
+#[test]
+fn esc_lowers_the_float_the_way_it_rose() {
+    let mut rt = window("conversation-streaming", (1512.0, 982.0));
+    let foot = foot(&rt);
+    let composer = rect(&rt, "composer-container").unwrap();
+    let gap = foot - bottom(composer);
+    palette(&mut rt);
+    frames(&mut rt, 40);
+    let open = drawn(&rt).unwrap();
+    key(&mut rt, rune::Key::Escape);
+    assert!(
+        rt.state.floats.is_empty(),
+        "the page has the keys from Esc on"
+    );
+    let g = glide(&mut rt, 40, "composer-container");
+    let e = edges(&rt, &g);
+    assert!(e[0] < foot - 150.0, "it doesn't leave at once: {e:?}");
+    assert!(e.windows(2).all(|w| w[1] >= w[0] - 0.01), "{e:?}");
+    assert!(moving_frames(&e, open.rect[1], foot) >= 6, "{e:?}");
+    for (i, (d, c)) in g.iter().enumerate() {
+        let at = e[i] - bottom(c.unwrap());
+        assert!((at - gap).abs() <= 1.0, "frame {i}: {at} above, not {gap}");
+        if let Some(d) = d {
+            assert_eq!(d.opacity, 1.0, "frame {i}");
+            assert_eq!(d.words, open.words, "frame {i}");
+        }
+    }
+    assert!(drawn(&rt).is_none(), "gone once down");
+    assert_eq!(rect(&rt, "composer-container"), Some(composer));
+}
+
+/// A key 20 ms after `Esc` acts on the page on its own frame, while the float still leaves.
+#[test]
+fn the_key_after_esc_acts_on_the_page_at_once() {
+    let mut rt = window("home", (1512.0, 982.0));
+    palette(&mut rt);
+    frames(&mut rt, 40);
+    let was = rt.state.screens.home.cursor.id.clone();
+    key(&mut rt, rune::Key::Escape);
+    key(&mut rt, ch('j'));
+    assert_ne!(rt.state.screens.home.cursor.id, was, "j moved the cursor");
+    let cursor = format!(
+        "list-{:?}",
+        rt.state.screens.home.cursor.id.as_ref().unwrap()
+    );
+    assert!(rect(&rt, &cursor).is_some(), "and the frame shows it");
+    assert!(drawn(&rt).is_some(), "while the float is leaving");
+}
+
+/// The rows of a list, by key, as drawn this frame.
+fn rows(rt: &Runtime<App>) -> Vec<(String, [f32; 4])> {
+    rt.elements()
+        .into_iter()
+        .filter(|e| !e.exiting && e.key.as_deref().is_some_and(|k| k.starts_with("list-")))
+        .map(|e| (e.key.unwrap(), e.rect))
+        .collect()
+}
+
+/// What the float would cover rides its edge once the edge reaches it, `float.inset_x` above
+/// it, and only then; it never moves down while the float rises or up while it lowers.
+fn rides(edge: f32, rest: [f32; 4], now: [f32; 4], label: &str) {
+    let gap = crate::theme::tokens().layout.float.inset_x;
+    assert!((now[0] - rest[0]).abs() < 0.01, "{label}: moved sideways");
+    if now[1] < rest[1] - 0.5 {
+        let at = edge - bottom(now);
+        assert!(
+            (at - gap).abs() <= 1.0,
+            "{label}: {at} above the edge, not {gap}"
+        );
+    } else {
+        assert!((now[1] - rest[1]).abs() < 0.5, "{label}: moved down");
+        assert!(edge - bottom(now) >= gap - 1.0, "{label}: under the edge");
+    }
+}
+
+/// The start page's composer stays put through every float that doesn't reach it (1512 × 982),
+/// and at 800 × 600, where the palette would cover it, rides the edge up and back.
+#[test]
+fn the_start_composer_moves_only_when_a_float_would_cover_it() {
+    let mut rt = window("start", (1512.0, 982.0));
+    key(&mut rt, rune::Key::Escape);
+    let at = rect(&rt, "start-composer").unwrap();
+    let steps: [fn(&mut Runtime<App>); 4] = [
+        palette,
+        |rt| key(rt, rune::Key::Escape),
+        |rt| key(rt, ch(' ')),
+        |rt| key(rt, rune::Key::Escape),
+    ];
+    for (i, step) in steps.into_iter().enumerate() {
+        step(&mut rt);
+        for frame in 0..50 {
+            assert_eq!(
+                rect(&rt, "start-composer"),
+                Some(at),
+                "step {i}, frame {frame}"
+            );
+            rt.frame(FRAME);
+        }
+    }
+
+    let mut rt = window("start", (800.0, 600.0));
+    key(&mut rt, rune::Key::Escape);
+    let rest = rect(&rt, "start-block").unwrap();
+    palette(&mut rt);
+    let g = glide(&mut rt, 40, "start-block");
+    let e = edges(&rt, &g);
+    for (i, (_, b)) in g.iter().enumerate() {
+        rides(e[i], rest, b.unwrap(), &format!("rising, frame {i}"));
+    }
+    assert!(
+        g.last().unwrap().1.unwrap()[1] < rest[1] - 10.0,
+        "the palette would cover it"
+    );
+    key(&mut rt, rune::Key::Escape);
+    let g = glide(&mut rt, 40, "start-block");
+    let e = edges(&rt, &g);
+    let mut last = g[0].1.unwrap()[1];
+    for (i, (_, b)) in g.iter().enumerate() {
+        let b = b.unwrap();
+        assert!(b[1] >= last - 0.01, "lowering, frame {i}: moved up");
+        last = b[1];
+        rides(e[i], rest, b, &format!("lowering, frame {i}"));
+    }
+    assert_eq!(rect(&rt, "start-block"), Some(rest), "back where it was");
+}
+
+/// Home's cursor on the last Activity row the stage shows whole: the palette's edge carries it up
+/// once it reaches it, and the rows above go with it, straight up, on every frame.
+#[test]
+fn a_covered_home_row_rides_the_edge_with_the_rows_above() {
+    let mut rt = window("home", (1512.0, 982.0));
+    let foot = foot(&rt);
+    let last = rows(&rt)
+        .into_iter()
+        .rfind(|(k, r)| k.starts_with("list-Event") && bottom(*r) <= foot)
+        .unwrap()
+        .0;
+    rt.update(|a, _| {
+        let id = screens::home::rows(a)
+            .into_iter()
+            .find(|r| format!("list-{:?}", r.id) == last)
+            .unwrap()
+            .id;
+        screens::home::select(a, id);
+    });
+    frames(&mut rt, 5);
+    let before = rows(&rt);
+    let cursor = before.iter().find(|(k, _)| *k == last).unwrap().1;
+    palette(&mut rt);
+    let mut frames_seen = Vec::new();
+    for _ in 0..40 {
+        frames_seen.push((drawn(&rt).unwrap().rect[1], rows(&rt)));
+        rt.frame(FRAME);
+    }
+    let (rest_edge, _) = frames_seen.last().unwrap().clone();
+    assert!(
+        bottom(cursor) > rest_edge,
+        "the palette would cover the row"
+    );
+    for (i, (edge, now)) in frames_seen.iter().enumerate() {
+        let r = now.iter().find(|(k, _)| *k == last).unwrap().1;
+        rides(*edge, cursor, r, &format!("frame {i}"));
+        let dy = r[1] - cursor[1];
+        for (k, was) in before.iter().filter(|(_, was)| bottom(*was) <= rest_edge) {
+            let r = now
+                .iter()
+                .find(|(n, _)| n == k)
+                .unwrap_or_else(|| panic!("frame {i}: {k} gone"))
+                .1;
+            assert!(
+                (r[0] - was[0]).abs() < 0.01,
+                "frame {i}: {k} moved sideways"
+            );
+            assert!(
+                (r[1] - was[1] - dy).abs() < 0.5,
+                "frame {i}: {k} left the cursor row"
+            );
+        }
+    }
+}
+
+/// With motion off, every float lands on the frame of its key, and leaves on it.
+#[test]
+fn with_motion_off_every_float_lands_on_its_frame() {
+    let mut rt = window("home-motion-off", (1512.0, 982.0));
+    palette(&mut rt);
+    let open = drawn(&rt).expect("open on its frame").rect;
+    frames(&mut rt, 20);
+    assert_eq!(drawn(&rt).unwrap().rect, open);
+    key(&mut rt, rune::Key::Escape);
+    assert!(drawn(&rt).is_none(), "gone on its frame");
+    key(&mut rt, ch(' '));
+    let first = until_drawn(&mut rt).rect;
+    frames(&mut rt, 20);
+    assert_eq!(drawn(&rt).unwrap().rect, first);
+    key(&mut rt, ch('o'));
+    let open = drawn(&rt).unwrap().rect;
+    frames(&mut rt, 20);
+    assert_eq!(drawn(&rt).unwrap().rect, open);
+    key(&mut rt, rune::Key::Escape);
+    assert!(drawn(&rt).is_none(), "which-key gone on its frame");
+}
+
+/// A close that changes the page lands with the page: no float on the frame of its key.
+#[test]
+fn a_close_that_changes_the_page_lands_at_once() {
+    let mut rt = window("find", (1512.0, 982.0));
+    let was = rt.state.stage.clone();
+    key(&mut rt, rune::Key::Enter);
+    assert_ne!(rt.state.stage, was, "Enter opened the row");
+    assert!(drawn(&rt).is_none(), "Find gone on its frame");
+    let mut rt = window("conversation-streaming", (1512.0, 982.0));
+    key(&mut rt, ch(' '));
+    until_drawn(&mut rt);
+    key(&mut rt, ch('o'));
+    key(&mut rt, ch('h'));
+    assert_eq!(rt.state.stage, Stage::Place(crate::frame::Place::Home));
+    assert!(drawn(&rt).is_none(), "which-key gone on its frame");
+}
+
+/// Keys faster than the spring: the edge goes from where it is to where it must go, with a float
+/// on every frame one is due, and only what is due in it.
+#[test]
+fn keys_faster_than_the_spring_retarget_the_edge() {
+    let continuous = |e: &[f32], label: &str| {
+        for (i, w) in e.windows(2).enumerate() {
+            assert!(
+                (w[1] - w[0]).abs() <= MOST_PER_FRAME,
+                "{label}, frame {i}: {e:?}"
+            );
+        }
+    };
+
+    let mut rt = window("conversation-streaming", (1512.0, 982.0));
+    palette(&mut rt);
+    frames(&mut rt, 40);
+    let open = drawn(&rt).unwrap();
+    let mut e = vec![open.rect[1]];
+    key(&mut rt, rune::Key::Escape);
+    e.push(drawn(&rt).expect("leaving").rect[1]);
+    rt.frame(FRAME);
+    e.push(drawn(&rt).expect("leaving").rect[1]);
+    rt.key(KeyEvent {
+        key: ch(' '),
+        mods: Mods::default(),
+    });
+    rt.key(KeyEvent {
+        key: ch(';'),
+        mods: Mods::default(),
+    });
+    rt.frame(FRAME);
+    for frame in 0..40 {
+        let d = drawn(&rt).unwrap_or_else(|| panic!("no float, frame {frame}"));
+        assert_eq!(d.words, open.words, "the palette again, frame {frame}");
+        e.push(d.rect[1]);
+        rt.frame(FRAME);
+    }
+    continuous(&e, "Esc then ␣;");
+    assert!((e.last().unwrap() - open.rect[1]).abs() < 0.5);
+
+    let mut rt = window("conversation-streaming", (1512.0, 982.0));
+    let foot = foot(&rt);
+    palette(&mut rt);
+    frames(&mut rt, 2);
+    key(&mut rt, rune::Key::Escape);
+    let g = glide(&mut rt, 40, "composer-container");
+    let e = edges(&rt, &g);
+    continuous(&e, "closed 50 ms after it opened");
+    assert!(e[0] < foot - 1.0, "still drawn as it turns: {e:?}");
+    assert_eq!(*e.last().unwrap(), foot);
+
+    let mut rt = window("conversation-streaming", (1512.0, 982.0));
+    palette(&mut rt);
+    frames(&mut rt, 40);
+    let mut e = vec![drawn(&rt).unwrap().rect[1]];
+    for _ in 0..4 {
+        rt.key(KeyEvent {
+            key: ch('z'),
+            mods: Mods::default(),
+        });
+    }
+    rt.frame(FRAME);
+    for frame in 0..40 {
+        let d = drawn(&rt).unwrap();
+        assert!(
+            d.words.iter().any(|w| w == "No command matches \"zzzz\""),
+            "frame {frame}: {:?}",
+            d.words
+        );
+        e.push(d.rect[1]);
+        rt.frame(FRAME);
+    }
+    continuous(&e, "zzzz");
+    assert!(
+        e.last().unwrap() > &(e[0] + 100.0),
+        "the palette shrank to its one line: {e:?}"
+    );
+}
+
+/// A float drawn as it leaves holds no field rune can reach: binding a project (whose Confirm
+/// closes, then the bind float under it) runs to the end.
+#[test]
+fn a_leaving_float_holds_no_field() {
+    let mut rt = window("bind-float", (1512.0, 982.0));
+    key(&mut rt, rune::Key::Enter);
+    key(&mut rt, ch('y'));
+    frames(&mut rt, 40);
+    assert!(rt.state.floats.is_empty(), "bound");
 }

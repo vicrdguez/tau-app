@@ -263,6 +263,8 @@ fn prefixed(t: Theme, i: Input, prefix: Option<&str>) -> El {
         .color(t.c.fg.default)
         .on_edit(|s: &mut crate::app::App| s.float_edit())
         .on_input_key(crate::app::input::on_field_key)
+        // What a query keeps changes the float's height: its edge glides there.
+        .animate_edit_layout()
         .label(i.label)
         .key("float-input");
     let mut typed = row().center_y();

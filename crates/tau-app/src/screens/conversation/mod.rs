@@ -50,7 +50,7 @@ use crate::app::scenes::Scene;
 use crate::app::{App, Handler, Invocation, Stage};
 use crate::editor::{EditMode, Reply};
 use crate::floats::Float;
-use crate::frame::{Crumb, Segment, SegmentKind};
+use crate::frame::{Crumb, Room, Segment, SegmentKind};
 use crate::keys::{Code, Ctx, Key, Mode};
 use crate::open::Item as OpenItem;
 use crate::theme::Theme;
@@ -236,6 +236,10 @@ impl Screen for Conversation {
         }
         reader_motion(app, keys, count.unwrap_or(1));
         true
+    }
+
+    fn room(&self, _: &App) -> Room {
+        Room::Shrink
     }
 
     fn reveal_target(&self, app: &App, tx: &mut Tx) {

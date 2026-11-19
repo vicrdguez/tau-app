@@ -273,23 +273,25 @@ pub fn picker_keys(a: &mut App, inv: &Invocation, tx: &mut Tx) {
     };
     let rows = p.rows(a);
     if key == Key::plain(Code::Enter) && p.cursor < rows.len() {
-        if let Some(r) = rows.get(p.cursor) {
-            match &r.target {
-                Choice::Object(id) => {
-                    if matches!(p.kind, Kind::Search) {
-                        settings_mut(a).search = p.query.text.clone();
-                        home::select(a, id.clone());
-                    } else {
-                        list::open(a, id, false);
+        let search = matches!(p.kind, Kind::Search).then(|| p.query.text.clone());
+        let chosen = rows.get(p.cursor).map(|r| r.target.clone());
+        a.closed(Float::Screen(f), opener);
+        if let Some(target) = chosen {
+            match target {
+                Choice::Object(id) => match search {
+                    Some(search) => {
+                        settings_mut(a).search = search;
+                        home::select(a, id);
                     }
-                }
+                    None => list::open(a, &id, false),
+                },
                 Choice::Project(project) => {
-                    settings_mut(a).project = project.clone();
+                    settings_mut(a).project = project;
                     reconcile(a);
                     save(a);
                 }
                 Choice::State(state) => {
-                    settings_mut(a).state = state.clone();
+                    settings_mut(a).state = state;
                     reconcile(a);
                     save(a);
                 }

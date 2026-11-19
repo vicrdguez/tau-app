@@ -457,7 +457,6 @@ struct RawClientMs {
 
 #[derive(Deserialize)]
 struct RawMotion {
-    float_fade: f32,
     panel: f32,
     page: f32,
 }
@@ -591,7 +590,6 @@ pub(super) fn parse(json: &str) -> Result<Tokens, TokenError> {
         key_return: icon.key_return,
     };
     Ok(Tokens {
-        float_fade_ms: raw.motion_ms.float_fade,
         panel_ms: raw.motion_ms.panel,
         page_ms: raw.motion_ms.page,
         motion_bounce: raw.motion_curve.bounce,

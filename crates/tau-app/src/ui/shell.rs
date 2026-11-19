@@ -3,7 +3,7 @@
 
 use rune::{El, ScrollSpec, Transition, col, el, row, text};
 
-use crate::theme::{Motion, Theme};
+use crate::theme::Theme;
 
 /// The key of what a float's keys act on: its selected row, or the bind float's field.
 pub const FLOAT_CURSOR: &str = "float-cursor";
@@ -108,13 +108,7 @@ pub fn shell(t: Theme, s: Shell) -> El {
         .min_h(0.0)
         .instant_changes()
         .transition(Transition::none())
-        .child(
-            t.motion
-                .moves(float.key("float-surface"), t.motion.float)
-                .shrink()
-                .min_h(0.0)
-                .transition(Transition::opacity().springs(Motion::pair(t.motion.float))),
-        )
+        .child(float.key("float-surface").shrink().min_h(0.0))
         .child(
             el().pin(Some(0.0), Some(0.0), Some(0.0), Some(0.0))
                 .border_sides([2.0, 0.0, 0.0, 0.0], t.c.state.attn)

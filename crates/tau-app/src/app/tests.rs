@@ -18,6 +18,7 @@
 use rune::{KeyEvent, Tx};
 
 use super::*;
+use crate::floats;
 use crate::keys::{Code, Key, parse_seq};
 use crate::theme::Variant;
 

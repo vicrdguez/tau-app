@@ -46,7 +46,7 @@ use crate::app::scenes::Scene;
 use crate::app::{App, Handler, Invocation, Stage};
 use crate::copy::{self, AnswerAction};
 use crate::editor::EditMode;
-use crate::frame::{Crumb, Segment, SegmentKind};
+use crate::frame::{Crumb, Room, Segment, SegmentKind};
 use crate::keys::{Ctx, Key, Mode};
 use crate::open::Item;
 use crate::theme::Theme;
@@ -220,8 +220,8 @@ impl Screen for Decision {
         }
     }
 
-    fn reveal_target(&self, _: &App, tx: &mut Tx) {
-        tx.scroll_into_view("decision-cursor");
+    fn room(&self, _: &App) -> Room {
+        Room::Lift(Some("decision-cursor".into()))
     }
 
     fn shown(&self, app: &mut App) {

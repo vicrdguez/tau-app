@@ -20,7 +20,7 @@ use tau_client::{ConvRef, DecisionRef, Project, Wall};
 
 use super::{NOTHING_RECEIVED, Screen, places};
 use crate::app::{App, Handler, Invocation, Stage};
-use crate::frame::{Crumb, Place};
+use crate::frame::{Crumb, Place, Room};
 use crate::keys::{Ctx, Key};
 use crate::open::Item;
 use crate::theme::Theme;
@@ -573,10 +573,15 @@ impl Screen for Home {
     fn keys(&self, app: &mut App, keys: &[Key], count: Option<u32>) -> bool {
         motion(app, keys, count)
     }
-    fn reveal_target(&self, app: &App, tx: &mut Tx) {
-        if let Some(id) = &app.screens.home.cursor.id {
-            tx.scroll_into_view(format!("list-{id:?}"));
-        }
+    fn room(&self, app: &App) -> Room {
+        Room::Lift(
+            app.screens
+                .home
+                .cursor
+                .id
+                .as_ref()
+                .map(|id| format!("list-{id:?}")),
+        )
     }
     fn shown(&self, app: &mut App) {
         app.link.refresh_faults();
