@@ -10,6 +10,7 @@
 //! - `Esc` in capture closes the float or loses the filter and the row; a second `Esc` doesn't
 //!   close it;
 //! - `C-x` leaves the key moved, or its line in the file;
+//! - a command's second key is missing, or rebinding and resetting it loses the query or the row;
 //! - the width steps past its bounds, or the page behind doesn't follow;
 //! - the motion row doesn't flip motion;
 //! - a fixed row takes a capture.
@@ -303,4 +304,27 @@ fn a_fixed_row_says_why_and_takes_no_capture() {
     );
     key(&mut a, "<C-x>");
     assert_eq!(a.settings.keymap, Keymap::design());
+}
+
+#[test]
+fn both_keys_of_commands_show_and_one_rebound_puts_back_keeping_the_query() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut a = start(&dir);
+    open(&mut a, "commands");
+    let keys: Vec<String> = shown(&a)
+        .iter()
+        .filter_map(|r| match r {
+            Row::Key(k) if k.command.id == "palette" => Some(display(&k.now)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(keys.len(), 2, "{keys:?}");
+    key(&mut a, "<C-j><CR><M-y><CR>");
+    assert_ne!(a.settings.keymap, Keymap::design());
+    let f = float(&a).expect("open");
+    assert_eq!((f.query.text.as_str(), f.cursor), ("commands", 1));
+    key(&mut a, "<C-x>");
+    assert_eq!(a.settings.keymap, Keymap::design());
+    let f = float(&a).expect("open");
+    assert_eq!((f.query.text.as_str(), f.cursor), ("commands", 1));
 }

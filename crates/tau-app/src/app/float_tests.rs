@@ -497,3 +497,55 @@ fn a_palette_query_that_keeps_nothing_says_so_and_enter_keeps_it_open() {
     press(&mut rt, "<CR>");
     assert_eq!(rt.state.floats.len(), 1);
 }
+
+/// The group heads the settings body shows, top to bottom, each with its count.
+fn settings_heads(rt: &Runtime<App>) -> Vec<(String, String)> {
+    let els = rt.elements();
+    let body = els
+        .iter()
+        .find(|e| e.key.as_deref() == Some(FLOAT_BODY))
+        .unwrap();
+    let inside = format!("{}/", body.path);
+    els.iter()
+        .filter(|e| {
+            e.path.starts_with(&inside) && matches!(e.text.as_deref(), Some("Preferences" | "Keys"))
+        })
+        .map(|head| {
+            let count = els
+                .iter()
+                .find(|e| e.parent == head.parent && e.path != head.path && e.text.is_some())
+                .and_then(|e| e.text.clone())
+                .unwrap_or_default();
+            (head.text.clone().unwrap(), count)
+        })
+        .collect()
+}
+
+#[test]
+fn settings_groups_preferences_and_keys_under_counted_heads_the_cursor_skips() {
+    let mut rt = scene_at("settings", (1512.0, 982.0));
+    let keys = crate::floats::settings::rows(rt.state.settings.keymap, "").len() - 3;
+    assert_eq!(
+        settings_heads(&rt),
+        vec![
+            ("Preferences".into(), "3".into()),
+            ("Keys".into(), keys.to_string())
+        ]
+    );
+    assert!(has_text(&rt, &format!("3 preferences · {keys} keys")));
+    press(&mut rt, "<C-j><C-j><C-j>");
+    shows(&rt, &settings_label(&rt.state, 3));
+    press(&mut rt, "<C-k>");
+    shows(&rt, "motion");
+    press(&mut rt, "motion");
+    assert_eq!(
+        settings_heads(&rt),
+        vec![("Preferences".into(), "1".into())]
+    );
+    assert!(has_text(&rt, &format!("1 of {} settings", keys + 3)));
+    shows(&rt, "motion");
+    press(&mut rt, &"<BS>".repeat(6));
+    press(&mut rt, "commands");
+    assert_eq!(settings_heads(&rt), vec![("Keys".into(), "2".into())]);
+    shows(&rt, "commands");
+}
