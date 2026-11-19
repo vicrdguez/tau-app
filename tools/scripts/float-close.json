@@ -1,0 +1,5 @@
+{"events": [
+  {"t": 0.20, "type": "key", "name": "k", "cmd": true},
+  {"t": 1.00, "type": "key", "name": "Escape"},
+  {"t": 1.02, "type": "key", "name": "j"}
+]}
