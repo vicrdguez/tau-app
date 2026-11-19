@@ -313,6 +313,136 @@ fn a_state_filter_counts_the_rows_shown_before_the_total() {
     assert!(rt.state.screens.places.conversations.state.is_none());
 }
 
+// An Outbox row could fail by ending in a dangling separator, by naming no decision so two
+// answers in one project read alike, by cutting a stored decision ID, by opening the wrong
+// decision or none on ⏎, or by sending anything on ⏎. Its empty sentence could stand off the
+// rows' column.
+
+fn answer(a: &mut App, project: &str, id: &str) {
+    a.link
+        .write(tau_client::Write::Answer {
+            decision: tau_client::DecisionRef::new(project, id),
+            basis: tau_client::EntryId(1),
+            choice: "yes".into(),
+            annotations: Vec::new(),
+        })
+        .unwrap();
+    link::settle(a);
+}
+
+/// The texts drawn on the same line as the lowest text showing `s` (in the bottom float), left
+/// to right.
+fn line_of(els: &[rune::runtime::ElementInfo], s: &str) -> Vec<String> {
+    let at = crate::screens::home::drawn::texts(els, s)
+        .into_iter()
+        .map(|e| e.rect)
+        .max_by(|a, b| a[1].total_cmp(&b[1]))
+        .unwrap();
+    let mid = at[1] + at[3] / 2.0;
+    let mut line: Vec<_> = els
+        .iter()
+        .filter(|e| e.text.is_some() && (e.rect[1] + e.rect[3] / 2.0 - mid).abs() < 2.0)
+        .collect();
+    line.sort_by(|a, b| a.rect[0].total_cmp(&b.rect[0]));
+    line.into_iter().filter_map(|e| e.text.clone()).collect()
+}
+
+#[test]
+fn outbox_answer_rows_name_their_decision() {
+    use crate::screens::home::drawn::drawn;
+    let mut a = fixture(Place::Conversations);
+    answer(&mut a, "forecasts", "w2:2:pi-durable-2#1");
+    answer(&mut a, "forecasts", "w2:2:rune-release#2");
+    answer(&mut a, "render-core", "w1:9:gone#1");
+    press(&mut a, "<leader>ru");
+    let rt = drawn(a, 1512.0, 982.0);
+    let els = rt.elements();
+    let first = line_of(&els, "#1");
+    let second = line_of(&els, "#2");
+    let gone = line_of(&els, "w1:9:gone#1");
+    assert_eq!(
+        first[..5],
+        ["answer", "·", "forecasts", "·", "Resolve forecast"],
+        "{first:?}"
+    );
+    assert_eq!(first[5], "#1");
+    assert_eq!(second[4..6], ["Resolve forecast", "#2"], "{second:?}");
+    assert_eq!(
+        gone[..5],
+        ["answer", "·", "render-core", "·", "w1:9:gone#1"],
+        "an unheld title falls back to the stored ID: {gone:?}"
+    );
+    let id = &crate::screens::home::drawn::texts(&els, "w1:9:gone#1")[0];
+    assert!(
+        id.rect[2] >= 11.0 * 6.0 - 0.5,
+        "the ID is whole: {:?}",
+        id.rect
+    );
+    for line in [&first, &second, &gone] {
+        let label: Vec<_> = line.iter().take_while(|s| !s.ends_with("done")).collect();
+        assert_ne!(label.last().map(|s| s.as_str()), Some("·"), "{line:?}");
+    }
+}
+
+#[test]
+fn enter_on_an_outbox_row_opens_its_own_decision_and_sends_nothing() {
+    let mut a = fixture(Place::Conversations);
+    answer(&mut a, "forecasts", "w2:2:pi-durable-2#1");
+    answer(&mut a, "forecasts", "w2:2:rune-release#2");
+    let writes = a.link.outbox().entries().len();
+    for (moves, id) in [
+        ("kk", "w2:2:pi-durable-2#1"),
+        ("kkj", "w2:2:rune-release#2"),
+    ] {
+        press(&mut a, "<leader>ru");
+        press(&mut a, moves);
+        press(&mut a, "<CR>");
+        assert!(a.floats.is_empty(), "⏎ closes the outbox");
+        assert_eq!(
+            a.stage,
+            Stage::Item(crate::open::Item::Decision {
+                project: "forecasts".into(),
+                id: id.into()
+            })
+        );
+        assert_eq!(a.link.outbox().entries().len(), writes, "⏎ sends nothing");
+    }
+    let mut a = fixture(Place::Conversations);
+    a.link
+        .write(tau_client::Write::Input {
+            conv: ConvRef::new("notes-cli", 4),
+            text: "hello".into(),
+            mode: tau_client::wire::InputMode::FollowUp,
+        })
+        .unwrap();
+    link::settle(&mut a);
+    press(&mut a, "<leader>ru<CR>");
+    assert_eq!(
+        a.stage,
+        Stage::Item(crate::open::Item::Conversation {
+            project: "notes-cli".into(),
+            id: 4
+        })
+    );
+}
+
+#[test]
+fn the_empty_outbox_sentence_starts_where_rows_start() {
+    use crate::screens::home::drawn::{drawn, texts};
+    let mut a = fixture(Place::Conversations);
+    press(&mut a, "<leader>ru");
+    let rt = drawn(a, 1512.0, 982.0);
+    let els = rt.elements();
+    let sentence = &texts(&els, "No writes in the outbox.")[0];
+    let title = &texts(&els, "Outbox")[0];
+    assert!(
+        (sentence.rect[0] - title.rect[0]).abs() < 0.5,
+        "sentence {:?}, head {:?}",
+        sentence.rect,
+        title.rect
+    );
+}
+
 /// Faults rows could fail to line up: fields flowing after the error put the project at a
 /// different x per row; an `after` part cut mid-ID; the error pushing the slots off the row.
 #[test]

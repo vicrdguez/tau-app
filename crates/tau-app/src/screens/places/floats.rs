@@ -275,20 +275,28 @@ impl ScreenFloat for Outbox {
             .iter()
             .map(|e| {
                 let copy = crate::copy::outbox_row(e, home::now(a));
-                let label = format!(
-                    "{} · {}{} · {}",
-                    copy.call,
-                    e.project().map(|p| p.to_string()).unwrap_or_default(),
-                    e.conversation()
-                        .map(|c| format!(" #{}", c.id))
-                        .unwrap_or_default(),
-                    e.text().unwrap_or_default()
-                );
+                let about = match e.decision() {
+                    Some(d) => Some(match decision_title(a, &d) {
+                        Some(title) => draw::outbox::About::Decision {
+                            title,
+                            number: d.id.request_number().unwrap_or(1),
+                        },
+                        None => draw::outbox::About::DecisionId(d.id.to_string()),
+                    }),
+                    None => e
+                        .text()
+                        .filter(|s| !s.is_empty())
+                        .map(|s| draw::outbox::About::Text(s.into())),
+                };
                 draw::outbox::Row {
-                    label,
+                    call: copy.call,
+                    project: e.project().map(|p| p.to_string()),
+                    conversation: e.conversation().map(|c| c.id.0),
+                    about,
                     state: copy.state,
                     time: crate::time::clock(e.created),
                     unknown: copy.unknown,
+                    opens: opens(e).is_some(),
                 }
             })
             .collect::<Vec<_>>();
@@ -309,6 +317,50 @@ impl ScreenFloat for Outbox {
         )
     }
 }
+/// Where `⏎` on an outbox entry goes: the object it names. It never sends.
+enum Opens {
+    Item(crate::open::Item),
+    Start,
+}
+
+fn opens(e: &tau_client::outbox::OutboxEntry) -> Option<Opens> {
+    use crate::open::Item;
+    if e.call == tau_client::WriteCall::Create {
+        return Some(Opens::Start);
+    }
+    if let Some(d) = e.decision() {
+        return Some(Opens::Item(Item::Decision {
+            project: d.project.to_string(),
+            id: d.id.to_string(),
+        }));
+    }
+    if let Some(c) = e.conversation() {
+        return Some(Opens::Item(Item::Conversation {
+            project: c.project.to_string(),
+            id: c.id.0,
+        }));
+    }
+    e.project()
+        .map(|p| Opens::Item(Item::Project(p.to_string())))
+}
+
+/// The decision's title, from the inbox or a fetched decision.
+fn decision_title(a: &App, d: &tau_client::DecisionRef) -> Option<String> {
+    let s = a.link.server();
+    s.inbox
+        .value()
+        .and_then(|i| i.projects.get(&d.project))
+        .and_then(|subjects| subjects.get(&d.id.subject()))
+        .filter(|open| open.id == d.id)
+        .map(|open| open.title.clone())
+        .or_else(|| {
+            s.decisions
+                .get(d)
+                .and_then(|v| v.value())
+                .map(|v| v.decision.title.clone())
+        })
+}
+
 pub fn outbox(a: &mut App) {
     let cursor = a
         .link
@@ -323,10 +375,28 @@ pub fn outbox(a: &mut App) {
         details: false,
     })));
 }
-pub fn outbox_keys(a: &mut App, inv: &Invocation, _: &mut Tx) {
+pub fn outbox_keys(a: &mut App, inv: &Invocation, tx: &mut Tx) {
     let Some(&key) = inv.keys.first() else { return };
     if key == Key::plain(Code::Esc) || key == Key::char('q') {
         a.close_float();
+        return;
+    }
+    if key == Key::plain(Code::Enter) {
+        let cursor = top_float::<Outbox>(a).and_then(|o| o.cursor);
+        let target = cursor
+            .and_then(|id| a.link.outbox().get(id))
+            .and_then(opens);
+        match target {
+            Some(Opens::Item(item)) => {
+                a.close_float();
+                a.show(crate::app::Stage::Item(item));
+            }
+            Some(Opens::Start) => {
+                a.close_float();
+                crate::app::commands::run_id(a, "conv.new", tx);
+            }
+            None => {}
+        }
         return;
     }
     let ids = a

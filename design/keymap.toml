@@ -1038,9 +1038,9 @@ desc = "outbox float keys"
 tier = "local"
 kind = "modal"
 ctx = ["outbox"]
-note = "j k move between entries; K shows an entry's whole body; Esc and q close. Its actions are ␣rt (recover.retry) and x (row.hide), bound in this context. The badge reads OUTBOX."
+note = "j k move between entries; K shows an entry's whole body; Enter opens what the entry names (an answer's decision, an input's conversation, the start page for a create) and closes the float, and never sends; Esc and q close. Its actions are ␣rt (recover.retry) and x (row.hide), bound in this context. The badge reads OUTBOX."
 keys = [{ mode = "ob", ctx = "outbox", seq = "j" }, { mode = "ob", ctx = "outbox", seq = "k" }, { mode = "ob", ctx = "outbox", seq = "K" },
-        { mode = "ob", ctx = "outbox", seq = "<Esc>" }, { mode = "ob", ctx = "outbox", seq = "q" }]
+        { mode = "ob", ctx = "outbox", seq = "<CR>" }, { mode = "ob", ctx = "outbox", seq = "<Esc>" }, { mode = "ob", ctx = "outbox", seq = "q" }]
 
 [[command]]
 id = "server.keys"
