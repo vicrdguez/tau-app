@@ -204,7 +204,7 @@ impl Screen for Places {
             );
         }
         body = body.child(rune::el().h(if p == Place::Conversations { 0.0 } else { 18.0 }));
-        let grid = list::Grid::place(app);
+        let grid = list::Grid::place(app, &rs);
         let mut group = "";
         for r in &rs {
             if p == Place::Conversations && r.group != group {

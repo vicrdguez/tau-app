@@ -114,6 +114,75 @@ fn a_new_search_can_find_a_row_the_previous_search_hid() {
     );
 }
 
+/// Faults rows could fail to line up: fields flowing after the error put the project at a
+/// different x per row; an `after` part cut mid-ID; the error pushing the slots off the row.
+#[test]
+fn fault_rows_stand_on_fixed_slots() {
+    use crate::screens::home::drawn::{find, row_texts, scene};
+    for w in [1512.0, 1300.0, 800.0] {
+        let rt = scene("faults", w, 982.0);
+        let a = &rt.state;
+        let els = rt.elements();
+        let rs = rows(a);
+        assert_eq!(rs.len(), 2);
+        let (mut project, mut id, mut time_end, mut after) = (vec![], vec![], vec![], vec![]);
+        let mut error_end = vec![];
+        for r in &rs {
+            let texts = row_texts(&els, &r.id);
+            let kind = find(&texts, &r.label);
+            let p = find(&texts, &r.project).rect;
+            project.push(p[0]);
+            id.push(find(&texts, &format!("#{}", r.conversation.unwrap())).rect[0]);
+            let stamp = crate::time::stamp(tau_client::Wall(r.at.unwrap()), home::now(a));
+            if let Some(t) = texts
+                .iter()
+                .find(|e| e.text.as_deref() == Some(stamp.as_str()))
+            {
+                time_end.push(t.rect[0] + t.rect[2]);
+            }
+            let error = texts
+                .iter()
+                .find(|e| e.rect[0] > kind.rect[0] + kind.rect[2] && e.rect[0] < p[0])
+                .expect("the error sits between the kind and the project");
+            error_end.push(error.rect[0] + error.rect[2]);
+            if let Some(d) = &r.after {
+                let s = format!("after {d}");
+                match texts.iter().find(|e| e.text.as_deref() == Some(s.as_str())) {
+                    Some(e) => {
+                        assert!(
+                            e.rect[2] >= s.chars().count() as f32 * 6.0 - 0.5,
+                            "{s} whole at {w}"
+                        );
+                        assert!(e.rect[0] > p[0], "after follows #id at {w}");
+                        after.push(e.rect[0]);
+                    }
+                    None => assert!(
+                        !texts
+                            .iter()
+                            .any(|e| e.text.as_deref().is_some_and(|t| t.starts_with("after"))),
+                        "after is whole or absent at {w}"
+                    ),
+                }
+            }
+        }
+        let same = |xs: &[f32]| xs.windows(2).all(|p| (p[0] - p[1]).abs() < 0.5);
+        assert!(same(&project), "project at {w}: {project:?}");
+        assert!(same(&id), "#id at {w}: {id:?}");
+        assert!(
+            same(&time_end) && [0, rs.len()].contains(&time_end.len()),
+            "time ends on one line at {w}, in every row or none: {time_end:?}"
+        );
+        assert!(
+            error_end.iter().all(|e| *e <= project[0] - 11.5),
+            "the error ends before the project at {w}: {error_end:?} {project:?}"
+        );
+        if w != 1300.0 {
+            assert_eq!(after.len(), 1, "after shows at {w}");
+            assert_eq!(time_end.len(), rs.len(), "time shows at {w}");
+        }
+    }
+}
+
 #[test]
 fn server_and_outbox_floats_keep_global_keys_out() {
     let mut a = fixture(Place::Conversations);

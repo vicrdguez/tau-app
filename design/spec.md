@@ -531,7 +531,7 @@ Each place is one page with one filter and one cursor. It keeps both on this dev
 
 **Faults** (`␣of`; Home's `more faulted task` line; no sidebar row). **Answers:** which tasks died, and which one I can restart.
 - Under the title, once: `A faulted task never runs again by itself. If it names a decision, open it and send the answer again. Hiding a fault is local to this device.`
-- Rows: rose `×` · kind (`mono` orange) · error (one line) · project · `#id` · `after w1:6:design#1` when named · `endedAt`.
+- Rows: rose `×` and kind (`mono` orange) lead; the error (`ui` `fg.alt`) takes the rest and is cut with `…`; then fixed slots at the right, 12 px apart: project (sage, 96), `#id` (orange, 26), `after w1:6:design#1` when named (`mono.small` `fg.alt`, as wide as the widest drawn), `endedAt` (`mono.small` `fg.muted`, 84, right-aligned). When the error would get less than 200 px, the time drops, then the `after` slot; each drops whole for every row.
 - Hidden faults are left out; `␣th` shows them with a `subtract` mark and `hidden on this device`.
 - `⏎`: its decision when named, else its conversation. `x` hides; `x` on a shown hidden one unhides it.
 - **Calls:** `faults` per project, following `next`.

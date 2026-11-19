@@ -75,6 +75,9 @@ pub struct Grid {
     pub slots: Slots,
     /// The width of the event time column: the widest time drawn.
     pub stamp: f32,
+    /// The width of Faults' `after <decision ID>` column, the widest drawn; none when it doesn't
+    /// fit, so it shows whole or not at all.
+    pub after: Option<f32>,
 }
 
 impl Grid {
@@ -84,20 +87,59 @@ impl Grid {
             .iter()
             .filter(|r| matches!(r.id, RowId::Event(..)))
             .filter_map(|r| r.at)
-            .map(|at| mono_width(app.theme(), &stamp(at, now)))
+            .map(|at| mono_width(app.theme().ty.mono_small, &stamp(at, now)))
             .fold(0.0, f32::max);
         let has = |group: &str| rows.iter().any(|r| r.group == group);
         Self {
             home: true,
             slots: Slots::home(width(app), has("Failed"), has("Running")),
             stamp,
+            after: None,
         }
     }
-    pub fn place(app: &App) -> Self {
+    /// A place's grid. Faults rows keep their error at least 200 px by dropping the time, then
+    /// the `after` column.
+    pub fn place(app: &App, rows: &[ListRow]) -> Self {
+        let ty = app.theme().ty;
+        let width = width(app);
+        let widest =
+            |w: &dyn Fn(&ListRow) -> Option<f32>| rows.iter().filter_map(w).fold(0.0, f32::max);
+        let kind =
+            widest(&|r| matches!(r.id, RowId::Fault(..)).then(|| mono_width(ty.mono, &r.label)));
+        let after = widest(&|r| {
+            r.after
+                .as_ref()
+                .map(|d| mono_width(ty.mono_small, &format!("after {d}")))
+        });
+        let mut after = (after > 0.0).then_some(after);
+        let mut time = true;
+        let error = |after: Option<f32>, time: bool| {
+            width
+                - 14.0
+                - 12.0
+                - kind
+                - 12.0
+                - 96.0
+                - 12.0
+                - 26.0
+                - 12.0
+                - after.map_or(0.0, |a| a + 12.0)
+                - if time { 96.0 } else { 0.0 }
+        };
+        if error(after, time) < 200.0 {
+            time = false;
+        }
+        if error(after, time) < 200.0 {
+            after = None;
+        }
         Self {
             home: false,
-            slots: Slots::running(width(app)),
+            slots: Slots {
+                time,
+                ..Slots::running(width)
+            },
             stamp: 94.0,
+            after,
         }
     }
 }
@@ -107,9 +149,9 @@ pub fn label_inset() -> f32 {
     12.0 + crate::theme::tokens().marks.slot + 12.0
 }
 
-/// The drawn width of `s` in `mono.small`: Iosevka advances half an em per character.
-fn mono_width(t: Theme, s: &str) -> f32 {
-    s.chars().count() as f32 * t.ty.mono_small.size / 2.0
+/// The drawn width of `s` in a mono style: Iosevka advances half an em per character.
+fn mono_width(font: rune::TextStyle, s: &str) -> f32 {
+    s.chars().count() as f32 * font.size / 2.0
 }
 
 pub fn active(app: &App) -> bool {
@@ -274,43 +316,33 @@ pub fn row_view(t: Theme, app: &App, r: &ListRow, selected: bool, grid: &Grid) -
                 .and_then(|fs| fs.iter().find(|f| f.task == *task))
                 .map(|f| f.error.as_str())
                 .unwrap_or_default();
-            let mut line = row()
-                .center_y()
-                .gap(10.0)
+            let lead = row().center_y().gap(12.0).child(lead).child(
+                content::line(t, &r.label, t.ty.mono, t.c.kind.literal)
+                    .min_w(mono_width(t.ty.mono, &r.label)),
+            );
+            slots.push(line(t, &r.project, t.c.kind.worker).w(96.0));
+            slots.push(small(
+                t,
+                &format!("#{}", r.conversation.unwrap_or_default()),
+                t.c.kind.literal,
+                26.0,
+            ));
+            if let Some(w) = grid.after {
+                let after = r.after.as_ref().map(|d| format!("after {d}"));
+                slots.push(small(t, &after.unwrap_or_default(), t.c.fg.alt, w));
+            }
+            if grid.slots.time {
+                slots.push(row().w(84.0).min_w(84.0).justify_end().child(content::line(
+                    t,
+                    &r.at.map(|a| stamp(a, super::now(app))).unwrap_or_default(),
+                    t.ty.mono_small,
+                    t.c.fg.muted,
+                )));
+            }
+            let error = content::line(t, error, t.ty.ui, t.c.fg.alt);
+            ui::slot_row(Some(lead), error, slots, 12.0)
                 .h(28.0)
                 .px(12.0)
-                .child(lead)
-                .child(content::line(t, &r.label, t.ty.mono, t.c.kind.literal))
-                .child(
-                    content::line(t, error, t.ty.ui, t.c.fg.alt)
-                        .grow(1.0)
-                        .min_w(0.0),
-                )
-                .child(content::line(t, &r.project, t.ty.ui_small, t.c.kind.worker))
-                .child(content::line(
-                    t,
-                    &format!("#{}", r.conversation.unwrap_or_default()),
-                    t.ty.mono_small,
-                    t.c.kind.literal,
-                ));
-            if let Some(after) = &r.after
-                && width(app) >= 500.0
-            {
-                line = line.child(content::line(
-                    t,
-                    &format!("after {after}"),
-                    t.ty.mono_small,
-                    t.c.fg.alt,
-                ));
-            }
-            line.child(small(
-                t,
-                &r.at
-                    .map(|at| stamp(at, super::now(app)))
-                    .unwrap_or_default(),
-                t.c.fg.muted,
-                84.0,
-            ))
         }
         _ => {
             let slots_on = grid.slots;
