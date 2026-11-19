@@ -11,12 +11,17 @@
 //! - the cursor's coral bar leaves the box's left edge;
 //! - prose, code or the last thing in a row runs past X1, or a tool row's chevron or `details ›`
 //!   stops short of it;
+//! - the speaker marks stand on different x, inside the box, or off their header's line;
+//! - a mark follows the text rather than the entry's kind: content printing `input` or `agent`
+//!   gets one, a record, tool row, chrome line or queued row gets one, the person and the robot
+//!   swap, or the live message's `agent` header has none;
+//! - a screen reader says a mark;
 //! - at 800 × 600 the gutter or the 16 px shrink instead of the text column.
 
 use std::collections::HashMap;
 
 use rune::{ElementInfo, Runtime};
-use tau_client::{Fixture, Link};
+use tau_client::{EntryId, Fixture, Link};
 
 use crate::app::{App, Stage, scenes, testing};
 use crate::open::Item as OpenItem;
@@ -371,4 +376,110 @@ fn nothing_runs_past_x1_and_each_row_ends_on_it() {
             assert!(rows > 0);
         }
     });
+}
+#[test]
+fn a_speaker_mark_stands_in_the_gutter_by_each_message_header() {
+    let mut writing = 0;
+    each(|d| {
+        let t = d.rt.state.theme();
+        let (you, agent) = (t.c.state.stale, t.c.fg.muted);
+        let marks: Vec<_> = d.ink().into_iter().filter(|e| d.in_gutter(e)).collect();
+        for m in &marks {
+            assert_eq!(m.role, "icon", "{}", d.name);
+            assert_eq!(&m.rect[2..], &[14.0, 14.0], "{}", d.name);
+            assert!(
+                near(m.rect[0] + 7.0, d.edge - 16.0),
+                "{}: centred in the 16 px slot ending 8 px before the box edge {}, not at {}",
+                d.name,
+                d.edge,
+                m.rect[0]
+            );
+        }
+        let on = |line: &ElementInfo| -> Vec<&&ElementInfo> {
+            marks
+                .iter()
+                .filter(|m| {
+                    let y = m.rect[1] + m.rect[3] / 2.0;
+                    m.scrolled == line.scrolled
+                        && y > line.rect[1]
+                        && y < line.rect[1] + line.rect[3]
+                })
+                .collect()
+        };
+        let one = |word: &ElementInfo, colour: rune::Color, who: &str| {
+            let found = on(word);
+            assert!(
+                found.len() == 1 && found[0].text_color == Some(colour),
+                "{}: {who} by {:?} at y {}: {found:?}",
+                d.name,
+                word.text,
+                word.rect[1]
+            );
+            let (mark, line) = (
+                found[0].rect[1] + found[0].rect[3] / 2.0,
+                word.rect[1] + word.rect[3] / 2.0,
+            );
+            assert!(
+                near(mark, line),
+                "{}: centred on its header's line {line}, not {mark}",
+                d.name
+            );
+        };
+        let shown = super::state::shown(&d.rt.state).unwrap();
+        let entries = &shown.held.expect("held").entries;
+        let mut speakers = 0;
+        for head in d.in_column().filter(|e| {
+            e.key
+                .as_deref()
+                .is_some_and(|k| k.starts_with("conv-head-"))
+        }) {
+            let id: u64 = head.key.as_deref().unwrap()["conv-head-".len()..]
+                .parse()
+                .unwrap();
+            let word = d.ink_in(head).next().expect("the header's first word");
+            match entries[&EntryId(id)].kind.as_str() {
+                "pi.user" => one(word, you, "the person"),
+                "pi.assistant" => one(word, agent, "the robot"),
+                _ => {
+                    assert!(on(head).is_empty(), "{}: a record has no mark", d.name);
+                    continue;
+                }
+            }
+            speakers += 1;
+        }
+        if let Some(live) = d
+            .ink()
+            .into_iter()
+            .find(|e| e.text.as_deref() == Some("writing"))
+        {
+            one(live, agent, "the robot");
+            speakers += 1;
+            writing += 1;
+        }
+        assert_eq!(
+            marks.len(),
+            speakers,
+            "{}: only a message's header has a mark",
+            d.name
+        );
+        assert!(speakers > 0, "{}", d.name);
+        let transcript = d
+            .in_column()
+            .find(|e| e.key.as_deref() == Some("conv-transcript"))
+            .unwrap()
+            .rect;
+        let said: Vec<_> = testing::spoken(&d.rt)
+            .into_iter()
+            .filter(|n| {
+                let [x, y, w, h] = n.bounds.map(|v| v as f32);
+                w > 0.0
+                    && x >= d.edge - GUTTER - 0.5
+                    && x + w <= d.edge + 0.5
+                    && y >= transcript[1]
+                    && y + h <= transcript[1] + transcript[3]
+            })
+            .collect();
+        assert!(said.is_empty(), "{}: a reader says {said:?}", d.name);
+    });
+    assert!(writing > 0, "the live message's header is checked");
 }

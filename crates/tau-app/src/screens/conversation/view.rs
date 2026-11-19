@@ -4,7 +4,10 @@
 //! box spans the text column and [`LANE`] on each side; left of the boxes is the [`GUTTER`].
 //! Other sizes follow the prototype (`tools/proto/calm.css` `.msg`, `.tool`, `.cstack`, `.comp`).
 
-use rune::{El, ScrollSpec, TextStyle, Transition, col, el, icon, row, spacer, text, text_input};
+use rune::{
+    Color, El, Icon, ScrollSpec, TextStyle, Transition, col, el, icon, row, spacer, text,
+    text_input,
+};
 use tau_client::shapes::{ConversationState, QueueMode};
 use tau_client::wire::InputMode;
 use tau_client::{EntryId, Label, Wall};
@@ -402,6 +405,7 @@ fn item_el(cx: &Draw, item: &Item) -> El {
                 .px(LANE)
                 .py(4.0)
                 .mb(1.0)
+                .child(speaker(&carbon::BOT, t.c.fg.muted, 0.0))
                 .child(text("agent").font(t.ty.ui_small).color(t.c.fg.alt))
                 .child(text("·").font(t.ty.ui_small).color(t.c.fg.muted))
                 .child(text("writing").font(t.ty.ui_small).color(t.c.fg.alt));
@@ -474,7 +478,8 @@ fn continue_line(cx: &Draw, words: &str) -> El {
     )
 }
 
-/// A header line: `agent` and its time, and the model when it differs from the facts line's.
+/// A header line: the robot in the gutter, `agent` and its time, and the model when it differs
+/// from the facts line's.
 fn agent_head(cx: &Draw, model: &str, at: Option<i64>) -> El {
     let t = cx.t;
     let mut h = row()
@@ -484,6 +489,7 @@ fn agent_head(cx: &Draw, model: &str, at: Option<i64>) -> El {
         .px(LANE)
         .py(4.0)
         .mb(1.0)
+        .child(speaker(&carbon::BOT, t.c.fg.muted, 0.0))
         .child(text("agent").font(t.ty.ui_small).color(t.c.fg.alt));
     let m = short_model(model);
     if !m.is_empty() && m != cx.model {
@@ -499,18 +505,37 @@ fn agent_head(cx: &Draw, model: &str, at: Option<i64>) -> El {
     h
 }
 
-/// Your message: the container on `tint.human`, `input` in steel and its time, then the body,
-/// whose code blocks keep the text's width: they can't reach past the container.
+/// A message's speaker mark (`visual-language.md` §6): a 16 px slot at the column's left edge,
+/// 8 px clear of the box, centred on the header line, which starts `inset` inside the box edge.
+/// It has no name: the header's word names the speaker.
+fn speaker(glyph: &'static Icon, color: Color, inset: f32) -> El {
+    row()
+        .w(16.0)
+        .center()
+        .pin(Some(-GUTTER - inset), Some(0.0), None, Some(0.0))
+        .child(icon(glyph, 14.0).color(color))
+}
+
+/// Your message: the container on `tint.human`, the person in the gutter, `input` in steel and its
+/// time, then the body, whose code blocks keep the text's width: they can't reach past the
+/// container.
 fn input(cx: &Draw, head: EntryId, at: Option<i64>, body: &[Body]) -> El {
     let t = cx.t;
-    let mut h = row().w_full().center_y().gap(8.0).px(INSIDE).h(16.0).child(
-        text("input")
-            .font(TextStyle {
-                weight: 600.0,
-                ..t.ty.ui_small
-            })
-            .color(t.c.kind.you),
-    );
+    let mut h = row()
+        .w_full()
+        .center_y()
+        .gap(8.0)
+        .px(INSIDE)
+        .h(16.0)
+        .child(speaker(&carbon::USER, t.c.state.stale, LANE - INSIDE))
+        .child(
+            text("input")
+                .font(TextStyle {
+                    weight: 600.0,
+                    ..t.ty.ui_small
+                })
+                .color(t.c.kind.you),
+        );
     if let Some(at) = at {
         h = h.child(
             text(time::clock(Wall(at)))
