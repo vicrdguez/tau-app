@@ -1,6 +1,8 @@
 //! A float can shrink the viewport while leaving its selected row below the clipped edge.
 //! The same failure applies to which-key, which opens without App::open_float. Conversation
-//! queue and composer must shrink with the page, never remain behind the float.
+//! queue and composer must shrink with the page, never remain behind the float. The answer
+//! readback, which grows with its notes, must not hide the page twice: once by the frame and once
+//! more by a page that also makes room for it.
 //!
 //! A float's own selection can leave its body (`spec.md` §6), at 800 × 600 above all:
 //! - moving down puts the selected row behind the foot, or moving back up puts it under the head;
@@ -594,5 +596,25 @@ fn find_rows_lead_with_their_kind_and_line_up_their_projects() {
             }
         }
         assert!(slot_x.is_some(), "an object row at {size:?}");
+    }
+}
+
+#[test]
+fn the_answer_readback_keeps_the_cursor_above_it_and_hides_no_more_than_itself() {
+    for size in [[1512.0, 700.0], [800.0, 600.0]] {
+        let mut rt = scene("decision-long");
+        rt.update(|a, _| a.window = size);
+        rt.set_viewport((size[0], size[1]), 1.0);
+        advance(&mut rt);
+        rt.update(|a, tx| commands::run_id(a, "auth.answer", tx));
+        advance(&mut rt);
+        advance(&mut rt);
+        above(&rt, "decision-cursor");
+        let page = rect(&rt, "decision-page");
+        let float = rect(&rt, "bottom-float");
+        assert!(
+            page[1] + page[3] >= float[1] - 1.0,
+            "{size:?}: the page reaches the float: {page:?}, {float:?}"
+        );
     }
 }

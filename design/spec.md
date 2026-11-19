@@ -470,7 +470,7 @@ The one authority dialect: two commands, both under `␣a`, both only in the Dec
 
 ```
 ◆ ANSWER   Review the design #2 · render-core                                open · requested 13:55
-  1  approve         │  notes   3 sent with the answer · 2 on passages, 1 on the whole   K reads them
+  1  approve         │  notes   3 sent with the answer · 2 on passages · 1 on the whole   K reads them
 ▌ 2  revise          │  basis   entry 34 · 2,203 characters · shown to the end
   3  abort           │  then    w1.design_answer runs in #3
   j k or 1–3         │  from    this device, laptop
@@ -480,7 +480,7 @@ The one authority dialect: two commands, both under `␣a`, both only in the Dec
 
 - **Left column** (300 px): the choices as 30 px picker rows, `1 approve` (number `mono.small` `fg.alt`, choice `ui`), the pick with the selection (fill, 2 px coral bar, 600), and the hint `j k or 1–3` under them. Up to nine carry their number and `1`–`9` pick; past nine they carry none, and only `j k` move the pick; when they don't fit the float's height the column scrolls.
 - **A 1 px hairline** between the columns.
-- **Right column:** a 72 px steel label column and the values, on 30 px rows: `notes`, `basis`, `then`, `from`, with `K reads them` after the notes' value. Its first row sits on the left column's first baseline.
+- **Right column:** a 72 px steel label column and the values, on 30 px rows: `notes`, `basis`, `then`, `from`, with `K reads them` after the notes' value. Its first row sits on the left column's first baseline. No value is cut with `…`: one that doesn't fit wraps, its row grows, and the rows below move down, the float growing within its cap. When the notes' value doesn't fit its row, it breaks after `3 sent with the answer`, `K reads them` stays at the right of that line, and the scopes (`2 on passages · 1 on the whole`) continue on the line under it, aligned to the values.
 - Its echoes (`read it first`, `pick a choice first`) show in the bottom bar.
 - **Choice:** preselected when the page cursor was on a choice row; otherwise none, and `y` echoes `pick a choice first`. Each pick redraws the float.
 - **Basis line:** how much of the basis this view has drawn: `shown to the end`, or `not shown to the end · 62 % shown`. It informs; it never blocks.

@@ -52,13 +52,19 @@ pub fn page(t: Theme, app: &App) -> El {
     }
 }
 
+/// The stage's width, as laid out last, or as the window gives it before the first layout.
+pub(super) fn stage(t: Theme, app: &App) -> f32 {
+    rune::memo::layout_size("stage")
+        .map(|s| s[0])
+        .unwrap_or_else(|| {
+            let side = app.sidebar_place() == Some(SidebarPlace::Beside);
+            app.window[0] - if side { t.l.sidebar.width } else { 0.0 }
+        })
+}
+
 /// The stage's width left of the details panel.
 fn stage_width(t: Theme, app: &App) -> f32 {
-    let laid = rune::memo::layout_size("stage").map(|s| s[0]);
-    let mut w = laid.unwrap_or_else(|| {
-        let side = app.sidebar_place() == Some(SidebarPlace::Beside);
-        app.window[0] - if side { t.l.sidebar.width } else { 0.0 }
-    });
+    let mut w = stage(t, app);
     if app.details_visible {
         w -= t.l.details.width;
     }
@@ -400,14 +406,7 @@ fn full(t: Theme, app: &App, d: &DecisionRef, v: &DecisionView) -> El {
     if let Some(b) = band(t, app, d, &st, live.as_ref()) {
         page = page.child(b);
     }
-    page = page.child(scroll);
-    if let Some(h) = rune::memo::layout_size("decision-readback").map(|s| s[1])
-        && crate::screens::holder(app) == Some(crate::screens::ScreenId::Decision)
-        && !app.floats.is_empty()
-    {
-        page = page.child(el().h(h + t.l.float.inset_bottom).w_full());
-    }
-    page
+    page.child(scroll)
 }
 
 /// Space above block `k`: the prose's paragraph gap, list items closer, headings further; in

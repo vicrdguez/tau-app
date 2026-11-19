@@ -16,7 +16,9 @@
 //!   decisions; `]n` skips a passage;
 //! - a click on the solid Answer opens nothing, or a click on its outline opens the readback;
 //! - a click on the readback's foot hint, Return or an early `y` after a click-opened readback
-//!   sends; the hint reads as a button or not as the instruction it is.
+//!   sends; the hint reads as a button or not as the instruction it is;
+//! - the readback's grid cuts a value with `…`: the note scope at 800 px above all, or the scope
+//!   moves anywhere but under the count, aligned to the values, with `K reads them` left above.
 
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, LazyLock};
@@ -662,5 +664,114 @@ fn the_foot_hint_reads_as_the_instruction_it_is() {
             .find(|n| n.key == "readback-confirm")
             .expect("the foot hint");
         assert_eq!((hint.role.as_str(), hint.name.as_str()), ("label", name));
+    }
+}
+
+/// The `readback-answer` scene at `width`, with the review's drafts cut to `keep` of them.
+fn readback_with(width: f32, keep: &[usize]) -> rune::Runtime<App> {
+    let mut a = App::default();
+    crate::app::scenes::all()
+        .iter()
+        .find(|(n, _)| *n == "readback-answer")
+        .unwrap()
+        .1(&mut a);
+    let drafts: Vec<super::notes::Draft> =
+        serde_json::from_value(FIXTURE["local"]["noteDrafts"]["render-core/w1:3:design#2"].clone())
+            .unwrap();
+    let kept = keep.iter().map(|&i| drafts[i].clone()).collect();
+    a.screens.decision.notes.seed(&review(), kept);
+    let height = if width < 1000.0 { 600.0 } else { 982.0 };
+    a.window = [width, height];
+    crate::app::testing::window_at(a, [width, height])
+}
+
+/// A text of the readback, drawn whole: as wide as it sets on one line in `ui` (or `ui.small`),
+/// or wrapped onto more.
+fn whole(rt: &rune::Runtime<App>, words: &str) -> rune::ElementInfo {
+    let elements = rt.elements();
+    let float = elements
+        .iter()
+        .find(|e| e.key.as_deref() == Some("decision-readback"))
+        .expect("the readback")
+        .rect;
+    let e = elements
+        .into_iter()
+        .find(|e| e.text.as_deref() == Some(words) && e.rect[1] >= float[1])
+        .unwrap_or_else(|| panic!("{words:?} is not in the readback"));
+    let ty = rt.state.theme().ty;
+    let style = if e.rect[3] < ty.ui.line_height {
+        ty.ui_small
+    } else {
+        ty.ui
+    };
+    let natural = rune::text::measure(words, &[], style, None).0;
+    assert!(
+        e.rect[2] >= natural - 1.0 || e.rect[3] > style.line_height + 1.0,
+        "{words:?} is cut: {:?}, natural width {natural}",
+        e.rect
+    );
+    assert!(
+        e.visible[3] >= e.rect[3] - 1.0,
+        "{words:?} is clipped: {:?} {:?}",
+        e.rect,
+        e.visible
+    );
+    e
+}
+
+#[test]
+fn at_800_the_note_scope_continues_under_the_count_and_is_never_cut() {
+    let rt = readback_with(800.0, &[0, 1, 2]);
+    let count = whole(&rt, "3 sent with the answer");
+    let scopes = whole(&rt, "2 on passages · 1 on the whole");
+    assert!(
+        scopes.rect[1] >= count.rect[1] + count.rect[3] - 1.0,
+        "on the next line"
+    );
+    assert!(
+        (scopes.rect[0] - count.rect[0]).abs() <= 1.0,
+        "aligned to the values"
+    );
+    let k = whole(&rt, "reads them");
+    let mid = |e: &rune::ElementInfo| e.rect[1] + e.rect[3] / 2.0;
+    assert!(
+        (mid(&k) - mid(&count)).abs() <= 2.0,
+        "K stays on the first line"
+    );
+    assert!(k.rect[0] > count.rect[0] + count.rect[2]);
+    let basis = whole(&rt, "basis");
+    assert!(
+        basis.rect[1] >= scopes.rect[1] + scopes.rect[3] - 1.0,
+        "the rows below move down"
+    );
+    whole(&rt, "from");
+}
+
+#[test]
+fn the_notes_row_is_whole_with_one_note_with_none_and_on_a_wide_window() {
+    let rt = readback_with(1512.0, &[0, 1, 2]);
+    whole(
+        &rt,
+        "3 sent with the answer · 2 on passages · 1 on the whole",
+    );
+    for width in [800.0, 1512.0] {
+        let rt = readback_with(width, &[0]);
+        let words: Vec<String> = rt.elements().into_iter().filter_map(|e| e.text).collect();
+        let one = words
+            .iter()
+            .find(|w| w.starts_with("1 sent with the answer"))
+            .unwrap_or_else(|| panic!("{words:?}"))
+            .clone();
+        whole(&rt, &one);
+        if one == "1 sent with the answer" {
+            whole(&rt, "1 on a passage");
+        }
+        let rt = readback_with(width, &[]);
+        whole(&rt, "none");
+        assert!(
+            !rt.elements()
+                .iter()
+                .any(|e| e.text.as_deref() == Some("reads them"))
+        );
     }
 }
