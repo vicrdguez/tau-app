@@ -14,6 +14,9 @@
 //! - builtin keys (`gg`) don't take part in prefix resolution;
 //! - two command bindings live in one mode and context where one is a prefix of the other;
 //! - which-key lists the wrong entries, labels or order, or shows before its delay;
+//! - which-key counts its delay from the sequence's first key, so it flashes up between keys typed
+//!   faster than the delay (`␣tb`), or counts a pause after a count as a pause in the prefix;
+//! - which-key, once up, waits again for the next prefix key;
 //! - a printed chip is lit where its key doesn't run (Insert, under a float, a command that
 //!   doesn't apply);
 //! - `:` names, completions and the palette miss or duplicate commands;
@@ -742,26 +745,47 @@ fn which_key_lists_a_groups_leaves_from_every_view_greying_those_that_cannot_run
 }
 
 #[test]
-fn which_key_waits_its_delay_from_the_first_key_and_stays_for_the_sequence() {
+fn which_key_waits_for_a_pause_and_stays_for_the_sequence() {
     let mut keys = Keys::default();
-    keys.press(km(), Mode::Normal, Ctx::List, Key::char(' '), false, 10.0);
-    assert!(!keys.which_key_due(10.29, 300.0));
-    assert!(keys.which_key_due(10.3, 300.0));
-    keys.press(km(), Mode::Normal, Ctx::List, Key::char('o'), false, 10.5);
+    let mut press = |c: char, at: f64| {
+        keys.press(km(), Mode::Normal, Ctx::List, Key::char(c), false, at);
+        keys.clone()
+    };
+
+    press(' ', 10.0);
+    let t = press('t', 10.2);
+    assert!(!t.which_key_due(10.449, 300.0), "␣t typed without a pause");
+    assert!(!press('b', 10.45).which_key_due(10.75, 300.0));
+
+    let leader = press(' ', 20.0);
+    assert!(!leader.which_key_due(20.299, 300.0));
+    assert!(leader.which_key_due(20.3, 300.0));
+    let o = press('o', 20.4);
     assert!(
-        keys.which_key_due(10.5, 300.0),
+        o.which_key_due(20.4, 300.0),
         "the next prefix key keeps it up"
     );
-    assert_eq!(keys.shown(), "␣o");
-    keys.press(km(), Mode::Normal, Ctx::List, Key::char('h'), false, 10.7);
-    assert!(!keys.which_key_due(20.0, 300.0), "nothing pending");
-    keys.press(km(), Mode::Normal, Ctx::List, Key::char(' '), false, 30.0);
-    keys.press(km(), Mode::Normal, Ctx::List, Key::char('o'), false, 30.1);
+    assert_eq!(o.shown(), "␣o");
     assert!(
-        !keys.which_key_due(30.29, 300.0),
-        "a new sequence waits again"
+        !press('h', 20.5).which_key_due(30.0, 300.0),
+        "nothing pending"
     );
-    assert!(keys.which_key_due(30.3, 300.0));
+
+    press(' ', 30.0);
+    let o = press('o', 30.2);
+    assert!(
+        !o.which_key_due(30.499, 300.0),
+        "a prefix key before it shows starts the wait again"
+    );
+    assert!(o.which_key_due(30.5, 300.0));
+
+    press('2', 40.0);
+    let leader = press(' ', 40.4);
+    assert!(
+        !leader.which_key_due(40.699, 300.0),
+        "a pause after a count is not a pause in a prefix"
+    );
+    assert!(leader.which_key_due(40.7, 300.0));
 }
 
 #[test]

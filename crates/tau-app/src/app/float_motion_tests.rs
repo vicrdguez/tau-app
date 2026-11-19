@@ -1,6 +1,9 @@
 //! How a bottom float's motion can fail (`visual-language.md` §7, `spec.md` §4 and §6):
 //! - which-key draws a table it wasn't showing (the root table, for one frame after `Esc` or a
 //!   finished sequence) because whether it shows outlives the pending keys;
+//! - which-key flashes up mid-sequence when keys come faster than its delay (`␣tb`), because
+//!   the delay counts from the sequence's first key rather than its last;
+//! - which-key shows before its delay after the last prefix key, or a frame late;
 //! - which-key leaves between two keys of one sequence and comes back after a new wait;
 //! - a float appears or leaves in one frame, or fades, instead of its top edge gliding;
 //! - the edge jumps when a key retargets it mid-glide, a frame lacks a float that is due, or
@@ -176,7 +179,61 @@ fn which_key_leaves_with_the_table_it_showed() {
     }
 }
 
-/// `␣`, then `o` 600 ms later: which-key shows on every frame from when it rises, and `o`'s
+/// Types `keys`, each `(key, seconds after the one before)`, then waits `then`, and returns for
+/// each frame from the first key on how long after the last key so far it is, and the float it
+/// draws. A key lands on the frame after the window sends it.
+fn typed(rt: &mut Runtime<App>, keys: &[(char, f64)], then: f64) -> Vec<(f64, Option<Drawn>)> {
+    let mut out = Vec::new();
+    let mut last = rt.state.now;
+    for (i, (c, after)) in keys.iter().enumerate() {
+        while i > 0 && rt.state.now - last < after - FRAME - 1e-6 {
+            rt.frame(FRAME);
+            out.push((rt.state.now - last, drawn(rt)));
+        }
+        key(rt, ch(*c));
+        last = rt.state.now;
+        out.push((0.0, drawn(rt)));
+    }
+    while rt.state.now - last < then - 1e-6 {
+        rt.frame(FRAME);
+        out.push((rt.state.now - last, drawn(rt)));
+    }
+    out
+}
+
+/// `␣tb` on Home with every key under 300 ms after the one before: which-key is drawn on no frame.
+#[test]
+fn which_key_never_shows_while_the_keys_come_faster_than_its_delay() {
+    let mut rt = window("home", (1512.0, 982.0));
+    let frames = typed(&mut rt, &[(' ', 0.0), ('t', 0.2), ('b', 0.25)], 0.5);
+    for (at, d) in frames {
+        assert!(d.is_none(), "which-key drawn {at:.3} s after a key");
+    }
+}
+
+/// `␣`, or `␣` then `o` 200 ms later, then nothing: which-key shows from the first frame 300 ms
+/// after the last key, with that key's table.
+#[test]
+fn which_key_shows_its_delay_after_the_last_key() {
+    for (keys, entry) in [
+        (vec![(' ', 0.0)], "leader"),
+        (vec![(' ', 0.0), ('o', 0.2)], "home"),
+    ] {
+        let mut rt = window("conversation-streaming", (1512.0, 982.0));
+        let frames = typed(&mut rt, &keys, 0.4);
+        for (at, d) in &frames {
+            assert_eq!(
+                d.is_some(),
+                *at >= 0.3 - 1e-6,
+                "{keys:?}: {at:.3} s after the last key"
+            );
+        }
+        let words = frames.last().unwrap().1.as_ref().unwrap().words.clone();
+        assert!(words.iter().any(|w| w == entry), "{keys:?}: {words:?}");
+    }
+}
+
+/// `␣`, then `o` 400 ms later: which-key shows on every frame from when it rises, and `o`'s
 /// table from the frame of the `o` key, with no new wait.
 #[test]
 fn which_key_stays_up_for_the_whole_sequence() {
@@ -184,7 +241,7 @@ fn which_key_stays_up_for_the_whole_sequence() {
     key(&mut rt, ch(' '));
     let pressed = rt.state.now;
     let root = until_drawn(&mut rt);
-    while rt.state.now - pressed < 0.6 {
+    while rt.state.now - pressed < 0.4 - FRAME - 1e-6 {
         rt.frame(FRAME);
         assert!(drawn(&rt).is_some(), "which-key left before the next key");
     }
