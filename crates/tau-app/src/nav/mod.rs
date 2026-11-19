@@ -146,7 +146,7 @@ fn row(app: &App, spot: &Spot) -> SheetRow {
         }
     };
     SheetRow {
-        keys: String::new(),
+        keys: Vec::new(),
         text,
         meta,
     }

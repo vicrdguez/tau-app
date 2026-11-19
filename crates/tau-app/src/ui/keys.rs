@@ -5,7 +5,7 @@
 use rune::{El, TextStyle, Tx, icon, row, text};
 
 use crate::assets::marks;
-use crate::keys::{Chip, Ctx, Keymap, Mode};
+use crate::keys::{Chip, Ctx, Key, Keymap, Mode, display};
 use crate::theme::Theme;
 
 /// Where the keys are: the mode and context of the region that has them. A printed key is lit
@@ -55,6 +55,17 @@ pub fn glyphs(printed: &str, style: TextStyle, color: rune::Color) -> El {
         }
     }
     flush(out, &mut run).role("text").a11y_value(printed)
+}
+
+/// Sequences from the keymap as this device types them, printed one after another (`␣; ⌘K`) and
+/// read in words (`Space Semicolon or Command-K`). Every float that lists keys draws them here.
+pub fn printed_keys(seqs: &[&[Key]], style: TextStyle, color: rune::Color) -> El {
+    let printed: Vec<String> = seqs.iter().map(|s| display(s)).collect();
+    let said: Vec<String> = seqs.iter().map(|s| crate::keys::spoken(s)).collect();
+    let said = said.join(" or ");
+    glyphs(&printed.join(" "), style, color)
+        .label(said.clone())
+        .a11y_value(said)
 }
 
 /// A key read in words where it is printed: `Space c n`, `Command-Return`.

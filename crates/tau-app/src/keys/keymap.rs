@@ -368,8 +368,8 @@ impl Keymap {
         self.commands().iter().filter(|c| c.has_ex())
     }
 
-    /// The printed forms of a command's keys in `mode`, deduplicated (`␣;`, `⌘K`).
-    pub fn keys_of(&self, command: &Command, mode: Mode) -> Vec<String> {
+    /// A command's keys in `mode`, as this device types them, deduplicated.
+    pub fn keys_of(&self, command: &Command, mode: Mode) -> Vec<&'static [Key]> {
         let Some(c) = self
             .commands()
             .iter()
@@ -377,14 +377,13 @@ impl Keymap {
         else {
             return Vec::new();
         };
-        let mut out: Vec<String> = Vec::new();
+        let mut out: Vec<&'static [Key]> = Vec::new();
         for b in self
             .bindings()
             .filter(|b| b.mode == mode && b.target == Target::Command(c))
         {
-            let shown = display(b.seq);
-            if !out.contains(&shown) {
-                out.push(shown);
+            if !out.contains(&b.seq) {
+                out.push(b.seq);
             }
         }
         out

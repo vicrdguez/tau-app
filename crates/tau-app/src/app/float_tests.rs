@@ -673,3 +673,35 @@ fn the_answer_readback_keeps_the_cursor_above_it_and_hides_no_more_than_itself()
         );
     }
 }
+
+/// How a float's printed keys could fail a screen reader (`spec.md` §4.6): which-key, the
+/// Settings key cells, the keys sheet or the palette's key column name a key by its glyphs (`␣;`,
+/// `⌘K`, `.`) instead of in words, or name it nowhere. The bottom bar's keys typed so far are
+/// not the keymap's and are left out.
+#[test]
+fn every_key_a_float_prints_is_named_in_words() {
+    for (scene, said) in [
+        ("which-key-root", "Period"),
+        ("palette", "Space Semicolon"),
+        ("palette", "Command-K"),
+        ("settings", "Space Semicolon"),
+        ("keys-sheet", "Space Semicolon or Command-K"),
+    ] {
+        let rt = scene_at(scene, (1512.0, 982.0));
+        let bar = 982.0 - f64::from(crate::theme::tokens().layout.height.bottombar);
+        let nodes: Vec<_> = crate::app::testing::spoken(&rt)
+            .into_iter()
+            .filter(|n| n.bounds[1] < bar)
+            .collect();
+        assert!(
+            nodes.iter().any(|n| n.name == said),
+            "{scene}: no key named {said:?}"
+        );
+        let glyphs: Vec<&str> = nodes
+            .iter()
+            .map(|n| n.name.as_str())
+            .filter(|n| n.contains(['␣', '⏎', '⌘', '⌥']) || *n == "." || *n == ";")
+            .collect();
+        assert!(glyphs.is_empty(), "{scene}: named by glyphs {glyphs:?}");
+    }
+}

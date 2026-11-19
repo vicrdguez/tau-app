@@ -22,7 +22,9 @@ use crate::keys::{Command, Ctx, Key, Keymap, Mode};
 use crate::screens::ScreenFloat;
 use crate::settings::Settings;
 use crate::theme::Theme;
-use crate::ui::{Badge, Scope, Shell, float_hint, float_hint_if, float_row, glyphs, shell, title};
+use crate::ui::{
+    Badge, Scope, Shell, float_hint, float_hint_if, float_row, printed_keys, shell, title,
+};
 
 /// What a picker lists.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -354,7 +356,7 @@ pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String], settings: &Settin
                 let fg = if here { t.c.fg.default } else { t.c.fg.muted };
                 let mut keys = row().center_y().gap(8.0).w(120.0);
                 for k in t.keymap.keys_of(c, Mode::Normal) {
-                    keys = keys.child(glyphs(&k, t.ty.mono_small, t.c.fg.muted));
+                    keys = keys.child(printed_keys(&[k], t.ty.mono_small, t.c.fg.muted));
                 }
                 let content = row()
                     .center_y()

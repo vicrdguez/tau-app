@@ -17,8 +17,8 @@ use crate::keys::{Code, Ctx, Key, KeyRow, Keymap, Mode, Refusal, display, writte
 use crate::settings::{self, Edit, FILE, Field, Settings};
 use crate::theme::Theme;
 use crate::ui::{
-    FLOAT_CURSOR, Scope, Shell, float_hint, float_hint_if, float_row, glyphs, group_head, shell,
-    title,
+    FLOAT_CURSOR, Scope, Shell, float_hint, float_hint_if, float_row, glyphs, group_head,
+    printed_keys, shell, title,
 };
 
 /// A new key is at most this many keys long.
@@ -361,8 +361,8 @@ pub fn view(t: Theme, f: &SettingsFloat, s: &Settings) -> El {
                     Some(typed) if typed.is_empty() => {
                         text("press a key…").font(t.ty.ui_small).color(t.c.fg.muted)
                     }
-                    Some(typed) => glyphs(&display(typed), t.ty.mono_small, t.c.fg.default),
-                    None => glyphs(&display(&k.now), t.ty.mono_small, t.c.fg.muted),
+                    Some(typed) => printed_keys(&[typed], t.ty.mono_small, t.c.fg.default),
+                    None => printed_keys(&[&k.now], t.ty.mono_small, t.c.fg.muted),
                 };
                 let ex = if k.command.has_ex() {
                     format!(":{}", k.command.ex)

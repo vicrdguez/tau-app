@@ -957,7 +957,10 @@ fn the_palette_lists_every_named_command_once_with_its_keys() {
     assert!(ids.contains(&"palette") && ids.contains(&"app.quit") && !ids.contains(&"picker.keys"));
     let palette = km.command("palette").expect("palette");
     assert_eq!(
-        km.keys_of(palette, Mode::Normal),
+        km.keys_of(palette, Mode::Normal)
+            .into_iter()
+            .map(display)
+            .collect::<Vec<_>>(),
         vec!["␣;".to_string(), "⌘K".to_string()]
     );
     let quit = km.command("app.quit").expect("quit");

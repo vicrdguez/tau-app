@@ -118,11 +118,13 @@ pub fn view(
         );
     }
     let mut hints = Vec::new();
-    hints.push(if rows.get(cursor).is_some_and(|r| r.opens) {
-        ui::float_hint(t, scope, &["<CR>"], "open")
-    } else {
-        muted_hint(t, scope, "<CR>", "open")
-    });
+    hints.push(ui::float_hint_if(
+        t,
+        scope,
+        &["<CR>"],
+        "open",
+        rows.get(cursor).is_some_and(|r| r.opens),
+    ));
     if retry {
         hints.push(ui::float_hint(t, scope, &["<leader>rt"], "retry"));
     }
@@ -140,25 +142,4 @@ pub fn view(
             hints,
         },
     )
-}
-
-/// A float hint whose key resolves but does nothing on this row, so it draws muted
-/// (`spec.md` §4.6).
-fn muted_hint(t: Theme, scope: Scope, seq: &str, word: &str) -> El {
-    let key = t.keymap.chip(seq, scope.mode, scope.ctx);
-    row()
-        .center_y()
-        .child(
-            ui::glyphs(&key.printed, t.ty.key, t.c.fg.muted)
-                .h(18.0)
-                .px(5.0)
-                .radius(t.l.radius.pill)
-                .fill(t.c.surface.cursor_side),
-        )
-        .child(
-            text(word.to_string())
-                .font(t.ty.ui_small)
-                .color(t.c.fg.muted)
-                .ml(3.0),
-        )
 }
