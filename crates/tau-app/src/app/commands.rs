@@ -238,6 +238,24 @@ pub fn run_id(a: &mut App, id: &str, tx: &mut Tx) {
     }
 }
 
+/// A press on a printed key (`seq` as keymap.toml writes it): runs what that key runs where the
+/// keys are, and nothing while its chip is muted (`spec.md` §4.6).
+pub fn press_key(a: &mut App, seq: &str, tx: &mut Tx) {
+    let scope = a.scope();
+    if let Some(command) = a.settings.keymap.runs(seq, scope.mode, scope.ctx) {
+        run(
+            a,
+            &Invocation {
+                command,
+                count: None,
+                applies: true,
+                keys: Vec::new(),
+            },
+            tx,
+        );
+    }
+}
+
 /// `]g [g` in the sidebar: the next or previous section.
 fn group_next(a: &mut App, inv: &Invocation, _: &mut Tx) {
     if a.focus != Focus::Sidebar {

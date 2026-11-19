@@ -159,7 +159,7 @@ With the sidebar hidden, the stage and its header start at x 0; the window contr
 - Decision: open `◆ ␣ad Answer`: solid coral (`radius.pill`, 26 px tall, text knocked out in `surface.read`) only when `␣ad` would open the readback (§4.6); otherwise a muted outline (`border.hairline`, `fg.muted` text and chip). `␣ar send again` (quiet) when it is live (§5.7).
 - Every other page: none.
 
-A disabled segment reads `<verb> · off` with a dashed `border.hairline` edge and no chip; a write segment is also off while the view's stream is down (§4.9). A segment that is on but whose key doesn't resolve where the keys are is muted (§4.6).
+A click on a segment does what its key does, only while the segment is lit, and on the coral Answer only while it is solid; that click opens the readback and never sends (§5.7). A disabled segment reads `<verb> · off` with a dashed `border.hairline` edge and no chip; a write segment is also off while the view's stream is down (§4.9). A segment that is on but whose key doesn't resolve where the keys are is muted (§4.6).
 
 ### 4.3 The bottom bar
 
@@ -475,7 +475,7 @@ The one authority dialect: two commands, both under `␣a`, both only in the Dec
   3  abort           │  then    w1.design_answer runs in #3
   j k or 1–3         │  from    this device, laptop
 ─────────────────────────────────────────────────────────────────────────────────────────────────────
-                                                                              y confirm   n Esc q cancel
+                                                                     y send this answer   n Esc q cancel
 ```
 
 - **Left column** (300 px): the choices as 30 px picker rows, `1 approve` (number `mono.small` `fg.alt`, choice `ui`), the pick with the selection (fill, 2 px coral bar, 600), and the hint `j k or 1–3` under them. Up to nine carry their number and `1`–`9` pick; past nine they carry none, and only `j k` move the pick; when they don't fit the float's height the column scrolls.
@@ -484,7 +484,7 @@ The one authority dialect: two commands, both under `␣a`, both only in the Dec
 - Its echoes (`read it first`, `pick a choice first`) show in the bottom bar.
 - **Choice:** preselected when the page cursor was on a choice row; otherwise none, and `y` echoes `pick a choice first`. Each pick redraws the float.
 - **Basis line:** how much of the basis this view has drawn: `shown to the end`, or `not shown to the end · 62 % shown`. It informs; it never blocks.
-- **`y` counts only after the readback has been on screen for 400 ms** (`tokens.json` `tau.client_ms.readback_arm`), and confirms what the float last drew. An earlier `y` is discarded and echoes `read it first`. A burst such as `␣ad2y` at typing speed therefore never sends. Auto-repeat and `⏎` never confirm; a click on `y` echoes `press y to confirm`.
+- **`y` counts only after the readback has been on screen for 400 ms** (`tokens.json` `tau.client_ms.readback_arm`), and confirms what the float last drew. An earlier `y` is discarded and echoes `read it first`. A burst such as `␣ad2y` at typing speed therefore never sends. Auto-repeat, `⏎` and a click never confirm. The foot hint `y send this answer` (`y send it again` in send-again) is an instruction, read as `Press Y to send this answer` and never as a button; a click on it echoes `press y to send this answer`.
 - **A host event can only turn `y` off:** if the inbox says the request is no longer open, the float becomes the not-open reply.
 - **On `y`:** `sending…`, then `answer {project, decision, basis, choice, annotations}` with the drafts in order:
 
@@ -506,7 +506,7 @@ its work   w1.design_answer faulted · git rev-parse main failed: fatal: Unable 
 sends      the same answer: approve, 0 notes, basis entry 17
 then       a new w1.design_answer starts in #6
 from       this device, laptop
-                                                                              y confirm   n Esc q cancel
+                                                                        y send it again   n Esc q cancel
 ```
 
 - **The `then` task ended `faulted`:** `y` sends `answer` with the record's own `basis`, `choice` and `annotations`. Expected: `repeated: true` and a new `continuation`; echo `Sent again · w1.design_answer runs again in #6`; the old fault is hidden on this device.

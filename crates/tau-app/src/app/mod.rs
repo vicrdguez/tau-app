@@ -326,6 +326,7 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
                 scope,
             },
             |a: &mut App, tx| commands::run_id(a, "toggle.sidebar", tx),
+            commands::press_key,
         )
     } else {
         rune::el().fill(t.c.surface.read)

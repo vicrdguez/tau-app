@@ -8,24 +8,17 @@ use crate::{
 };
 use rune::{El, col, icon, row, text, text_input};
 
-/// One of the page's controls (`spec.md` §5.2): `seq` printed in it, and a press that runs
-/// `command` as that key does, while the key is lit. Keyed by the command (`start-project`).
-fn control(
-    t: Theme,
-    scope: ui::Scope,
-    seq: &str,
-    command: &'static str,
-    name: String,
-    body: El,
-) -> El {
+/// One of the page's controls (`spec.md` §5.2): `seq` printed in it, and a press that does what
+/// that key does, while it is lit.
+fn control(t: Theme, scope: ui::Scope, seq: &'static str, id: &str, name: &str, body: El) -> El {
     let key = t.keymap.chip(seq, scope.mode, scope.ctx);
     ui::control(
         body,
-        ui::with_keys(&name, &[&key]),
+        ui::with_keys(name, &[&key]),
         key.lit,
-        move |a: &mut App, tx| crate::app::commands::run_id(a, command, tx),
+        move |a: &mut App, tx| crate::app::commands::press_key(a, seq, tx),
     )
-    .key(command.replace('.', "-"))
+    .key(id)
 }
 
 pub(super) fn view(t: Theme, a: &App) -> El {
@@ -71,14 +64,11 @@ pub(super) fn view(t: Theme, a: &App) -> El {
             .gap(6.0)
             .child(ui::hint(t, scope, "<D-CR>"))
             .child(text(word).font(t.ty.ui_small).color(t.c.fg.muted));
-        let mut r = row().center_y().gap(6.0).child(control(
-            t,
-            scope,
-            "<D-CR>",
-            "start.send",
-            word.to_string(),
-            hint,
-        ));
+        let mut r =
+            row()
+                .center_y()
+                .gap(6.0)
+                .child(control(t, scope, "<D-CR>", "start-send", word, hint));
         if super::editor_mode(&s.editor) == crate::keys::Mode::Normal {
             r = r.child(text("· i writes").font(t.ty.hint).color(t.c.fg.muted));
         }
@@ -104,12 +94,12 @@ pub(super) fn view(t: Theme, a: &App) -> El {
         .child(input)
         .child(row().child(rune::spacer()).child(footer));
     let part = || row().center_y().gap(8.0);
-    let project = |name: String, body: El| {
+    let project = |name: &str, body: El| {
         control(
             t,
             scope,
             "<M-p>",
-            "start.project",
+            "start-project",
             name,
             body.child(ui::hint(t, scope, "<M-p>")),
         )
@@ -125,7 +115,7 @@ pub(super) fn view(t: Theme, a: &App) -> El {
         }
         Blocker::ChooseProject => {
             startline = startline.child(project(
-                "Choose a project".into(),
+                "Choose a project",
                 part().child(
                     text("choose a project")
                         .font(t.ty.ui_small)
@@ -137,7 +127,7 @@ pub(super) fn view(t: Theme, a: &App) -> El {
             let p = s.project.as_deref().unwrap_or("");
             startline = startline
                 .child(project(
-                    format!("Project: {p}"),
+                    &format!("Project: {p}"),
                     part()
                         .child(icon(&carbon::FOLDER, 13.0).color(t.c.fg.muted))
                         .child(line(t, p, t.ty.ui_small, t.c.kind.worker)),
@@ -184,8 +174,8 @@ pub(super) fn view(t: Theme, a: &App) -> El {
                 t,
                 scope,
                 "<M-w>",
-                "start.workflow",
-                name,
+                "start-workflow",
+                &name,
                 workflow.child(ui::hint(t, scope, "<M-w>")),
             ));
         }

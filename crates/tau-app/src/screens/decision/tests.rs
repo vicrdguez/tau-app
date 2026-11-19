@@ -13,7 +13,10 @@
 //! - `␣mn`, Visual and `c` put a note on another range than the reader chose, or a selection
 //!   across markup stays exact without saying so (FA7);
 //! - `dd` and `u` lose a draft for good; drafts don't survive a relaunch, or leak between
-//!   decisions; `]n` skips a passage.
+//!   decisions; `]n` skips a passage;
+//! - a click on the solid Answer opens nothing, or a click on its outline opens the readback;
+//! - a click on the readback's foot hint, Return or an early `y` after a click-opened readback
+//!   sends; the hint reads as a button or not as the instruction it is.
 
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, LazyLock};
@@ -27,7 +30,7 @@ use tau_client::{DecisionRef, OutboxEntry, WriteCall};
 use super::readback::{Kind, Phase, Readback};
 use super::state::Cursor;
 use super::*;
-use crate::app::testing::{Wire, paired};
+use crate::app::testing::{Wire, click, paired, spoken, window};
 use crate::app::{input, link};
 use crate::frame::SegmentKind;
 use crate::keys::parse_seq;
@@ -550,4 +553,114 @@ fn the_cursor_moves_by_block_into_the_choices() {
         Some(1),
         "preselected from the cursor"
     );
+}
+
+fn clicked_answer() -> (rune::Runtime<App>, crate::app::testing::Setup) {
+    let T { app, _setup, .. } = review_with_drafts();
+    let mut rt = window(app);
+    click(&mut rt, "segment-answer");
+    (rt, _setup)
+}
+
+fn tick(rt: &mut rune::Runtime<App>, seconds: f64) {
+    rt.state.now = seconds;
+    crate::app::poll(&mut rt.state, seconds, &mut Tx::default());
+    rt.frame(0.02);
+}
+
+fn press(rt: &mut rune::Runtime<App>, seq: &str) {
+    for key in parse_seq(seq).unwrap() {
+        input::press(&mut rt.state, key, false, &mut Tx::default());
+    }
+    rt.frame(0.02);
+}
+
+fn sent(a: &App) -> usize {
+    a.link
+        .outbox()
+        .entries()
+        .iter()
+        .filter(|e| e.call == WriteCall::Answer)
+        .count()
+}
+
+#[test]
+fn a_click_on_the_solid_answer_opens_the_readback_and_esc_keeps_the_drafts() {
+    let (mut rt, _setup) = clicked_answer();
+    assert!(
+        top_float::<Readback>(&mut rt.state).is_some(),
+        "the click opens it"
+    );
+    assert_eq!(sent(&rt.state), 0, "a click only opens");
+    press(&mut rt, "<Esc>");
+    assert!(top_float::<Readback>(&mut rt.state).is_none());
+    assert_eq!(rt.state.screens.decision.notes.of(&review()).len(), 3);
+}
+
+#[test]
+fn the_answer_outline_takes_no_click() {
+    let T {
+        mut app, _setup, ..
+    } = review_with_drafts();
+    app.focus = crate::app::Focus::Sidebar;
+    app.sidebar_cursor = app.current_row();
+    let mut rt = window(app);
+    click(&mut rt, "segment-answer");
+    assert!(top_float::<Readback>(&mut rt.state).is_none());
+}
+
+#[test]
+fn after_a_click_neither_the_foot_hint_return_nor_an_early_y_sends() {
+    let (mut rt, _setup) = clicked_answer();
+    tick(&mut rt, 10.0);
+    press(&mut rt, "y");
+    assert_eq!(rt.state.echo.as_deref(), Some("read it first"));
+    press(&mut rt, "2");
+    tick(&mut rt, 10.5);
+    tick(&mut rt, 10.6);
+    press(&mut rt, "<CR>");
+    click(&mut rt, "readback-confirm");
+    assert_eq!(sent(&rt.state), 0);
+    assert_eq!(
+        rt.state.echo.as_deref(),
+        Some("press y to send this answer")
+    );
+    assert!(top_float::<Readback>(&mut rt.state).is_some());
+    press(&mut rt, "y");
+    assert_eq!(sent(&rt.state), 1, "y itself still sends");
+}
+
+#[test]
+fn the_foot_hint_reads_as_the_instruction_it_is() {
+    for (scene, words, name) in [
+        (
+            "readback-answer",
+            "send this answer",
+            "Press Y to send this answer",
+        ),
+        (
+            "readback-send-again",
+            "send it again",
+            "Press Y to send it again",
+        ),
+    ] {
+        let mut a = App::default();
+        crate::app::scenes::all()
+            .iter()
+            .find(|(n, _)| *n == scene)
+            .unwrap()
+            .1(&mut a);
+        let rt = window(a);
+        assert!(
+            rt.elements()
+                .iter()
+                .any(|e| e.text.as_deref() == Some(words)),
+            "{scene}"
+        );
+        let hint = spoken(&rt)
+            .into_iter()
+            .find(|n| n.key == "readback-confirm")
+            .expect("the foot hint");
+        assert_eq!((hint.role.as_str(), hint.name.as_str()), ("label", name));
+    }
 }

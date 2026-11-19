@@ -11,7 +11,7 @@ use crate::assets::marks;
 use crate::screens::ScreenFloat;
 use crate::theme::Theme;
 use crate::time;
-use crate::ui::{Shell, float_hint, float_row, kv_row, shell};
+use crate::ui::{Shell, float_hint, float_row, kv_row, named, shell};
 
 /// The head's title: `Review the design #2 · render-core`.
 fn title(t: Theme, title: &str, d: &DecisionRef) -> El {
@@ -144,13 +144,24 @@ pub(super) fn view(t: Theme, app: &App, f: &Readback) -> El {
         );
     }
     let sending = matches!(f.phase, Phase::Sending(_));
-    let confirm_hints = |word: &'static str| {
-        let y = hint(&["y"], "confirm").on_press(|a: &mut App| a.say("press y to confirm"));
+    // `y` reads as the instruction it is, never as a button: a click only says it again.
+    let confirm_hints = |what: &'static str| {
         if sending {
-            vec![text(word).font(t.ty.ui_small).color(t.c.fg.muted)]
-        } else {
-            vec![y, hint(&["n", "<Esc>", "q"], "cancel")]
+            return vec![text("sending…").font(t.ty.ui_small).color(t.c.fg.muted)];
         }
+        let y = app.settings.keymap.chip("y", scope.mode, scope.ctx);
+        let mut spoken = y.spoken.chars();
+        let name: String = spoken
+            .next()
+            .into_iter()
+            .flat_map(char::to_uppercase)
+            .chain(spoken)
+            .collect();
+        let echo = format!("press {} to {what}", y.printed);
+        let confirm = named(hint(&["y"], what), format!("Press {name} to {what}"))
+            .key("readback-confirm")
+            .on_background_press(move |a: &mut App| a.say(echo.clone()));
+        vec![confirm, hint(&["n", "<Esc>", "q"], "cancel")]
     };
     match &f.kind {
         Kind::Answer => {
@@ -275,7 +286,7 @@ pub(super) fn view(t: Theme, app: &App, f: &Readback) -> El {
                 tag(t, "ANSWER", true),
                 Some(open_meta),
                 body,
-                confirm_hints("sending…"),
+                confirm_hints("send this answer"),
             )
         }
         Kind::AgainAfterFault(_) | Kind::AgainUnknown(_) => {
@@ -374,7 +385,7 @@ pub(super) fn view(t: Theme, app: &App, f: &Readback) -> El {
                 tag(t, "SEND AGAIN", true),
                 Some(meta),
                 body,
-                confirm_hints("sending…"),
+                confirm_hints("send it again"),
             )
         }
     }

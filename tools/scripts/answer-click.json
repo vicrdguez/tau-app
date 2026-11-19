@@ -1,0 +1,7 @@
+{
+  "events": [
+    { "t": 0.2, "type": "tap", "key": "segment-answer" },
+    { "t": 0.4, "type": "tap", "key": "readback-confirm" },
+    { "t": 0.8, "type": "key", "name": "Escape" }
+  ]
+}

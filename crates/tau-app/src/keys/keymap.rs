@@ -447,6 +447,28 @@ impl Keymap {
                 lit: false,
             };
         };
+        let (typed, runs) = self.printed(&design, mode, ctx);
+        Chip {
+            printed: display(typed),
+            spoken: spoken(typed),
+            lit: runs.is_some(),
+        }
+    }
+
+    /// What a press on the printed key `seq` runs: the command its key runs where the keys are,
+    /// while its chip is lit.
+    pub fn runs(&self, seq: &str, mode: Mode, ctx: Ctx) -> Option<&'static Command> {
+        let design = parse_seq(seq).ok()?;
+        self.printed(&design, mode, ctx).1
+    }
+
+    /// The keys this device types for the design's `design`, and the command they run here.
+    fn printed<'a>(
+        &self,
+        design: &'a [Key],
+        mode: Mode,
+        ctx: Ctx,
+    ) -> (&'a [Key], Option<&'static Command>) {
         let b = &self.design.bindings;
         let live = self.active(mode, ctx);
         let rank = self.rank(ctx);
@@ -455,7 +477,7 @@ impl Keymap {
             .copied()
             .filter(|&i| b[i].seq == design)
             .min_by_key(|&i| rank(i));
-        let typed = match here {
+        let typed: &'a [Key] = match here {
             Some(i) => self.seq(i),
             None => {
                 let mut all = (0..b.len())
@@ -463,20 +485,18 @@ impl Keymap {
                     .map(|i| self.seq(i));
                 match all.next() {
                     Some(first) if all.all(|s| s == first) => first,
-                    _ => &design,
+                    _ => design,
                 }
             }
         };
         let look = self.lookup_in(&live, ctx, typed);
-        let lit = match look.exact {
-            Some(Target::Command(i)) if !look.longer => self.applies(&self.commands()[i], ctx),
-            _ => false,
+        let runs = match look.exact {
+            Some(Target::Command(i)) if !look.longer => {
+                Some(&self.commands()[i]).filter(|c| self.applies(c, ctx))
+            }
+            _ => None,
         };
-        Chip {
-            printed: display(typed),
-            spoken: spoken(typed),
-            lit,
-        }
+        (typed, runs)
     }
 
     /// The which-key float for a pending prefix, or `None` when it isn't a proper prefix.
