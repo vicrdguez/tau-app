@@ -206,3 +206,36 @@ fn overflow_lines_start_on_the_text_column_above_them() {
         "more line {more_x}, failed label {run_x}"
     );
 }
+
+/// A Needs you head's age could float between columns: ending where its 84 px slot ends rather
+/// than its text, or moving with the `⏎` chip, so the cursor's row and the others disagree.
+#[test]
+fn a_needs_you_age_ends_ten_px_before_the_chip_slot_on_every_row() {
+    for w in [1512.0, 1300.0, 800.0] {
+        let rt = scene("home", w, 982.0);
+        let els = rt.elements();
+        let needs: Vec<_> = rows(&rt.state)
+            .into_iter()
+            .filter(|r| r.group == "Needs you")
+            .collect();
+        assert!(needs.len() > 1, "a row with the chip and one without");
+        let chip = needs
+            .iter()
+            .flat_map(|r| row_texts(&els, &r.id))
+            .find(|e| e.label.as_deref() == Some("Return"))
+            .expect("the cursor's row draws its chip")
+            .rect;
+        for r in &needs {
+            let age = crate::time::span(crate::time::between(Wall(r.at.unwrap()), now(&rt.state)));
+            let texts = row_texts(&els, &r.id);
+            let e = find(&texts, &age).rect;
+            assert!(e[2] < 84.0, "{w}: {age} has its own width: {e:?}");
+            assert!(
+                (chip[0] - (e[0] + e[2]) - 10.0).abs() <= 0.5,
+                "{w}: {age} ends at {}, the chip slot starts at {}",
+                e[0] + e[2],
+                chip[0]
+            );
+        }
+    }
+}

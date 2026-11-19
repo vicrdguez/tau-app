@@ -219,21 +219,25 @@ pub fn row_view(t: Theme, app: &App, r: &ListRow, selected: bool, grid: &Grid) -
                     t.c.kind.literal
                 }))
                 .child(rune::spacer())
-                .child(small(
-                    t,
-                    &r.at
-                        .map(|at| {
-                            crate::time::span(crate::time::between(Wall(at), super::now(app)))
-                        })
-                        .unwrap_or_default(),
-                    if solid { fg } else { t.c.fg.alt },
-                    84.0,
-                ))
-                .child(if solid {
-                    ui::chip(t, app.scope(), "<CR>", false)
-                } else {
-                    el()
-                });
+                .child(
+                    row().w(84.0).min_w(84.0).justify_end().child(content::line(
+                        t,
+                        &r.at
+                            .map(|at| {
+                                crate::time::span(crate::time::between(Wall(at), super::now(app)))
+                            })
+                            .unwrap_or_default(),
+                        t.ty.mono_small,
+                        if solid { fg } else { t.c.fg.alt },
+                    )),
+                );
+            // Every head keeps the chip's width, drawn or not, so the ages line up.
+            let chip = ui::chip(t, app.scope(), "<CR>", false);
+            let head = head.child(if solid {
+                chip
+            } else {
+                chip.opacity(0.0).a11y_hidden()
+            });
             let head = if solid {
                 head.fill(t.c.state.attn)
             } else {
