@@ -244,9 +244,9 @@ Each screen: the question it answers, what it shows, the calls and streams behin
 - Field **Server**, prefilled `http://127.0.0.1:6283`. Field **Pairing code**, `XXXX-XXXX`. Both are text fields (`reference/visual-language.md` §1.1).
 - One paragraph (`prose`, `fg.alt`): "On the server's machine, run `tau device pair <name>`, with a new name for this device such as `laptop`; a name is never used twice. It prints a code that works once, for 10 minutes. The token it gives this device is kept in the macOS Keychain."
 - The form's footer segment `⏎ connect` (neutral; a form footer prints its own keys, as a composer's does).
-- **Plain HTTP to another machine:** an `http://` URL whose host is not `127.0.0.1`, `localhost` or `[::1]` shows the warning of `client.md` §7 under the field. `⏎` then opens the Confirm float, `Pair over plain HTTP? Anyone on the network path can read this device's token.`, hints `y pairs · n cancels`; `y` there pairs. The form never prints `y`, so a `y` typed in a field is a letter.
+- **Plain HTTP to another machine:** an `http://` URL whose host is not `127.0.0.1`, `localhost` or `[::1]` shows the warning of `client.md` §7 under the field. `⏎` then opens the Confirm float, `Pair over plain HTTP? Anyone on the network path can read this device's token.`, hints `y pairs · n cancels`; `y` there pairs. The form never prints `y`, so a `y` typed in a field is a letter. `n` or `Esc` there gives the caret back to the field that had it, in Insert, with both values kept.
 - **Calls:** `pair {code}`; then `POST /v1/` (expects `unknown_call` and `Tau-Protocol: 1`); then `projects`; then Home, with the sidebar.
-- **States** (copy in `client.md` §6–§7): wrong or expired code; Host not allowed; no server at the URL; a lost `pair` reply; another protocol.
+- **States** (copy in `client.md` §6–§7): wrong or expired code; Host not allowed; no server at the URL; a lost `pair` reply; another protocol. An error about the address (no server, Host not allowed, another protocol) shows while Server holds the address that was tried, one about the code while Pairing code holds the code that was tried; a lost reply stays until the next attempt.
 - **Keys:** Insert on open; `Tab` / `S-Tab` between fields; `⏎` connects.
 
 ### 5.2 The start page (`␣cn`)

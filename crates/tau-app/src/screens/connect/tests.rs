@@ -9,7 +9,11 @@
 //! - a paired link stays on Connect instead of going Home with the sidebar;
 //! - a wrong code, no server at the URL, a lost reply each show other words than the copy's, or
 //!   lose what was typed;
-//! - `:forget-server` forgets without a confirm, or leaves the stage off Connect, or drops the URL.
+//! - `:forget-server` forgets without a confirm, or leaves the stage off Connect, or drops the URL;
+//! - cancelling the Confirm float leaves no field with the native focus, or gives it to the other
+//!   field, or leaves Normal, or loses a value, so the next key types nowhere;
+//! - an error about the server address stays after Server changes, or one about the code after
+//!   the code changes, or either goes while its field is unchanged.
 
 use rune::{KeyEvent, Tx};
 use tau_client::LinkPhase;
@@ -69,7 +73,7 @@ fn an_unpaired_link_opens_connect_in_insert_on_the_server_field() {
     assert_eq!(a.stage, Stage::Connect);
     assert!(!page(&a).framed(), "no sidebar, toggle or breadcrumb");
     assert_eq!(a.badge(), Badge::Insert);
-    assert_eq!(a.screens.connect.field, Field::Server);
+    assert_eq!(a.screens.connect.field(), Field::Server);
     assert_eq!(a.screens.connect.server.text(), "http://127.0.0.1:6283");
 }
 
@@ -77,9 +81,9 @@ fn an_unpaired_link_opens_connect_in_insert_on_the_server_field() {
 fn tab_and_shift_tab_move_between_the_fields() {
     let (mut a, _) = unpaired();
     keys(&mut a, "<Tab>");
-    assert_eq!(a.screens.connect.field, Field::Code);
+    assert_eq!(a.screens.connect.field(), Field::Code);
     keys(&mut a, "<S-Tab>");
-    assert_eq!(a.screens.connect.field, Field::Server);
+    assert_eq!(a.screens.connect.field(), Field::Server);
 }
 
 #[test]
@@ -87,7 +91,7 @@ fn enter_without_a_code_sends_nothing_and_goes_to_the_code() {
     let (mut a, _) = unpaired();
     keys(&mut a, "<CR>");
     assert_eq!(a.link.status().phase, LinkPhase::NotPaired);
-    assert_eq!(a.screens.connect.field, Field::Code);
+    assert_eq!(a.screens.connect.field(), Field::Code);
 }
 
 #[test]
@@ -146,6 +150,142 @@ fn a_y_typed_in_a_field_is_a_letter() {
     assert_eq!(a.link.status().phase, LinkPhase::NotPaired);
 }
 
+/// The window, with rune's focus and typing, from a named scene.
+fn window(scene: &str) -> rune::Runtime<App> {
+    let mut a = App::default();
+    crate::app::scenes::all()
+        .iter()
+        .find(|(n, _)| *n == scene)
+        .unwrap()
+        .1(&mut a);
+    let text = rune::text::TextSystem::new(crate::assets::fonts().unwrap(), crate::theme::FAMILIES);
+    let mut rt = rune::Runtime::with_text(
+        a,
+        crate::app::view,
+        (1512.0, 982.0),
+        rune::Env::new(true, 1.0),
+        text,
+    );
+    rt.on_key = Some(input::on_key);
+    rt.poll = Some(crate::app::poll);
+    rt.frame(0.1);
+    rt
+}
+
+fn press(rt: &mut rune::Runtime<App>, key: rune::Key, cmd: bool) {
+    let mods = rune::Mods {
+        cmd,
+        logo: cmd,
+        ..Default::default()
+    };
+    rt.key(KeyEvent { key, mods });
+    rt.frame(0.1);
+}
+
+fn type_text(rt: &mut rune::Runtime<App>, words: &str) {
+    for c in words.chars() {
+        press(rt, rune::Key::Text(c.to_string()), false);
+    }
+}
+
+fn focused_field(rt: &rune::Runtime<App>) -> Option<String> {
+    rt.elements()
+        .into_iter()
+        .find(|e| e.focused)
+        .and_then(|e| e.key)
+}
+
+#[test]
+fn cancelling_the_http_warning_gives_the_server_field_its_typing_back() {
+    for cancel in [rune::Key::Escape, rune::Key::Text("n".into())] {
+        let mut rt = window("connect-no-server");
+        assert_eq!(focused_field(&rt).as_deref(), Some("Server"));
+        assert!(rt.state.screens.connect.failure().is_some());
+        press(&mut rt, rune::Key::Enter, false);
+        assert!(matches!(
+            rt.state.floats.last(),
+            Some((Float::Confirm(_), _))
+        ));
+        press(&mut rt, cancel.clone(), false);
+        assert!(rt.state.floats.is_empty(), "{cancel:?} closes Confirm");
+        assert_eq!(rt.state.badge(), Badge::Insert);
+        assert_eq!(focused_field(&rt).as_deref(), Some("Server"), "{cancel:?}");
+        press(&mut rt, rune::Key::Command('a'), true);
+        type_text(&mut rt, "https://tau.tail4e2f.ts.net");
+        let s = &rt.state.screens.connect;
+        assert_eq!(s.server.text(), "https://tau.tail4e2f.ts.net");
+        assert_eq!(s.code.text(), "K7QM-3XRT");
+        assert_eq!(s.failure(), None, "the old address's error went with it");
+    }
+}
+
+#[test]
+fn cancelling_the_http_warning_from_the_code_returns_to_the_code() {
+    let mut rt = window("connect-http-warning");
+    press(&mut rt, rune::Key::Escape, false);
+    assert_eq!(focused_field(&rt).as_deref(), Some("Pairing code"));
+    type_text(&mut rt, "Z");
+    let s = &rt.state.screens.connect;
+    assert_eq!(s.code.text(), "K7QM-3XRTZ");
+    assert_eq!(s.server.text(), "http://192.168.1.20:6283");
+}
+
+#[test]
+fn a_click_on_the_other_field_moves_the_caret_there() {
+    let mut rt = window("connect-no-server");
+    let code = rt
+        .elements()
+        .into_iter()
+        .find(|e| e.key.as_deref() == Some("Pairing code"))
+        .unwrap()
+        .rect;
+    let (x, y) = (code[0] + code[2] - 4.0, code[1] + code[3] / 2.0);
+    rt.pointer_down(x, y);
+    rt.pointer_up(x, y);
+    rt.frame(0.1);
+    assert_eq!(focused_field(&rt).as_deref(), Some("Pairing code"));
+    type_text(&mut rt, "Z");
+    assert_eq!(rt.state.screens.connect.code.text(), "K7QM-3XRTZ");
+    press(&mut rt, rune::Key::Tab, false);
+    assert_eq!(
+        focused_field(&rt).as_deref(),
+        Some("Server"),
+        "Tab goes on from the code"
+    );
+}
+
+#[test]
+fn a_server_error_stays_until_the_server_changes() {
+    let (mut a, wire) = unpaired();
+    refused(
+        &mut a,
+        &wire,
+        Outcome::Unknown(Unknown::Unreachable("Connection refused".into())),
+    );
+    keys(&mut a, "<Tab>9<S-Tab>");
+    assert!(
+        a.screens.connect.failure().is_some(),
+        "the code is not the address"
+    );
+    keys(&mut a, "0");
+    assert_eq!(a.screens.connect.failure(), None);
+}
+
+#[test]
+fn a_code_error_stays_until_the_code_changes() {
+    let (mut a, wire) = unpaired();
+    let reply =
+        br#"{"refused":{"code":"unauthorized","message":"The pairing code is wrong or expired."}}"#;
+    refused(&mut a, &wire, parse_reply(401, Some("1"), reply));
+    keys(&mut a, "0<Tab>");
+    assert!(
+        a.screens.connect.failure().is_some(),
+        "the address is not the code"
+    );
+    keys(&mut a, "9");
+    assert_eq!(a.screens.connect.failure(), None);
+}
+
 fn refused(a: &mut App, wire: &crate::app::testing::Wire, outcome: Outcome) {
     *wire.refuse.lock().unwrap() = Some(outcome);
     with(a, "http://127.0.0.1:6283", "K7QM-3XRT");
@@ -163,7 +303,7 @@ fn a_wrong_code_says_the_server_s_sentence_and_how_codes_work() {
     refused(&mut a, &wire, parse_reply(401, Some("1"), reply));
     assert_eq!(a.stage, Stage::Connect);
     assert_eq!(
-        a.screens.connect.failure.as_deref(),
+        a.screens.connect.failure(),
         Some(
             "The pairing code is wrong or expired. A code works once, for 10 minutes, and five \
              wrong tries cancel every pending code. Run tau device pair <name> again."
@@ -183,7 +323,7 @@ fn no_server_at_the_url_says_so() {
         )),
     );
     assert_eq!(
-        a.screens.connect.failure.as_deref(),
+        a.screens.connect.failure(),
         Some(
             "No tau server answered at http://127.0.0.1:6283: Connection refused (os error 61). \
              Check the address, and that tau is running there."
@@ -195,7 +335,7 @@ fn no_server_at_the_url_says_so() {
 fn a_lost_reply_says_the_name_may_be_used() {
     let (mut a, wire) = unpaired();
     refused(&mut a, &wire, Outcome::Unknown(Unknown::Timeout));
-    let words = a.screens.connect.failure.clone().unwrap_or_default();
+    let words = a.screens.connect.failure().unwrap_or_default();
     assert!(words.starts_with("No reply from the server."), "{words}");
 }
 

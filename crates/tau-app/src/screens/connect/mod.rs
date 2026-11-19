@@ -4,6 +4,8 @@
 //! another machine; a failure says why under the fields; once paired, Home with the sidebar.
 
 use rune::{El, PillStyle, Span, TextEdit, Tx, col, icon, rich, row, text, text_input};
+use tau_client::engine::PairFailure;
+use tau_client::wire::{RefusalCode, Unknown};
 use tau_client::{LinkEvent, LinkPhase};
 
 use super::Screen;
@@ -31,12 +33,15 @@ pub enum Field {
 pub struct State {
     pub server: Editor,
     pub code: Editor,
-    /// The field with the caret.
-    pub field: Field,
-    /// Why the last `pair` failed, in the copy's words.
-    pub failure: Option<String>,
-    /// The URL the last `pair` went to.
-    tried: String,
+    failure: Option<Failure>,
+    /// The URL and the code the last `pair` sent.
+    tried: (String, String),
+}
+
+/// Why the last `pair` failed, in the copy's words, and the field whose value it was about.
+struct Failure {
+    words: String,
+    about: Option<Field>,
 }
 
 impl Default for State {
@@ -44,9 +49,8 @@ impl Default for State {
         let mut s = State {
             server: Editor::inserting(DEFAULT_URL, Lines::Single),
             code: Editor::inserting("", Lines::Single),
-            field: Field::Server,
             failure: None,
-            tried: String::new(),
+            tried: Default::default(),
         };
         s.focus(Field::Server);
         s
@@ -54,24 +58,43 @@ impl Default for State {
 }
 
 impl State {
+    /// The field with the caret: the one whose model rune keeps focused, a click's too.
+    pub fn field(&self) -> Field {
+        if self.code.edit.focused {
+            Field::Code
+        } else {
+            Field::Server
+        }
+    }
+
     fn focus(&mut self, field: Field) {
-        self.field = field;
         self.server.edit.focused = field == Field::Server;
         self.code.edit.focused = field == Field::Code;
     }
 
     fn editor(&mut self) -> &mut Editor {
-        match self.field {
+        match self.field() {
             Field::Server => &mut self.server,
             Field::Code => &mut self.code,
         }
     }
 
     fn focused(&self) -> &Editor {
-        match self.field {
+        match self.field() {
             Field::Server => &self.server,
             Field::Code => &self.code,
         }
+    }
+
+    /// Why the last `pair` failed, while the field it was about still holds what was sent.
+    pub fn failure(&self) -> Option<&str> {
+        let f = self.failure.as_ref()?;
+        let kept = match f.about {
+            Some(Field::Server) => self.server.text().trim() == self.tried.0,
+            Some(Field::Code) => self.code.text().trim() == self.tried.1,
+            None => true,
+        };
+        kept.then_some(f.words.as_str())
     }
 
     /// The focused field's text, for its `on_edit`.
@@ -144,7 +167,7 @@ impl Screen for Connect {
         if let [key] = keys
             && key.code == Code::Tab
         {
-            s.focus(match s.field {
+            s.focus(match s.field() {
                 Field::Server => Field::Code,
                 Field::Code => Field::Server,
             });
@@ -166,7 +189,7 @@ impl Screen for Connect {
         let field = if s.server.text().trim().is_empty() {
             Field::Server
         } else {
-            s.field
+            s.field()
         };
         s.focus(field);
         s.editor().enter_insert();
@@ -182,7 +205,10 @@ impl Screen for Connect {
             }
             LinkEvent::PairFailed(failure) => {
                 let s = &mut app.screens.connect;
-                s.failure = Some(copy::pair_failure(failure, &s.tried, None));
+                s.failure = Some(Failure {
+                    words: copy::pair_failure(failure, &s.tried.0, None),
+                    about: about(failure),
+                });
             }
             _ => {}
         }
@@ -194,6 +220,18 @@ impl Screen for Connect {
             ("connect-http-warning", |a| {
                 typed(a, "http://192.168.1.20:6283");
                 submit_now(a);
+            }),
+            ("connect-no-server", |a| {
+                typed(a, "http://192.168.1.20:6283");
+                let s = &mut a.screens.connect;
+                s.tried = (s.server.text().to_string(), s.code.text().to_string());
+                s.focus(Field::Server);
+                Connect.on_event(
+                    a,
+                    &LinkEvent::PairFailed(PairFailure::NoReply(Unknown::Unreachable(
+                        "Connection refused (os error 61)".into(),
+                    ))),
+                );
             }),
         ]
     }
@@ -251,8 +289,21 @@ fn submit(app: &mut App, _: &Invocation, _: &mut Tx) {
 fn pair(app: &mut App, url: String, code: String) {
     let s = &mut app.screens.connect;
     s.failure = None;
-    s.tried = url.clone();
+    s.tried = (url.clone(), code.clone());
     app.link.pair(&url, &code);
+}
+
+/// The field whose value a failure was about: the address for no server, another protocol or a
+/// host the server doesn't allow; the code for a wrong or expired one; neither for the rest.
+fn about(failure: &PairFailure) -> Option<Field> {
+    match failure {
+        PairFailure::NoReply(Unknown::Unreachable(_) | Unknown::OtherProtocol(_)) => {
+            Some(Field::Server)
+        }
+        PairFailure::Refused(r) if copy::host_refused(r) => Some(Field::Server),
+        PairFailure::Refused(r) if r.code == RefusalCode::Unauthorized => Some(Field::Code),
+        _ => None,
+    }
 }
 
 /// `:forget-server`: after a confirm, the token and this server's state go, and Connect opens with
@@ -306,7 +357,7 @@ fn view(t: Theme, app: &App) -> El {
             t,
             &s.server,
             keys,
-            insert && s.field == Field::Server,
+            insert && s.field() == Field::Server,
             "Server",
             |a| &mut a.screens.connect.server.edit,
         ),
@@ -321,12 +372,12 @@ fn view(t: Theme, app: &App) -> El {
             t,
             &s.code,
             keys,
-            insert && s.field == Field::Code,
+            insert && s.field() == Field::Code,
             "Pairing code",
             |a| &mut a.screens.connect.code.edit,
         ),
     ));
-    if let Some(failure) = &s.failure {
+    if let Some(failure) = s.failure() {
         fields = fields.child(under(failed(t, failure)));
     }
     let pairing = app.link.status().phase == LinkPhase::Pairing;
@@ -361,7 +412,9 @@ fn field_row(t: Theme, label: &str, input: El) -> El {
 }
 
 /// One field: Iosevka 14 on `surface.sunken`, 30 px tall, its edge coral with the caret in
-/// Insert. Its caret shows only while the page has the keys.
+/// Insert. Its caret shows only while the page has the keys. While a float has them the field is
+/// drawn without `on_edit`: rune clears the focus of a model it can reach when focus leaves it,
+/// and that focus is what returns the caret to this field when the float closes.
 fn field(
     t: Theme,
     ed: &Editor,
@@ -376,10 +429,10 @@ fn field(
         .single_line()
         .caret(t.c.state.attn, t.c.surface.selection)
         .color(t.c.fg.default)
-        .on_edit(on_edit)
         .on_input_key(input::on_field_key)
         .label(name)
         .key(name);
+    let input = if keys { input.on_edit(on_edit) } else { input };
     text_field(t, coral, input).h(30.0)
 }
 

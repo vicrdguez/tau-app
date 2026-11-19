@@ -41,9 +41,14 @@ pub fn no_server(url: &str, error: &str) -> String {
     )
 }
 
+/// Whether the server refused the Host or Origin it was reached at: the address, not the code.
+pub fn host_refused(refused: &Refusal) -> bool {
+    refused.code == RefusalCode::Unauthorized && refused.message == HOST_MESSAGE
+}
+
 pub(super) fn pair_refusal(refused: &Refusal) -> String {
     if refused.code == RefusalCode::Unauthorized {
-        if refused.message == HOST_MESSAGE {
+        if host_refused(refused) {
             format!("{} {HOST_ADVICE}", refused.message)
         } else {
             format!(
