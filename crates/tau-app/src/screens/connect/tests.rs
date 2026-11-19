@@ -13,7 +13,11 @@
 //! - cancelling the Confirm float leaves no field with the native focus, or gives it to the other
 //!   field, or leaves Normal, or loses a value, so the next key types nowhere;
 //! - an error about the server address stays after Server changes, or one about the code after
-//!   the code changes, or either goes while its field is unchanged.
+//!   the code changes, or either goes while its field is unchanged;
+//! - an error about the address stands under Pairing code, or above the plain-HTTP warning, or
+//!   one about the code stands under Server, or one about neither stands between the fields;
+//! - at 800 x 600 with the warning and an error, the footer cannot be reached, or the field with
+//!   the caret is out of view.
 
 use rune::{KeyEvent, Tx};
 use tau_client::LinkPhase;
@@ -152,6 +156,10 @@ fn a_y_typed_in_a_field_is_a_letter() {
 
 /// The window, with rune's focus and typing, from a named scene.
 fn window(scene: &str) -> rune::Runtime<App> {
+    window_sized(scene, (1512.0, 982.0))
+}
+
+fn window_sized(scene: &str, size: (f32, f32)) -> rune::Runtime<App> {
     let mut a = App::default();
     crate::app::scenes::all()
         .iter()
@@ -159,13 +167,8 @@ fn window(scene: &str) -> rune::Runtime<App> {
         .unwrap()
         .1(&mut a);
     let text = rune::text::TextSystem::new(crate::assets::fonts().unwrap(), crate::theme::FAMILIES);
-    let mut rt = rune::Runtime::with_text(
-        a,
-        crate::app::view,
-        (1512.0, 982.0),
-        rune::Env::new(true, 1.0),
-        text,
-    );
+    let mut rt =
+        rune::Runtime::with_text(a, crate::app::view, size, rune::Env::new(true, 1.0), text);
     rt.on_key = Some(input::on_key);
     rt.poll = Some(crate::app::poll);
     rt.frame(0.1);
@@ -284,6 +287,86 @@ fn a_code_error_stays_until_the_code_changes() {
     );
     keys(&mut a, "9");
     assert_eq!(a.screens.connect.failure(), None);
+}
+
+/// The top edge of the first element whose text starts with `words`, or that is keyed `words`.
+fn top(rt: &rune::Runtime<App>, words: &str) -> f32 {
+    rt.elements()
+        .into_iter()
+        .find(|e| {
+            e.key.as_deref() == Some(words)
+                || e.text.as_deref().is_some_and(|t| t.starts_with(words))
+        })
+        .unwrap_or_else(|| panic!("no {words:?} on screen"))
+        .rect[1]
+}
+
+/// The window from `connect-no-server`, with `failure` in place of its error.
+fn failed_with(failure: PairFailure) -> rune::Runtime<App> {
+    let mut rt = window("connect-no-server");
+    Connect.on_event(&mut rt.state, &LinkEvent::PairFailed(failure));
+    rt.frame(0.1);
+    rt
+}
+
+#[test]
+fn an_error_about_the_address_stands_under_server_after_the_warning() {
+    let rt = window("connect-no-server");
+    let warning = top(&rt, "This address is not encrypted");
+    let error = top(&rt, "No tau server answered");
+    assert!(top(&rt, "Server") < warning, "the warning under Server");
+    assert!(warning < error, "the error after the warning");
+    assert!(
+        error < top(&rt, "Pairing code"),
+        "the error above Pairing code"
+    );
+}
+
+#[test]
+fn an_error_about_the_code_stands_under_pairing_code() {
+    let Outcome::Refused(r) = parse_reply(
+        401,
+        Some("1"),
+        br#"{"refused":{"code":"unauthorized","message":"The pairing code is wrong or expired."}}"#,
+    ) else {
+        panic!("a refusal");
+    };
+    let rt = failed_with(PairFailure::Refused(r));
+    assert!(top(&rt, "Pairing code") < top(&rt, "The pairing code is wrong"));
+}
+
+#[test]
+fn an_error_about_neither_field_stands_under_both() {
+    let rt = failed_with(PairFailure::NoReply(Unknown::Timeout));
+    assert!(top(&rt, "Pairing code") < top(&rt, "No reply from the server"));
+}
+
+#[test]
+fn a_short_window_scrolls_to_the_footer_and_keeps_the_caret_in_view() {
+    let bar = crate::theme::tokens().layout.height.bottombar;
+    for failure in [None, Some(PairFailure::NoReply(Unknown::Timeout))] {
+        let mut rt = window_sized("connect-no-server", (800.0, 600.0));
+        if let Some(f) = failure {
+            Connect.on_event(&mut rt.state, &LinkEvent::PairFailed(f));
+            rt.frame(0.1);
+        }
+        let in_view = |rt: &rune::Runtime<App>, key: &str| {
+            let e = rt
+                .elements()
+                .into_iter()
+                .find(|e| e.key.as_deref() == Some(key) || e.text.as_deref() == Some(key))
+                .unwrap();
+            e.rect[1] >= 0.0 && e.rect[1] + e.rect[3] <= 600.0 - bar
+        };
+        assert!(in_view(&rt, "Server"), "the caret's field shows on open");
+        rt.wheel(400.0, 300.0, -2000.0);
+        rt.frame(0.1);
+        rt.frame(1.0);
+        assert!(in_view(&rt, "connect"), "the footer is reached");
+        assert!(in_view(&rt, "Server"), "the caret's field stays in view");
+        press(&mut rt, rune::Key::Tab, false);
+        assert!(in_view(&rt, "Pairing code"), "Tab's field is in view");
+    }
 }
 
 fn refused(a: &mut App, wire: &crate::app::testing::Wire, outcome: Outcome) {

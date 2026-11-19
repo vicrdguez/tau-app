@@ -1,9 +1,10 @@
 //! Connect (`spec.md` §5.1, `client.md` §7): which server, and is this device allowed on it. The
 //! first run, and after `:forget-server` or a revoke (`␣rp`). Two single-line fields, the server's
 //! URL and the pairing code; `⏎` pairs, after the Confirm float when the URL is plain HTTP to
-//! another machine; a failure says why under the fields; once paired, Home with the sidebar.
+//! another machine; a failure says why under the field it is about; once paired, Home with the
+//! sidebar.
 
-use rune::{El, PillStyle, Span, TextEdit, Tx, col, icon, rich, row, text, text_input};
+use rune::{El, PillStyle, ScrollSpec, Span, TextEdit, Tx, col, icon, rich, row, text, text_input};
 use tau_client::engine::PairFailure;
 use tau_client::wire::{RefusalCode, Unknown};
 use tau_client::{LinkEvent, LinkPhase};
@@ -88,13 +89,17 @@ impl State {
 
     /// Why the last `pair` failed, while the field it was about still holds what was sent.
     pub fn failure(&self) -> Option<&str> {
+        self.shown_failure().map(|f| f.words.as_str())
+    }
+
+    fn shown_failure(&self) -> Option<&Failure> {
         let f = self.failure.as_ref()?;
         let kept = match f.about {
             Some(Field::Server) => self.server.text().trim() == self.tried.0,
             Some(Field::Code) => self.code.text().trim() == self.tried.1,
             None => true,
         };
-        kept.then_some(f.words.as_str())
+        kept.then_some(f)
     }
 
     /// The focused field's text, for its `on_edit`.
@@ -349,6 +354,12 @@ fn view(t: Theme, app: &App) -> El {
     let keys = app.floats.is_empty();
     let insert = keys && scope.mode == Mode::Insert;
     let url = s.server.text();
+    let failure = s.shown_failure();
+    let failed_about = |field| {
+        failure
+            .filter(|f| f.about == field)
+            .map(|f| under(failed(t, &f.words)))
+    };
     let mut fields = col().gap(10.0).mt(24.0).w_full();
     fields = fields.child(field_row(
         t,
@@ -365,6 +376,7 @@ fn view(t: Theme, app: &App) -> El {
     if plain_http_elsewhere(url) {
         fields = fields.child(under(warning(t)));
     }
+    fields = fields.children(failed_about(Some(Field::Server)));
     fields = fields.child(field_row(
         t,
         "Pairing code",
@@ -377,25 +389,34 @@ fn view(t: Theme, app: &App) -> El {
             |a| &mut a.screens.connect.code.edit,
         ),
     ));
-    if let Some(failure) = s.failure() {
-        fields = fields.child(under(failed(t, failure)));
-    }
+    fields = fields
+        .children(failed_about(Some(Field::Code)))
+        .children(failed_about(None));
     let pairing = app.link.status().phase == LinkPhase::Pairing;
-    col().w_full().h_full().items_center().child(
-        col()
-            .w(600.0)
-            .pt(96.0)
-            .child(wordmark(t, WORDMARK_HEIGHT))
-            .child(
-                text("Connect to a tau server")
-                    .font(t.ty.title_page)
-                    .color(t.c.state.attn)
-                    .mt(32.0),
-            )
-            .child(fields)
-            .child(paragraph(t).mt(22.0))
-            .child(footer(t, scope, pairing).mt(22.0)),
-    )
+    // A short window scrolls the column: a server's own words make an error any length.
+    col()
+        .w_full()
+        .h_full()
+        .scroll(ScrollSpec {
+            stick_bottom: false,
+        })
+        .items_center()
+        .child(
+            col()
+                .w(600.0)
+                .pt(96.0)
+                .pb(24.0)
+                .child(wordmark(t, WORDMARK_HEIGHT))
+                .child(
+                    text("Connect to a tau server")
+                        .font(t.ty.title_page)
+                        .color(t.c.state.attn)
+                        .mt(32.0),
+                )
+                .child(fields)
+                .child(paragraph(t).mt(22.0))
+                .child(footer(t, scope, pairing).mt(22.0)),
+        )
 }
 
 fn field_row(t: Theme, label: &str, input: El) -> El {
