@@ -18,10 +18,11 @@ fn control(
     name: String,
     body: El,
 ) -> El {
+    let key = t.keymap.chip(seq, scope.mode, scope.ctx);
     ui::control(
         body,
-        name,
-        scope.lit(t.keymap, seq),
+        ui::with_keys(&name, &[&key]),
+        key.lit,
         move |a: &mut App, tx| crate::app::commands::run_id(a, command, tx),
     )
     .key(command.replace('.', "-"))

@@ -269,3 +269,6 @@ fn traffic_lights(t: Theme) -> El {
         .child(dot("#febc2e"))
         .child(dot("#28c840"))
 }
+
+#[cfg(test)]
+mod tests;

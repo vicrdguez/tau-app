@@ -7,7 +7,7 @@ use std::sync::LazyLock;
 
 use serde::Deserialize;
 
-use super::key::{Code, Key, display, parse_seq};
+use super::key::{Code, Key, display, parse_seq, spoken};
 
 /// Where the keys act (`grammar.md` §3). A float that takes the keys is a root of its own.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -205,11 +205,12 @@ pub struct Bound {
     pub target: Target,
 }
 
-/// A printed key: what this device types for a key the design writes, and whether it runs where
-/// the keys are.
+/// A printed key: what this device types for a key the design writes, the same in words, and
+/// whether it runs where the keys are.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Chip {
     pub printed: String,
+    pub spoken: String,
     pub lit: bool,
 }
 
@@ -442,6 +443,7 @@ impl Keymap {
         let Ok(design) = parse_seq(seq) else {
             return Chip {
                 printed: seq.to_string(),
+                spoken: seq.to_string(),
                 lit: false,
             };
         };
@@ -472,6 +474,7 @@ impl Keymap {
         };
         Chip {
             printed: display(typed),
+            spoken: spoken(typed),
             lit,
         }
     }

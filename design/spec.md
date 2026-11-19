@@ -177,6 +177,8 @@ One 26 px bar on `surface.bar` across the window. From the left:
 - **`× 4` rose:** exactly the count in Home's Failed head: failed runs and faulted tasks, minus those hidden on this device. Click: Home at Failed, whose head it equals; Faults is one step on.
 - **`? 1` mauve:** outbox entries with an unknown outcome. Click: the outbox.
 
+A tag reads to assistive technology as what it counts, plural by count: `3 open decisions`, `4 failures`, `1 write without a reply`.
+
 ### 4.5 The peek and the details panel
 
 **The peek** is the right column of Home and the places while the stage is at least 1000 px wide: 440 px, a hairline at its left and none inside, 28 px padding. It has no cursor and never takes the keys. Narrower, `K` opens it as a float (§5.4); wider, `K` on a list row does nothing.

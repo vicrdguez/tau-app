@@ -12,7 +12,8 @@
 //! - with no projects, `⌘⏎` is printed twice with two meanings.
 
 use super::*;
-use crate::app::{commands, input, link, testing};
+use crate::app::testing::{self, Spoken, click, spoken, window};
+use crate::app::{commands, input, link};
 use crate::keys::parse_seq;
 use std::sync::atomic::Ordering;
 use tau_client::outbox::{WriteCall, WriteState};
@@ -333,52 +334,10 @@ fn start_blockers_distinguish_missing_and_invalid_options() {
     );
 }
 
-fn window(a: App) -> rune::Runtime<App> {
-    let fonts =
-        rune::text::TextSystem::new(crate::assets::fonts().unwrap(), crate::theme::FAMILIES);
-    let mut rt = rune::Runtime::with_text(
-        a,
-        crate::app::view,
-        (1512.0, 982.0),
-        rune::Env::new(true, 1.0),
-        fonts,
-    );
-    rt.frame(1.0);
-    rt
-}
-
-fn click(rt: &mut rune::Runtime<App>, key: &str) {
-    let e = rt
-        .elements()
-        .into_iter()
-        .find(|e| e.key.as_deref() == Some(key))
-        .unwrap_or_else(|| panic!("no {key} on screen"));
-    let (x, y) = (e.rect[0] + e.rect[2] / 2.0, e.rect[1] + e.rect[3] / 2.0);
-    rt.pointer_move(x, y);
-    rt.pointer_down(x, y);
-    rt.pointer_up(x, y);
-    rt.frame(0.02);
-    rt.frame(0.02);
-}
-
-/// The accessibility tree's nodes as (key, role, name), depth first.
-fn spoken(rt: &rune::Runtime<App>) -> Vec<(String, String, String)> {
-    fn walk(v: &serde_json::Value, out: &mut Vec<(String, String, String)>) {
-        let s = |k: &str| v[k].as_str().unwrap_or_default().to_string();
-        out.push((s("key"), s("role"), s("name")));
-        for c in v["children"].as_array().into_iter().flatten() {
-            walk(c, out);
-        }
-    }
-    let mut out = Vec::new();
-    walk(&rt.accessibility_json(), &mut out);
-    out
-}
-
-fn named<'a>(nodes: &'a [(String, String, String)], key: &str) -> &'a (String, String, String) {
+fn named<'a>(nodes: &'a [Spoken], key: &str) -> &'a Spoken {
     nodes
         .iter()
-        .find(|n| n.0 == key)
+        .find(|n| n.key == key)
         .unwrap_or_else(|| panic!("{key} is not in the accessibility tree"))
 }
 
@@ -491,31 +450,36 @@ fn the_start_controls_take_no_click_while_their_keys_are_off() {
 }
 
 #[test]
-fn each_start_control_has_one_accessible_name() {
-    let rt = window(ready());
-    let nodes = spoken(&rt);
-    let project = named(&nodes, "start-project");
-    assert_eq!(project.1, "button");
-    assert!(project.2.starts_with("Project: render-core"), "{project:?}");
-    let workflow = named(&nodes, "start-workflow");
-    assert!(
-        workflow.2.starts_with("Workflow: w1 workflow"),
-        "{workflow:?}"
-    );
-    assert!(named(&nodes, "start-send").2.starts_with("start"));
+fn each_start_control_has_one_name_with_its_key_in_words() {
+    let nodes = spoken(&window(ready()));
+    let name = |key: &str| named(&nodes, key).name.clone();
+    assert_eq!(named(&nodes, "start-project").role, "button");
+    assert_eq!(name("start-project"), "Project: render-core, Option-P");
+    assert_eq!(name("start-workflow"), "Workflow: w1 workflow, Option-W");
+    assert_eq!(name("start-send"), "start, Command-Return");
     assert!(
         nodes
             .iter()
-            .all(|n| !["w1", "workflow", "⌥P", "⌥W", "⌘"].contains(&n.2.as_str())),
+            .all(|n| !["w1", "workflow", "⌥P", "⌥W", "⌘"].contains(&n.name.as_str())),
         "no loose words: {nodes:?}"
     );
     let mut a = ready();
     scenes::choose_project(&mut a);
     let nodes = spoken(&window(a));
-    assert!(
-        named(&nodes, "start-project")
-            .2
-            .starts_with("Choose a project")
+    assert_eq!(
+        named(&nodes, "start-project").name,
+        "Choose a project, Option-P"
+    );
+}
+
+#[test]
+fn a_moved_key_is_named_as_this_device_types_it() {
+    let mut a = ready();
+    workflow_on_m_m(&mut a);
+    let nodes = spoken(&window(a));
+    assert_eq!(
+        named(&nodes, "start-workflow").name,
+        "Workflow: w1 workflow, Option-M"
     );
 }
 

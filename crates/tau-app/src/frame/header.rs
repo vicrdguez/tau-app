@@ -5,7 +5,7 @@ use rune::{El, Tx, icon, row, text};
 
 use crate::assets::{carbon, marks};
 use crate::theme::Theme;
-use crate::ui::{Scope, chip, glyphs};
+use crate::ui::{Scope, chip, glyphs, named, with_keys};
 
 /// One part of the breadcrumb.
 #[derive(Clone, Debug)]
@@ -111,6 +111,7 @@ fn segment(t: Theme, scope: Scope, answer_solid: bool, s: &Segment) -> El {
     let key = t.keymap.chip(s.seq, scope.mode, scope.ctx);
     let lit = key.lit;
     let pill = t.l.radius.pill;
+    let name = with_keys(&s.word, &[&key]);
     match s.kind {
         SegmentKind::Off => row()
             .center_y()
@@ -127,7 +128,7 @@ fn segment(t: Theme, scope: Scope, answer_solid: bool, s: &Segment) -> El {
             ),
         SegmentKind::Answer if lit && answer_solid => {
             let knock = t.c.surface.read;
-            row()
+            let el = row()
                 .center_y()
                 .gap(7.0)
                 .h(t.l.height.answer_segment)
@@ -143,27 +144,34 @@ fn segment(t: Theme, scope: Scope, answer_solid: bool, s: &Segment) -> El {
                         .radius(pill)
                         .fill(t.c.surface.read.alpha(0.16)),
                 )
-                .child(text(s.word.clone()).font(t.ty.ui_strong).color(knock))
+                .child(text(s.word.clone()).font(t.ty.ui_strong).color(knock));
+            named(el, name)
         }
-        SegmentKind::Answer => row()
-            .center_y()
-            .gap(7.0)
-            .h(t.l.height.answer_segment)
-            .pl(9.0)
-            .pr(10.0)
-            .radius(pill)
-            .border(1.0, t.c.border.hairline)
-            .child(icon(&marks::DIAMOND, 11.0).color(t.c.fg.muted))
-            .child(chip(t, scope, s.seq, false))
-            .child(text(s.word.clone()).font(t.ty.ui).color(t.c.fg.muted)),
-        SegmentKind::Quiet => row()
-            .center_y()
-            .gap(7.0)
-            .child(chip(t, scope, s.seq, false))
-            .child(text(s.word.clone()).font(t.ty.ui).color(if lit {
-                t.c.fg.alt
-            } else {
-                t.c.fg.muted
-            })),
+        SegmentKind::Answer => named(
+            row()
+                .center_y()
+                .gap(7.0)
+                .h(t.l.height.answer_segment)
+                .pl(9.0)
+                .pr(10.0)
+                .radius(pill)
+                .border(1.0, t.c.border.hairline)
+                .child(icon(&marks::DIAMOND, 11.0).color(t.c.fg.muted))
+                .child(chip(t, scope, s.seq, false))
+                .child(text(s.word.clone()).font(t.ty.ui).color(t.c.fg.muted)),
+            name,
+        ),
+        SegmentKind::Quiet => named(
+            row()
+                .center_y()
+                .gap(7.0)
+                .child(chip(t, scope, s.seq, false))
+                .child(text(s.word.clone()).font(t.ty.ui).color(if lit {
+                    t.c.fg.alt
+                } else {
+                    t.c.fg.muted
+                })),
+            name,
+        ),
     }
 }

@@ -238,6 +238,22 @@ fn sequences_print_as_the_design_prints_them() {
     assert_eq!(display(&k("<S-Tab>")), "S-Tab");
 }
 
+#[test]
+fn sequences_are_spoken_in_words_with_every_modifier_and_the_leader() {
+    assert_eq!(spoken(&k("<leader>cn")), "Space c n");
+    assert_eq!(spoken(&k("<leader>.")), "Space Period");
+    assert_eq!(spoken(&k("<D-CR>")), "Command-Return");
+    assert_eq!(spoken(&k("<M-p>")), "Option-P");
+    assert_eq!(spoken(&k("<M-CR>")), "Option-Return");
+    assert_eq!(spoken(&k("<C-h>")), "Control-H");
+    assert_eq!(spoken(&k("<D-M-k>")), "Option-Command-K");
+    assert_eq!(spoken(&k("<Esc>")), "Escape");
+    assert_eq!(spoken(&k("<S-Tab>")), "Shift-Tab");
+    assert_eq!(spoken(&k("]b")), "Right bracket b");
+    assert_eq!(spoken(&k(":w")), "Colon w");
+    assert_eq!(spoken(&k("K")), "Shift-K");
+}
+
 fn ev(key: rune::Key, mods: rune::Mods) -> rune::KeyEvent {
     rune::KeyEvent { key, mods }
 }
