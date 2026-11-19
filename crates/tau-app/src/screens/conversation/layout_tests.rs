@@ -6,6 +6,9 @@
 //! - a box (your message, a tool row's tint or cursor band, opened output, the run-failure head,
 //!   a record's band, the composer) is not 16 px wider than the text column on each side, so
 //!   boxes differ in width or text inside one leaves the axis;
+//! - a code block in bare prose doesn't hang to the box edge or its code leaves the axis, or one
+//!   in your message hangs past its container;
+//! - the cursor's coral bar leaves the box's left edge;
 //! - prose, code or the last thing in a row runs past X1, or a tool row's chevron or `details ›`
 //!   stops short of it;
 //! - at 800 × 600 the gutter or the 16 px shrink instead of the text column.
@@ -239,8 +242,18 @@ fn every_box_spans_the_box_edge() {
             {
                 continue;
             }
-            boxes += 1;
             let (l, r) = (e.rect[0], right(e));
+            if e.fill == d.rt.state.theme().c.state.attn {
+                let edge = if yours(d, e) { d.edge + 1.0 } else { d.edge };
+                assert!(
+                    near(l, edge) && near(e.rect[2], 2.0),
+                    "{}: the cursor's bar is 2 px on the box's left edge {edge}, not {:?}",
+                    d.name,
+                    e.rect
+                );
+                continue;
+            }
+            boxes += 1;
             if yours(d, e) {
                 assert!(
                     l >= d.edge && l <= d.edge + 1.0 && r <= d.right && r >= d.right - 1.0,
@@ -262,6 +275,47 @@ fn every_box_spans_the_box_edge() {
         }
         assert!(boxes > 0, "{}: the composer at least", d.name);
     });
+}
+
+#[test]
+fn a_code_block_hangs_in_bare_prose_and_keeps_the_text_width_in_your_message() {
+    let (mut hung, mut inset) = (0, 0);
+    each(|d| {
+        for e in d
+            .in_column()
+            .filter(|e| e.role == "code" && !d.within(e, &["list", "blockquote", "table"]))
+        {
+            let (l, r) = (e.rect[0], right(e));
+            let code = d.ink_in(e).next().expect("the code");
+            if yours(d, e) {
+                inset += 1;
+                assert!(
+                    near(l, d.x0) && near(r, d.x1) && code.rect[0] > d.x0,
+                    "{}: in your message, {l}..{r} with its code at {}, not the text width {}..{} with its code inset",
+                    d.name,
+                    code.rect[0],
+                    d.x0,
+                    d.x1
+                );
+            } else {
+                hung += 1;
+                assert!(
+                    near(l, d.edge) && near(r, d.right),
+                    "{}: in bare prose, {l}..{r}, not the box edge {}..{}",
+                    d.name,
+                    d.edge,
+                    d.right
+                );
+                assert!(
+                    near(code.rect[0], d.x0) && near(right(code), d.x1),
+                    "{}: hung code keeps the text column, not {:?}",
+                    d.name,
+                    code.rect
+                );
+            }
+        }
+    });
+    assert!(hung > 0 && inset > 0, "seen: {hung} hung, {inset} inset");
 }
 
 #[test]

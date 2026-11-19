@@ -82,11 +82,18 @@ impl Draw<'_> {
                 None => el,
             };
         }
-        let el = el.fill(fill.unwrap_or(self.t.c.surface.cursor_read));
-        if self.keys {
-            el.border_sides([0.0, 0.0, 0.0, 2.0], self.t.c.state.attn)
-        } else {
-            el
+        let band = el.fill(fill.unwrap_or(self.t.c.surface.cursor_read));
+        let attn = self.t.c.state.attn;
+        match (self.keys, stop) {
+            (false, _) => band,
+            // A hung code block covers its text block's left edge, so the bar draws over it.
+            (true, Stop::Text(..)) => band.child(rune::el().w(2.0).fill(attn).pin(
+                Some(0.0),
+                Some(0.0),
+                None,
+                Some(0.0),
+            )),
+            (true, _) => band.border_sides([0.0, 0.0, 0.0, 2.0], attn),
         }
     }
 }
@@ -331,7 +338,7 @@ fn item_el(cx: &Draw, item: &Item) -> El {
                 );
             if *open && let Some(src) = opened {
                 c = c.child(
-                    prose(t, src)
+                    prose(t, src, LANE)
                         .mx(LANE)
                         .mt(6.0)
                         .transition(Transition::opacity().springs(Motion::pair(t.motion.page))),
@@ -409,6 +416,7 @@ fn item_el(cx: &Draw, item: &Item) -> El {
                 row().w_full().px(LANE).child(
                     markdown(t, src)
                         .streaming(true)
+                        .hang(LANE)
                         .build()
                         .max_w(t.read.measure)
                         .grow(1.0),
@@ -491,7 +499,8 @@ fn agent_head(cx: &Draw, model: &str, at: Option<i64>) -> El {
     h
 }
 
-/// Your message: the container on `tint.human`, `input` in steel and its time, then the body.
+/// Your message: the container on `tint.human`, `input` in steel and its time, then the body,
+/// whose code blocks keep the text's width: they can't reach past the container.
 fn input(cx: &Draw, head: EntryId, at: Option<i64>, body: &[Body]) -> El {
     let t = cx.t;
     let mut h = row().w_full().center_y().gap(8.0).px(INSIDE).h(16.0).child(
@@ -527,7 +536,7 @@ fn input(cx: &Draw, head: EntryId, at: Option<i64>, body: &[Body]) -> El {
                 c = c.child(
                     cx.band(
                         &tx.stop,
-                        row().w_full().px(INSIDE).child(prose(t, &tx.source)),
+                        row().w_full().px(INSIDE).child(prose(t, &tx.source, 0.0)),
                     )
                     .mt(gap),
                 );
@@ -547,9 +556,10 @@ fn input(cx: &Draw, head: EntryId, at: Option<i64>, body: &[Body]) -> El {
     c
 }
 
-/// One Markdown block in the reading measure.
-fn prose(t: Theme, src: &str) -> El {
+/// One Markdown block in the reading measure, its code blocks reaching `hang` past it.
+fn prose(t: Theme, src: &str, hang: f32) -> El {
     markdown(t, src)
+        .hang(hang)
         .build()
         .max_w(t.read.measure)
         .grow(1.0)
@@ -565,7 +575,7 @@ fn texts(cx: &Draw, blocks: &[Text]) -> El {
         c = c.child(
             cx.band(
                 &b.stop,
-                row().w_full().px(LANE).child(prose(cx.t, &b.source)),
+                row().w_full().px(LANE).child(prose(cx.t, &b.source, LANE)),
             )
             .mt(gap),
         );
@@ -623,8 +633,11 @@ fn turn_parts(cx: &Draw, parts: &[Part]) -> El {
                 prev_text = Some(&b.source);
                 after = Some(AFTER_BLOCK);
                 c = c.child(
-                    cx.band(&b.stop, row().w_full().px(LANE).child(prose(t, &b.source)))
-                        .mt(gap),
+                    cx.band(
+                        &b.stop,
+                        row().w_full().px(LANE).child(prose(t, &b.source, LANE)),
+                    )
+                    .mt(gap),
                 );
                 continue;
             }
@@ -657,7 +670,7 @@ fn turn_parts(cx: &Draw, parts: &[Part]) -> El {
                             .w_full()
                             .px(LANE)
                             .mt(4.0)
-                            .child(prose(t, src)),
+                            .child(prose(t, src, LANE)),
                     );
                 }
                 (f, AFTER_BLOCK)
