@@ -8,13 +8,15 @@ use crate::theme::Theme;
 use crate::ui::{Scope, chip, glyphs};
 
 /// One part of the breadcrumb.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub enum Crumb {
     Text(String),
     /// A project's name, in sage.
     Project(String),
     /// `#4` or a decision ID, in orange mono.
     Id(String),
+    /// A quiet pressable `show all` after a place's filter, that resets it.
+    ShowAll(fn(&mut crate::app::App)),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -59,6 +61,20 @@ pub fn header<S: 'static>(t: Theme, h: &Header, on_toggle: fn(&mut S, &mut Tx)) 
     };
     let mut crumbs = row().center_y().gap(7.0).shrink().min_w(0.0);
     for (i, c) in h.crumbs.iter().enumerate() {
+        if let Crumb::ShowAll(run) = *c {
+            crumbs = crumbs.child(
+                text("show all")
+                    .font(t.ty.ui_small)
+                    .color(t.c.fg.muted)
+                    .ml(12.0 - 7.0)
+                    .on_press(move |a: &mut crate::app::App| {
+                        if a.floats.is_empty() {
+                            run(a);
+                        }
+                    }),
+            );
+            continue;
+        }
         if i > 0 {
             crumbs = crumbs.child(text("›").font(t.ty.ui).color(t.c.fg.muted));
         }
@@ -68,6 +84,7 @@ pub fn header<S: 'static>(t: Theme, h: &Header, on_toggle: fn(&mut S, &mut Tx)) 
             Crumb::Id(s) => text(s.clone())
                 .font(t.ty.mono_small)
                 .color(t.c.kind.literal),
+            Crumb::ShowAll(_) => unreachable!("drawn above"),
         });
     }
     let mut segments = row().center_y().gap(t.l.gaps.segment);

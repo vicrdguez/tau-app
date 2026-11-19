@@ -294,7 +294,11 @@ impl Screen for Places {
         {
             filter.push_str(&format!(" · {state}"));
         }
-        vec![Crumb::Text(place(app).name().into()), Crumb::Text(filter)]
+        let mut crumbs = vec![Crumb::Text(place(app).name().into()), Crumb::Text(filter)];
+        if s.project.is_some() || s.state.is_some() {
+            crumbs.push(Crumb::ShowAll(show_all));
+        }
+        crumbs
     }
     fn has_peek(&self, _: &App) -> bool {
         true
@@ -333,10 +337,15 @@ impl Screen for Places {
                     .filter(|r| r.group == group)
                     .collect::<Vec<_>>();
                 let mut counts = Vec::new();
-                for (mark, word) in [(Mark::Running, "running"), (Mark::Failed, "failed")] {
-                    let n = all.iter().filter(|r| r.mark == Some(mark)).count();
-                    if n > 0 {
-                        counts.push(format!("{n} {word}"));
+                if let Some(state) = &settings(app).state {
+                    let shown = rs.iter().filter(|r| r.group == group).count();
+                    counts.push(format!("{shown} {state} shown"));
+                } else {
+                    for (mark, word) in [(Mark::Running, "running"), (Mark::Failed, "failed")] {
+                        let n = all.iter().filter(|r| r.mark == Some(mark)).count();
+                        if n > 0 {
+                            counts.push(format!("{n} {word}"));
+                        }
                     }
                 }
                 counts.push(format!("{} in all", all.len()));
@@ -491,6 +500,11 @@ impl Screen for Places {
                     }
                 }
                 crate::app::link::refresh(a);
+                reconcile(a);
+            }),
+            ("conversations-running", |a| {
+                scene(a, Place::Conversations);
+                a.screens.places.conversations.state = Some("running".into());
                 reconcile(a);
             }),
             ("timeline-filtered", |a| {

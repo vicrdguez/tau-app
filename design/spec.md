@@ -151,7 +151,7 @@ With the sidebar hidden, the stage and its header start at x 0; the window contr
 **Left:** the sidebar toggle (16 px `side-panel--close` while the sidebar shows, `side-panel--open` while hidden, `fg.muted`), then the **breadcrumb** (`ui`, separators `›` in `fg.muted`). The breadcrumb lives only here. Connect draws neither.
 - Start page: `New conversation`.
 - Home: the group and the cursor's place in it (`Home › Needs you › 1 of 3`). Home has no filter, and the breadcrumb never claims one.
-- A place: its filter (`Timeline › all projects`, `Conversations › render-core · failed`, `Projects`).
+- A place: its filter (`Timeline › all projects`, `Conversations › render-core · failed`, `Projects`). While the filter is not the default, a quiet pressable `show all` (`ui.small`, `fg.muted`) stands 12 px after it and resets that place's filter, and no other place's; `␣pf`, whose first row is `all projects`, does the same from the keys.
 - A view: its object (`notes-cli › #4`, `render-core › w1:3:design#2`, `Projects › render-core`). The project is sage, `#4` and the decision ID orange mono.
 
 **Right:** the view's action segments, 16 px apart: quiet `ui` in `fg.alt` with a key chip.
@@ -515,10 +515,10 @@ The same 400 ms rule applies.
 
 ### 5.8 The places
 
-Each place is one page with one filter and one cursor. It keeps both on this device when you leave it, and across launches. Filters: Conversations, a project and a state; Timeline and Faults, a project; Home and Projects, none. `␣pf` opens the filter float; the breadcrumb shows the filter. Each place has its page title (`Conversations`, `Timeline`, `Faults`, `Projects`), rows of 28 px under `group` heads, and the peek (§5.4).
+Each place is one page with one filter and one cursor. It keeps both on this device when you leave it, and across launches. Filters: Conversations, a project and a state; Timeline and Faults, a project; Home and Projects, none. `␣pf` opens the filter float; the breadcrumb shows the filter and, while it isn't the default, `show all` to reset it (§4.2). Each place has its page title (`Conversations`, `Timeline`, `Faults`, `Projects`), rows of 28 px under `group` heads, and the peek (§5.4).
 
 **Conversations** (`␣oc`, its sidebar row). **Answers:** every conversation, to continue or join one.
-- Grouped by project; the group head is the project (sage) and `1 running · 1 failed · 7 in all`; rows newest ID first.
+- Grouped by project; the group head is the project (sage) and `1 running · 1 failed · 7 in all`; with a state filter, the rows shown come first, `1 running shown · 7 in all`. Rows newest ID first.
 - Row: the small mark (running triangle, failed `×`, stopped and idle none), label, then the slots: extension when known, model when known (`fg.alt`), `#id` (orange).
 - Opening Conversations from the Project view sets its project; Home's `more failed runs` line sets `failed`.
 - `/` searches labels. `x` hides a failed run on this device; `␣th` shows hidden ones.

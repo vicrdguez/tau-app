@@ -252,6 +252,67 @@ fn a_place_with_nothing_on_the_server_says_so() {
     }
 }
 
+// A filter could fail to clear: no pointer path from the breadcrumb, a clear that resets
+// another place's filter, a `show all` drawn while nothing is filtered. Conversations' group
+// heads could read whole-project totals as result counts.
+
+fn header_texts(rt: &rune::Runtime<App>, s: &str) -> usize {
+    crate::screens::home::drawn::texts(&rt.elements(), s)
+        .iter()
+        .filter(|e| e.rect[1] < 44.0)
+        .count()
+}
+
+#[test]
+fn the_breadcrumb_clears_only_its_own_place_filter() {
+    use crate::screens::home::drawn::{click, drawn};
+    let mut a = fixture(Place::Timeline);
+    let rt = drawn(fixture(Place::Timeline), 1512.0, 982.0);
+    assert_eq!(header_texts(&rt, "show all"), 0, "nothing to clear");
+    filter_project(&mut a, Place::Conversations, Some("forecasts".into()));
+    a.screens.places.conversations.state = Some("idle".into());
+    filter_project(&mut a, Place::Timeline, Some("render-core".into()));
+    let mut rt = drawn(a, 1512.0, 982.0);
+    assert_eq!(header_texts(&rt, "show all"), 1);
+    let n = rows(&rt.state).len();
+    click(&mut rt, "show all");
+    let a = &rt.state;
+    assert!(a.screens.places.timeline.project.is_none());
+    assert!(rows(a).len() > n, "every project's events again");
+    assert_eq!(
+        a.screens.places.conversations.project.as_deref(),
+        Some("forecasts")
+    );
+    assert_eq!(
+        a.screens.places.conversations.state.as_deref(),
+        Some("idle")
+    );
+    assert_eq!(header_texts(&rt, "show all"), 0);
+}
+
+#[test]
+fn a_state_filter_counts_the_rows_shown_before_the_total() {
+    use crate::screens::home::drawn::{drawn, shown};
+    let text = shown(&drawn(fixture(Place::Conversations), 1512.0, 982.0));
+    assert!(
+        text.iter().any(|s| s == "1 running · 1 failed · 4 in all"),
+        "{text:?}"
+    );
+    let mut a = fixture(Place::Conversations);
+    a.screens.places.conversations.state = Some("running".into());
+    let mut rt = drawn(a, 1512.0, 982.0);
+    let text = shown(&rt);
+    assert!(
+        text.iter().any(|s| s == "1 running shown · 4 in all"),
+        "{text:?}"
+    );
+    assert!(text.iter().any(|s| s == "1 running shown · 7 in all"));
+    assert!(!text.iter().any(|s| s.contains("failed")));
+    assert_eq!(header_texts(&rt, "show all"), 1);
+    crate::screens::home::drawn::click(&mut rt, "show all");
+    assert!(rt.state.screens.places.conversations.state.is_none());
+}
+
 /// Faults rows could fail to line up: fields flowing after the error put the project at a
 /// different x per row; an `after` part cut mid-ID; the error pushing the slots off the row.
 #[test]
