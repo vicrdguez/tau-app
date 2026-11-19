@@ -162,7 +162,7 @@ on key(e):          resolve against the last drawn frame
 - **The send mode is the drawn one.** A composer whose caption said `steer` sends a steer; if the run ended in flight, the server starts a run with it, and the transcript shows that.
 - **The start page sends what its line drew:** the project and the workflow (or model) as drawn when `⌘⏎` was pressed, even if a poll changed them after. From the press until `create` replies or times out, `⌘⏎`, `M-p` and `M-w` are off and the text is read-only; auto-repeat never fires `⌘⏎`. A `create` result that arrives after the stage left the page adds the conversation to the sidebar and moves nothing.
 - **`␣cx` and `␣cc` act only in the conversation's own view,** where `pi.live` is live. `␣cx` names the drawn run: it is on only while the drawn frame shows a run, and off after sending until the view shows that run gone or a new one. A list row's state comes from a poll and never drives them.
-- **Every bottom float keeps its target in view:** the page scrolls so the cursor's row sits above it; a conversation's queue, unsent rows and composer lift above it.
+- **Every bottom float keeps its target in view:** the cursor's row, line or field rides the float's top edge once the edge reaches it, and a conversation's queue, unsent rows and composer ride it too (`../spec.md` §4); nothing else on the page moves.
 
 ## 8. The float shell and the bottom bar
 
