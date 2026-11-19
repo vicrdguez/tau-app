@@ -170,6 +170,13 @@ impl Screen for Decision {
             }),
             ("list.open", |_, _, _| {}),
             ("fold.toggle", fold),
+            ("toggle.details", |a, inv, tx| {
+                if inv.applies {
+                    a.details_visible = !a.details_visible;
+                    // The margin folds or unfolds and the text reflows; the cursor's paragraph holds.
+                    tx.keep_on_screen("decision-cursor");
+                }
+            }),
             ("float.close", close),
             ("editor.newline", |a, _, _| {
                 if let Some(e) = a.screens.decision.editing.as_mut() {

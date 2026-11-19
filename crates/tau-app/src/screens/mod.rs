@@ -285,6 +285,24 @@ pub fn top_float<T: ScreenFloat>(app: &mut App) -> Option<&mut T> {
     }
 }
 
+/// The stage's width, as laid out last, or as the window gives it before the first layout.
+pub(crate) fn stage_width(t: Theme, app: &App) -> f32 {
+    rune::memo::layout_size("stage")
+        .map(|s| s[0])
+        .unwrap_or_else(|| {
+            let side = app.sidebar_place() == Some(crate::frame::SidebarPlace::Beside);
+            app.window[0] - if side { t.l.sidebar.width } else { 0.0 }
+        })
+}
+
+/// Where a reading column `width` wide starts in the page while the details panel is open
+/// (`spec.md` §4.7): where it starts with the panel closed (`closed`) while its right edge clears
+/// the panel by the panel's padding, else moved left by the shortfall, down to its 16 px margin.
+/// `room` is the page's width left of the panel.
+pub(crate) fn beside_details(t: Theme, closed: f32, width: f32, room: f32) -> f32 {
+    closed.min(room - t.l.details.padding - width).max(16.0)
+}
+
 /// The line that stands in for a page's groups until its data arrives (`spec.md` §4.8).
 pub const NOTHING_RECEIVED: &str = "Nothing received from the server yet";
 

@@ -269,7 +269,7 @@ pub(super) fn view(t: Theme, app: &App, f: &Readback) -> El {
                 scopes.push(format!("{on_whole} on the whole"));
             }
             let l = t.l.float;
-            let value_width = super::super::view::stage(t, app)
+            let value_width = crate::screens::stage_width(t, app)
                 - 2.0 * l.inset_x
                 - l.readback_left
                 - 1.0

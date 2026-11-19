@@ -1,4 +1,5 @@
-//! The conversation page (`spec.md` §5.5): the 880 px column, centred left of the details panel,
+//! The conversation page (`spec.md` §5.5): the 880 px column, centred in the stage and moved only
+//! as far as an open details panel needs (§4.7),
 //! holds the title block, the transcript and, at its foot, the queue, the unsent rows and the
 //! composer. Sizes follow the prototype (`tools/proto/calm.css` `.ccol`, `.msg`, `.tool`,
 //! `.cstack`, `.comp`).
@@ -110,22 +111,24 @@ pub fn page(t: Theme, app: &App) -> El {
         },
     };
     let following = conv.is_none_or(|c| c.cursor.is_none());
+    let stage = crate::screens::stage_width(t, app);
+    let mut width = (stage - 32.0).min(t.read.conversation);
+    let mut left = (stage - width) / 2.0;
+    if app.details_visible {
+        let room = stage - t.l.details.width;
+        width = width.min(room - 32.0);
+        left = crate::screens::beside_details(t, left, width, room);
+    }
     let column = t
         .motion
         .moves(col().key("conv-column"), t.motion.page)
         .transition(Transition::none())
-        .w_full()
-        .max_w(t.read.conversation)
+        .w(width)
         .h_full()
         .child(title_block(t, app, &s, &model).instant_changes())
         .child(transcript(&cx, &s, &items, following))
         .child(stack(t, app, &s, &model, keys && composing));
-    row()
-        .w_full()
-        .h_full()
-        .justify_center()
-        .px(16.0)
-        .child(column)
+    row().w_full().h_full().pl(left).child(column)
 }
 
 /// `provider/model` → `model`, as the facts line and the caption name it.

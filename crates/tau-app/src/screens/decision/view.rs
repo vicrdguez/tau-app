@@ -19,7 +19,6 @@ use super::state::{Anchor, Cursor};
 use crate::app::{App, Focus};
 use crate::assets::carbon;
 use crate::content::{Paint, Tint, line, markdown};
-use crate::frame::SidebarPlace;
 use crate::screens::{NOTHING_RECEIVED, item_title, stub};
 use crate::theme::Theme;
 use crate::time;
@@ -52,25 +51,6 @@ pub fn page(t: Theme, app: &App) -> El {
     }
 }
 
-/// The stage's width, as laid out last, or as the window gives it before the first layout.
-pub(super) fn stage(t: Theme, app: &App) -> f32 {
-    rune::memo::layout_size("stage")
-        .map(|s| s[0])
-        .unwrap_or_else(|| {
-            let side = app.sidebar_place() == Some(SidebarPlace::Beside);
-            app.window[0] - if side { t.l.sidebar.width } else { 0.0 }
-        })
-}
-
-/// The stage's width left of the details panel.
-fn stage_width(t: Theme, app: &App) -> f32 {
-    let mut w = stage(t, app);
-    if app.details_visible {
-        w -= t.l.details.width;
-    }
-    w
-}
-
 fn keys_on_page(app: &App) -> bool {
     app.floats.is_empty() && app.focus == Focus::Stage
 }
@@ -87,19 +67,30 @@ fn full(t: Theme, app: &App, d: &DecisionRef, v: &DecisionView) -> El {
     let cursor = reader::cursor(app, d);
     let keys = keys_on_page(app) && s.editing.is_none();
     let selection = reader::selection(app, d);
-    let stage_w = stage_width(t, app);
-    let folded = stage_w < t.read.fold_notes_below;
-    let column_w = if folded {
-        (stage_w - 32.0).min(t.read.measure)
-    } else {
-        t.read.measure
+    // The text column, with the notes margin beside it unless the room folds it, where it sits
+    // in a page `room` wide; then where it sits with the details panel open (`spec.md` §4.7).
+    let laid_out = |room: f32| {
+        let folded = room < t.read.fold_notes_below;
+        let column_w = if folded {
+            (room - 32.0).min(t.read.measure)
+        } else {
+            t.read.measure
+        };
+        let block = if folded {
+            column_w
+        } else {
+            t.read.decision_block
+        };
+        (folded, column_w, block, ((room - block) / 2.0).max(16.0))
     };
-    let left = if folded {
-        (stage_w - column_w) / 2.0
-    } else {
-        (stage_w - t.read.decision_block) / 2.0
+    let stage_w = crate::screens::stage_width(t, app);
+    let (mut folded, mut column_w, _, mut left) = laid_out(stage_w);
+    if app.details_visible {
+        let room = stage_w - t.l.details.width;
+        let block;
+        (folded, column_w, block, _) = laid_out(room);
+        left = crate::screens::beside_details(t, left, block, room);
     }
-    .max(16.0);
 
     let answered = matches!(st, Standing::Answered { .. });
     // The notes the margin shows: the answer's once answered, else this device's drafts.
@@ -662,7 +653,7 @@ fn title_block(t: Theme, app: &App, v: &DecisionView, st: &Standing, th: Option<
         .gap(4.0)
         .child(text("details").font(t.ty.ui_small).color(t.c.fg.muted))
         .child(icon(&carbon::CHEVRON_RIGHT, 12.0).color(t.c.fg.muted))
-        .on_press(|a: &mut App| a.details_visible = !a.details_visible);
+        .on_press_tx(|a: &mut App, tx| crate::app::commands::run_id(a, "toggle.details", tx));
     col()
         .w_full()
         .pt(tb.top)

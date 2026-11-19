@@ -4,6 +4,9 @@
 //! - A code line hides its tail in a horizontal viewport instead of growing taller.
 //! - Wrapped code loses note-range highlights or stops wrapping while streaming.
 //! - Reading columns stay narrow, or widening the decision folds notes at 1512 px.
+//! - Opening Details moves a reading column that already clears the panel, moves it further than
+//!   its shortfall, or narrows it before it reaches its 16 px margin; the decision's text column
+//!   jumps when its margin folds; the cursor's paragraph moves on screen or out of view.
 
 use super::*;
 use crate::screens::decision::{notes::Draft, state::Anchor};
@@ -367,5 +370,104 @@ fn reading_layout_streaming_code_keeps_wrapped_note_highlights() {
         for highlight in highlights {
             inside_x(highlight.rect, block.rect);
         }
+    }
+}
+
+fn at(name: &str, size: [f32; 2]) -> Runtime<App> {
+    let mut app = scene(name);
+    app.window = size;
+    let fonts =
+        rune::text::TextSystem::new(crate::assets::fonts().unwrap(), crate::theme::FAMILIES);
+    let mut rt = Runtime::with_text(app, view, (size[0], size[1]), Env::new(true, 1.0), fonts);
+    advance(&mut rt);
+    rt.update(|a, tx| {
+        poll(a, a.now + 1.0, tx);
+    });
+    advance(&mut rt);
+    rt
+}
+
+fn rect_of(rt: &Runtime<App>, key: &str) -> [f32; 4] {
+    keyed(&rt.elements(), key).rect
+}
+
+/// `key`'s rect with Details closed, then open, toggled as `␣td` does.
+fn details(rt: &mut Runtime<App>, key: &str) -> ([f32; 4], [f32; 4]) {
+    let closed = rect_of(rt, key);
+    rt.update(|a, tx| commands::run_id(a, "toggle.details", tx));
+    for _ in 0..30 {
+        rt.frame(0.05);
+    }
+    assert!(rt.state.details_visible);
+    (closed, rect_of(rt, key))
+}
+
+#[test]
+fn reading_layout_details_moves_the_conversation_only_by_its_shortfall() {
+    let (closed, open) = details(
+        &mut at("conversation-streaming", [1512.0, 982.0]),
+        "conv-column",
+    );
+    eprintln!(
+        "1512: conversation column x {} closed, {} open",
+        closed[0], open[0]
+    );
+    assert_eq!((closed[0], closed[2]), (440.0, 880.0));
+    assert_eq!(open[2], 880.0, "its lines don't break again");
+    assert_eq!(
+        open[0] + open[2],
+        1512.0 - 240.0 - 24.0,
+        "it moves only until it clears the panel by 24 px"
+    );
+    let (closed, open) = details(
+        &mut at("conversation-streaming", [1800.0, 982.0]),
+        "conv-column",
+    );
+    assert_eq!(open, closed, "wide: nothing moves");
+    let (closed, open) = details(
+        &mut at("conversation-streaming", [1100.0, 982.0]),
+        "conv-column",
+    );
+    assert_eq!(
+        (closed[0], closed[2]),
+        (248.0 + 16.0, 1100.0 - 248.0 - 32.0)
+    );
+    assert_eq!(open[0], 248.0 + 16.0, "at its margin");
+    assert_eq!(open[2], 1100.0 - 248.0 - 240.0 - 32.0, "narrowed only then");
+}
+
+#[test]
+fn reading_layout_details_keeps_the_decision_text_column_where_it_was() {
+    let (closed, open) = details(&mut at("decision-long", [1512.0, 982.0]), "b0");
+    assert_eq!(closed[0], 248.0 + (1264.0 - 1208.0) / 2.0);
+    assert_eq!(open[0], closed[0], "the margin folds, the text stays");
+    assert_eq!(open[2], 840.0);
+}
+
+#[test]
+fn reading_layout_details_keeps_the_decision_cursor_in_place() {
+    for size in [[1512.0, 982.0], [800.0, 600.0]] {
+        let mut rt = at("decision-long", size);
+        let (closed, open) = details(&mut rt, "decision-cursor");
+        assert!(
+            (open[1] - closed[1]).abs() <= 1.0,
+            "{size:?}: the cursor's line stays at y {}, not {}",
+            closed[1],
+            open[1]
+        );
+        let page = rect_of(&rt, "decision-page");
+        assert!(
+            open[1] >= page[1] && open[1] + open[3] <= page[1] + page[3],
+            "{size:?}: in view: {open:?} in {page:?}"
+        );
+        rt.update(|a, tx| commands::run_id(a, "toggle.details", tx));
+        for _ in 0..30 {
+            rt.frame(0.05);
+        }
+        let back = rect_of(&rt, "decision-cursor");
+        assert!(
+            (back[1] - closed[1]).abs() <= 1.0,
+            "{size:?}: and through the close"
+        );
     }
 }
