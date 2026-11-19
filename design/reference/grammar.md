@@ -184,6 +184,7 @@ Every bottom float is one component (`../spec.md` §6), and one that takes the k
 - `c` in the first-note ghost (`+ note c`);
 - `␣rc` on the offline notice, `␣rp` on the revoked notice, `␣rt` on an unknown row that isn't an answer;
 - `␣pb` on a Home with no projects (the start page says `⌘⏎ binds one` instead, since it is in Insert);
+- `␣th` on a place whose filtered rows are all hidden on this device (`2 faulted tasks hidden on this device ␣th show hidden`);
 - `⏎ connect` in the Connect form's footer; over plain HTTP its `y` is in the Confirm float, never in the form, where `y` is a letter;
 - in the sidebar, `␣cn` and `␣.`;
 - as hints: `M-p` and `M-w` on the start line (lit in Insert and Normal), `⌘⏎ start` or `starting…` in the start composer, the composer's and the note's Insert keys, the float hints.

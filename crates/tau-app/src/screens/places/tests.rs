@@ -114,6 +114,144 @@ fn a_new_search_can_find_a_row_the_previous_search_hid() {
     );
 }
 
+// An empty place could fail by reading the same whether the server has nothing, the filter
+// excludes everything, or every row is hidden on this device; by printing `␣th` where it does
+// nothing; by a pointer path that doesn't reset or reveal; by counting hidden rows outside the
+// filter; or by "1 faulted tasks".
+
+fn press_all(rt: &mut rune::Runtime<App>, seq: &str) {
+    rt.update(|a, _| press(a, seq));
+    for _ in 0..3 {
+        rt.frame(1.0);
+    }
+}
+
+#[test]
+fn hiding_every_fault_says_how_many_and_shows_them_again() {
+    use crate::screens::home::drawn::{click, drawn, shown};
+    for (project, sentence) in [
+        (None, "2 faulted tasks hidden on this device"),
+        (Some("render-core"), "1 faulted task hidden on this device"),
+    ] {
+        let mut a = fixture(Place::Faults);
+        filter_project(&mut a, Place::Faults, project.map(Into::into));
+        let n = rows(&a).len();
+        for _ in 0..n {
+            press(&mut a, "x");
+        }
+        assert!(rows(&a).is_empty());
+        let s = a.scope();
+        assert!(
+            a.theme().keymap.chip("<leader>th", s.mode, s.ctx).lit,
+            "the printed ␣th works here"
+        );
+        let mut rt = drawn(a, 1512.0, 982.0);
+        let text = shown(&rt);
+        assert!(text.iter().any(|s| s == sentence), "{project:?}: {text:?}");
+        assert!(!text.iter().any(|s| s == "No matching rows."));
+        click(&mut rt, "show hidden");
+        assert_eq!(rows(&rt.state).len(), n, "show hidden reveals them");
+        assert!(rows(&rt.state).iter().all(|r| r.hidden));
+        press_all(&mut rt, "x");
+        press_all(&mut rt, "<leader>th");
+        assert_eq!(rows(&rt.state).len(), 1, "one fault restored");
+        assert!(!rows(&rt.state)[0].hidden);
+    }
+}
+
+#[test]
+fn hidden_failed_runs_are_counted_for_the_filter() {
+    use crate::screens::home::drawn::{drawn, shown};
+    let mut a = fixture(Place::Conversations);
+    a.screens.places.conversations.state = Some("failed".into());
+    filter_project(&mut a, Place::Conversations, Some("notes-cli".into()));
+    press(&mut a, "x");
+    assert!(rows(&a).is_empty());
+    let text = shown(&drawn(a, 1512.0, 982.0));
+    assert!(
+        text.iter()
+            .any(|s| s == "1 failed run hidden on this device"),
+        "{text:?}"
+    );
+}
+
+#[test]
+fn a_filter_that_matches_nothing_names_itself_and_clears() {
+    use crate::screens::home::drawn::{click, drawn, shown};
+    for (place, state, sentence, control) in [
+        (
+            Place::Faults,
+            None,
+            "No faulted tasks in notes-cli.",
+            "show all projects",
+        ),
+        (
+            Place::Timeline,
+            None,
+            "No events in notes-cli yet.",
+            "show all projects",
+        ),
+        (
+            Place::Conversations,
+            Some("failed"),
+            "No failed conversations in forecasts.",
+            "show all",
+        ),
+    ] {
+        let mut a = fixture(place);
+        let project = if place == Place::Conversations {
+            "forecasts"
+        } else {
+            "notes-cli"
+        };
+        filter_project(&mut a, place, Some(project.into()));
+        a.screens.places.conversations.state = state.map(Into::into);
+        if place != Place::Timeline {
+            filter_project(&mut a, Place::Timeline, Some("render-core".into()));
+        }
+        assert!(rows(&a).is_empty());
+        let mut rt = drawn(a, 1512.0, 982.0);
+        let text = shown(&rt);
+        assert!(text.iter().any(|s| s == sentence), "{text:?}");
+        click(&mut rt, control);
+        let a = &rt.state;
+        assert!(settings(a).project.is_none() && settings(a).state.is_none());
+        assert!(!rows(a).is_empty(), "{place:?} shows every project again");
+        if place != Place::Timeline {
+            assert_eq!(
+                a.screens.places.timeline.project.as_deref(),
+                Some("render-core"),
+                "another place keeps its filter"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_place_with_nothing_on_the_server_says_so() {
+    use crate::screens::home::drawn::{drawn, shown};
+    let mut f = tau_client::Fixture::design().value().clone();
+    for (k, v) in f["calls"].as_object_mut().unwrap() {
+        if k.starts_with("faults ") || k.starts_with("conversations ") {
+            v["result"]["items"] = serde_json::json!([]);
+        }
+    }
+    for (place, sentence) in [
+        (Place::Faults, "No faulted tasks."),
+        (Place::Conversations, "No conversations yet."),
+    ] {
+        let mut a = App::default();
+        a.link = tau_client::Link::fixture(tau_client::Fixture::parse(&f.to_string()).unwrap());
+        link::settle(&mut a);
+        a.show(Stage::Place(place));
+        link::settle(&mut a);
+        assert!(rows(&a).is_empty());
+        let text = shown(&drawn(a, 1512.0, 982.0));
+        assert!(text.iter().any(|s| s == sentence), "{text:?}");
+        assert!(!text.iter().any(|s| s.starts_with("show all")));
+    }
+}
+
 /// Faults rows could fail to line up: fields flowing after the error put the project at a
 /// different x per row; an `after` part cut mid-ID; the error pushing the slots off the row.
 #[test]

@@ -32,7 +32,6 @@ Each is in force as written in `spec.md` and `client.md`. Each lists its alterna
 |---|---|
 | Decision, withdrawn | the notice sentence (now `Withdrawn`) |
 | An open item whose object is gone | the exact line (now `gone from the server`) |
-| Empty Conversations, Timeline, Faults and Projects places, and a place whose filter matches nothing | one sentence each |
 | The sidebar with no open items | whether `OPEN` shows with a sentence or is left out (now left out) |
 | The start page | the line when `create` was refused for a reason other than options (now the refusal's copy of `client.md` §6) |
 | Bind float | errors for a bad name and a relative path (checked on the device before `bind`; zero extensions is valid) |

@@ -538,7 +538,12 @@ Each place is one page with one filter and one cursor. It keeps both on this dev
 
 **Projects** (`␣op`, its sidebar row): project (sage) · workdir (`mono` `fg.alt`, `…/leaf`) · extensions (`mono.small`) · `◆ 1` when it has open decisions · `1 missing` (rose) when the server lacks an extension. `⏎` opens the Project view; `␣pb` binds one.
 
-**Empty:** each place's sentence is owed (`open-questions.md` §2).
+**Empty:** one line where the first row would be (`ui`, `fg.alt`), saying which of three cases it is.
+- **The server has none:** `No faulted tasks.` · `No conversations yet.` · `No events yet. Bare conversations write none.` · `No projects yet · ␣pb binds one`.
+- **The filter keeps none:** it names the filter, `No faulted tasks in notes-cli.` · `No failed conversations in render-core.` · `No events in notes-cli yet.`, then a quiet pressable `show all projects` (`ui.small`, `fg.muted`; `show all` in Conversations with a state) that resets this place's filter and no other place's.
+- **The filter keeps some, all hidden on this device:** the count for the filter, `2 faulted tasks hidden on this device` or `1 failed run hidden on this device`, then the `␣th` chip and `show hidden`; a click on either runs `␣th`.
+
+A search that matches nothing reads `No matching rows.`
 
 ### 5.9 Project view
 

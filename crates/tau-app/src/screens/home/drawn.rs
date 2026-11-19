@@ -62,6 +62,25 @@ pub(crate) fn find<'a>(texts: &'a [ElementInfo], s: &str) -> &'a ElementInfo {
         })
 }
 
+/// Clicks the middle of the first drawn text that shows `s`, then draws again.
+pub(crate) fn click(rt: &mut Runtime<App>, s: &str) {
+    let els = rt.elements();
+    let Some(e) = texts(&els, s).into_iter().next() else {
+        panic!("nothing shows {s:?}");
+    };
+    let (x, y) = (e.rect[0] + e.rect[2] / 2.0, e.rect[1] + e.rect[3] / 2.0);
+    rt.pointer_down(x, y);
+    rt.pointer_up(x, y);
+    for _ in 0..3 {
+        rt.frame(1.0);
+    }
+}
+
+/// Every text the drawn app shows.
+pub(crate) fn shown(rt: &Runtime<App>) -> Vec<String> {
+    rt.elements().into_iter().filter_map(|e| e.text).collect()
+}
+
 /// Every text element of the drawn app that shows `s`.
 pub(crate) fn texts(els: &[ElementInfo], s: &str) -> Vec<ElementInfo> {
     els.iter()
