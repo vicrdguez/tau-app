@@ -22,37 +22,24 @@ pub fn width(app: &App) -> f32 {
     stage - 80.0 - if stage >= 1000.0 { 440.0 } else { 0.0 }
 }
 
+/// The optional slots of Failed and Running rows. `detail` is the 132 px column Failed fills
+/// with its reason and Running with its model.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Slots {
     pub extension: bool,
-    pub reason: bool,
-    pub model: bool,
+    pub detail: bool,
     pub time: bool,
 }
 impl Slots {
-    pub fn failed(width: f32) -> Self {
-        Self::fit(
-            width,
-            Self {
-                extension: true,
-                reason: true,
-                model: false,
-                time: true,
-            },
-        )
-    }
-    pub fn running(width: f32) -> Self {
-        Self::fit(
-            width,
-            Self {
-                extension: true,
-                reason: false,
-                model: true,
-                time: false,
-            },
-        )
-    }
-    fn fit(width: f32, mut s: Self) -> Self {
+    /// One decision for every group present, so their columns stand on the same lines. Slots drop
+    /// whole until the label keeps 200 px: time, model, extension, reason. While Failed is
+    /// present its reason holds the detail column, so a model alone doesn't drop it.
+    pub fn home(width: f32, failed: bool, running: bool) -> Self {
+        let mut s = Self {
+            extension: true,
+            detail: failed || running,
+            time: failed,
+        };
         let label = |s: Self| {
             width
                 - 14.0
@@ -60,28 +47,32 @@ impl Slots {
                 - 26.0
                 - 36.0
                 - if s.extension { 42.0 } else { 0.0 }
-                - if s.reason || s.model { 144.0 } else { 0.0 }
+                - if s.detail { 144.0 } else { 0.0 }
                 - if s.time { 96.0 } else { 0.0 }
         };
         if label(s) < 200.0 {
             s.time = false;
         }
-        if label(s) < 200.0 {
-            s.model = false;
+        if label(s) < 200.0 && !failed {
+            s.detail = false;
         }
         if label(s) < 200.0 {
             s.extension = false;
         }
         if label(s) < 200.0 {
-            s.reason = false;
+            s.detail = false;
         }
         s
+    }
+    pub fn running(width: f32) -> Self {
+        Self::home(width, false, true)
     }
 }
 
 /// The columns one list draws its rows on, decided once from every row it shows.
 pub struct Grid {
     pub home: bool,
+    pub slots: Slots,
     /// The width of the event time column: the widest time drawn.
     pub stamp: f32,
 }
@@ -95,14 +86,25 @@ impl Grid {
             .filter_map(|r| r.at)
             .map(|at| mono_width(app.theme(), &stamp(at, now)))
             .fold(0.0, f32::max);
-        Self { home: true, stamp }
+        let has = |group: &str| rows.iter().any(|r| r.group == group);
+        Self {
+            home: true,
+            slots: Slots::home(width(app), has("Failed"), has("Running")),
+            stamp,
+        }
     }
-    pub fn place() -> Self {
+    pub fn place(app: &App) -> Self {
         Self {
             home: false,
+            slots: Slots::running(width(app)),
             stamp: 94.0,
         }
     }
+}
+
+/// Where a row's label starts inside the row: its 12 px padding, the mark's slot, the gap.
+pub fn label_inset() -> f32 {
+    12.0 + crate::theme::tokens().marks.slot + 12.0
 }
 
 /// The drawn width of `s` in `mono.small`: Iosevka advances half an em per character.
@@ -251,7 +253,16 @@ pub fn row_view(t: Theme, app: &App, r: &ListRow, selected: bool, grid: &Grid) -
             }
         }
         RowId::MoreRuns | RowId::MoreFaults | RowId::MoreEvents => {
-            line(t, &r.label, t.c.fg.muted).h(28.0).pl(36.0)
+            let inset = if r.id == RowId::MoreEvents {
+                12.0 + grid.stamp + 12.0
+            } else {
+                label_inset()
+            };
+            row()
+                .center_y()
+                .h(28.0)
+                .pl(inset)
+                .child(line(t, &r.label, t.c.fg.muted).shrink().min_w(0.0))
         }
         RowId::Fault(p, task) if !home => {
             let error = app
@@ -302,11 +313,7 @@ pub fn row_view(t: Theme, app: &App, r: &ListRow, selected: bool, grid: &Grid) -
             ))
         }
         _ => {
-            let slots_on = if !home || r.mark == Some(Mark::Running) {
-                Slots::running(width(app))
-            } else {
-                Slots::failed(width(app))
-            };
+            let slots_on = grid.slots;
             if matches!(r.id, RowId::Fault(..)) {
                 label = content::line(t, &r.label, t.ty.mono, t.c.kind.literal);
                 if let Some(after) = &r.after {
@@ -338,11 +345,13 @@ pub fn row_view(t: Theme, app: &App, r: &ListRow, selected: bool, grid: &Grid) -
             if slots_on.extension {
                 slots.push(small(t, &r.extension, t.c.fg.muted, 30.0));
             }
-            if slots_on.model {
-                slots.push(line(t, &r.model, t.c.fg.alt).w(132.0));
-            }
-            if slots_on.reason && home {
-                slots.push(line(t, &r.reason, t.c.fg.alt).w(132.0));
+            if slots_on.detail {
+                let detail = if home && r.mark != Some(Mark::Running) {
+                    &r.reason
+                } else {
+                    &r.model
+                };
+                slots.push(line(t, detail, t.c.fg.alt).w(132.0));
             }
             if slots_on.time && home {
                 slots.push(row().w(84.0).justify_end().child(content::line(

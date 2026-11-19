@@ -3,67 +3,22 @@
 //!
 //! Activity rows could fail by showing only the date of another day (two events that day look
 //! the same), by cutting a long time, or by starting their text at a different x per row.
+//!
+//! Failed and Running could fail to line up: Running without Failed's time slot shifts every
+//! column, or each group drops a different slot at the same width. The label could fall under
+//! 200 px. An overflow line could start off the text column of the rows above it.
+use super::drawn::{find, row_texts, scene};
 use super::*;
-use rune::{Cx, Env, Runtime, runtime::ElementInfo};
+use rune::{Cx, Env, Runtime};
 
 fn view(a: &App, _: &mut Cx<App>) -> El {
-    let fault = rows(a)
-        .into_iter()
+    let rs = rows(a);
+    let fault = rs
+        .iter()
         .find(|r| r.group == "Failed" && r.at.is_some())
         .unwrap();
-    let grid = list::Grid::home(a, &rows(a));
-    super::rows::row_view(a.theme(), a, &fault, false, &grid)
-}
-
-/// The scene drawn by the whole app at `w × h`, settled.
-fn scene(name: &str, w: f32, h: f32) -> Runtime<App> {
-    let mut a = App::default();
-    crate::app::scenes::all()
-        .iter()
-        .find(|(n, _)| *n == name)
-        .unwrap()
-        .1(&mut a);
-    a.window = [w, h];
-    let fonts =
-        rune::text::TextSystem::new(crate::assets::fonts().unwrap(), crate::theme::FAMILIES);
-    let mut rt = Runtime::with_text(a, crate::app::view, (w, h), Env::new(true, 1.0), fonts);
-    for _ in 0..3 {
-        rt.frame(1.0);
-    }
-    rt
-}
-
-/// The text elements drawn inside the row `id`.
-fn row_texts(els: &[ElementInfo], id: &RowId) -> Vec<ElementInfo> {
-    let key = format!("list-{id:?}");
-    let Some(row) = els.iter().position(|e| e.key.as_deref() == Some(&key)) else {
-        panic!("no row {key}");
-    };
-    let inside = |mut i: usize| {
-        while let Some(p) = els[i].parent {
-            if p == row {
-                return true;
-            }
-            i = p;
-        }
-        false
-    };
-    (0..els.len())
-        .filter(|&i| inside(i) && els[i].text.is_some())
-        .map(|i| els[i].clone())
-        .collect()
-}
-
-fn find<'a>(texts: &'a [ElementInfo], s: &str) -> &'a ElementInfo {
-    texts
-        .iter()
-        .find(|e| e.text.as_deref() == Some(s))
-        .unwrap_or_else(|| {
-            panic!(
-                "no {s:?} in {:?}",
-                texts.iter().map(|e| &e.text).collect::<Vec<_>>()
-            )
-        })
+    let grid = list::Grid::home(a, &rs);
+    super::rows::row_view(a.theme(), a, fault, false, &grid)
 }
 
 #[test]
@@ -133,4 +88,121 @@ fn activity_rows_show_the_timeline_time_and_start_their_text_on_one_line() {
             "event text starts on one line at {w}: {text_x:?}"
         );
     }
+}
+
+fn same(xs: &[f32]) -> bool {
+    xs.windows(2).all(|p| (p[0] - p[1]).abs() < 0.5)
+}
+
+#[test]
+fn failed_and_running_stand_on_one_grid_at_every_width() {
+    for w in [1512.0, 1300.0, 800.0] {
+        let rt = scene("home", w, 1400.0);
+        let a = &rt.state;
+        let els = rt.elements();
+        let (mut project, mut id, mut extension, mut detail) = (vec![], vec![], vec![], vec![]);
+        let rs: Vec<_> = rows(a)
+            .into_iter()
+            .filter(|r| {
+                matches!(r.id, RowId::Conversation(_) | RowId::Fault(..))
+                    && matches!(r.group.as_str(), "Failed" | "Running")
+            })
+            .collect();
+        assert!(rs.iter().any(|r| r.group == "Running") && rs.iter().any(|r| r.group == "Failed"));
+        for r in &rs {
+            let texts = row_texts(&els, &r.id);
+            project.push(find(&texts, &r.project).rect[0]);
+            id.push(find(&texts, &format!("#{}", r.conversation.unwrap())).rect[0]);
+            if let Some(e) = texts
+                .iter()
+                .find(|e| !r.extension.is_empty() && e.text.as_deref() == Some(&r.extension))
+            {
+                extension.push(e.rect[0]);
+            }
+            let value = if r.group == "Running" {
+                &r.model
+            } else {
+                &r.reason
+            };
+            if let Some(e) = texts.iter().find(|e| e.text.as_deref() == Some(value)) {
+                detail.push(e.rect[0]);
+            }
+            if matches!(r.id, RowId::Conversation(_)) {
+                let head: String = r.label.chars().take(8).collect();
+                let label = texts
+                    .iter()
+                    .find(|e| e.text.as_deref().is_some_and(|s| s.starts_with(&head)))
+                    .unwrap()
+                    .rect[2];
+                assert!(label >= 200.0, "{} keeps 200 px at {w}: {label}", r.label);
+            }
+        }
+        assert!(same(&project), "project at {w}: {project:?}");
+        assert!(same(&id), "#id at {w}: {id:?}");
+        assert!(same(&extension), "extension at {w}: {extension:?}");
+        assert!(same(&detail), "reason / model at {w}: {detail:?}");
+        assert_eq!(
+            detail.len(),
+            rs.len(),
+            "the shared column shows each group's value at {w}"
+        );
+    }
+}
+
+#[test]
+fn overflow_lines_start_on_the_text_column_above_them() {
+    let rt = scene("home", 1512.0, 1400.0);
+    let els = rt.elements();
+    let rs = rows(&rt.state);
+    let more = rs
+        .iter()
+        .find(|r| r.id == RowId::MoreEvents)
+        .expect("the fixture's Activity overflows");
+    let event = rs
+        .iter()
+        .find(|r| matches!(r.id, RowId::Event(..)))
+        .unwrap();
+    let more_x = find(&row_texts(&els, &more.id), &more.label).rect[0];
+    let event_x = find(&row_texts(&els, &event.id), &event.label).rect[0];
+    assert!(
+        (more_x - event_x).abs() < 0.5,
+        "older line {more_x}, event text {event_x}"
+    );
+
+    fn failed(a: &App, _: &mut Cx<App>) -> El {
+        let rs = rows(a);
+        let grid = list::Grid::home(a, &rs);
+        let run = rs
+            .iter()
+            .find(|r| r.group == "Failed" && matches!(r.id, RowId::Conversation(_)))
+            .unwrap();
+        let more = ListRow::new(
+            RowId::MoreRuns,
+            "Failed",
+            "",
+            "2 more failed runs · in Conversations".into(),
+        );
+        rune::col()
+            .w_full()
+            .child(super::rows::row_view(a.theme(), a, run, false, &grid))
+            .child(super::rows::row_view(a.theme(), a, &more, false, &grid))
+    }
+    let mut a = App::default();
+    crate::app::link::settle(&mut a);
+    let label = rows(&a)
+        .into_iter()
+        .find(|r| r.group == "Failed" && matches!(r.id, RowId::Conversation(_)))
+        .unwrap()
+        .label;
+    let fonts =
+        rune::text::TextSystem::new(crate::assets::fonts().unwrap(), crate::theme::FAMILIES);
+    let mut rt = Runtime::with_text(a, failed, (744.0, 56.0), Env::new(true, 1.0), fonts);
+    rt.frame(0.0);
+    let els = rt.elements();
+    let run_x = super::drawn::texts(&els, &label)[0].rect[0];
+    let more_x = super::drawn::texts(&els, "2 more failed runs · in Conversations")[0].rect[0];
+    assert!(
+        (more_x - run_x).abs() < 0.5,
+        "more line {more_x}, failed label {run_x}"
+    );
 }

@@ -204,6 +204,7 @@ impl Screen for Places {
             );
         }
         body = body.child(rune::el().h(if p == Place::Conversations { 0.0 } else { 18.0 }));
+        let grid = list::Grid::place(app);
         let mut group = "";
         for r in &rs {
             if p == Place::Conversations && r.group != group {
@@ -239,15 +240,13 @@ impl Screen for Places {
                         ),
                 );
             }
-            body = body.child(list::row_view(
-                t,
-                app,
-                r,
-                id.as_ref() == Some(&r.id),
-                &list::Grid::place(),
-            ));
+            body = body.child(list::row_view(t, app, r, id.as_ref() == Some(&r.id), &grid));
             if r.hidden {
-                body = body.child(list::line(t, "hidden on this device", t.c.fg.muted).pl(36.0));
+                body = body.child(row().pl(list::label_inset()).child(list::line(
+                    t,
+                    "hidden on this device",
+                    t.c.fg.muted,
+                )));
             }
         }
         if rs.is_empty() {

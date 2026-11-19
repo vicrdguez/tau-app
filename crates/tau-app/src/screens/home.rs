@@ -2,6 +2,8 @@
 //! from the client model; no polling or protocol behavior lives here.
 #[cfg(test)]
 mod click_tests;
+#[cfg(test)]
+pub(crate) mod drawn;
 pub mod list;
 pub mod nav;
 mod rows;
