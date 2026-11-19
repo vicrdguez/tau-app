@@ -98,7 +98,7 @@ fn typing_narrows_the_rows_to_the_values_and_keys_it_names() {
     match &shown(&a)[0] {
         Row::Key(r) => assert_eq!(
             (r.command.id.as_str(), display(&r.design)),
-            ("start.workflow", "M-w".to_string())
+            ("start.workflow", "⌥W".to_string())
         ),
         other => panic!("{other:?}"),
     }
@@ -106,7 +106,8 @@ fn typing_narrows_the_rows_to_the_values_and_keys_it_names() {
     assert!(
         shown(&a)
             .iter()
-            .all(|r| matches!(r, Row::Key(k) if display(&k.now).contains("M-w")))
+            .all(|r| matches!(r, Row::Key(k) if display(&k.now) == "⌥W")),
+        "the keymap's notation still finds the key it prints as ⌥W"
     );
     a.float_edit().replace_text("composer");
     assert!(shown(&a).iter().all(
@@ -126,7 +127,7 @@ fn a_new_workflow_key_runs_in_both_modes_prints_on_the_start_line_and_is_saved()
     assert_eq!(float(&a).and_then(|f| f.capture.clone()), None);
     assert_eq!(
         a.echo.as_deref(),
-        Some("start page: workflow or model is now M-m")
+        Some("start page: workflow or model is now ⌥M")
     );
     assert!(
         on_disk(&dir).contains("[keys.\"start.workflow\"]\n\"<M-w>\" = \"<M-m>\"\n"),
@@ -155,7 +156,7 @@ fn a_new_workflow_key_runs_in_both_modes_prints_on_the_start_line_and_is_saved()
             .keymap
             .chip("<M-w>", Mode::Insert, crate::keys::Ctx::Start)
             .printed,
-        "M-m"
+        "⌥M"
     );
 }
 
@@ -242,7 +243,7 @@ fn ctrl_x_puts_the_design_key_back_and_removes_the_line() {
     );
     assert_eq!(
         a.echo.as_deref(),
-        Some("start page: workflow or model is M-w again")
+        Some("start page: workflow or model is ⌥W again")
     );
 }
 

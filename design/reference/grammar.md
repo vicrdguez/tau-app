@@ -190,7 +190,7 @@ Every bottom float is one component (`../spec.md` §6), and one that takes the k
 - in the sidebar, `␣cn` and `␣.`;
 - as hints: `M-p` and `M-w` on the start line (lit in Insert and Normal), `⌘⏎ start` or `starting…` in the start composer, the composer's and the note's Insert keys, the float hints. The start line's two parts and the start composer's hint take a press too, as their keys do and only while lit.
 
-A disabled action prints no chip (`stop · off`). Server text never names a client key. The one plain-word key is the echo after a click on the `y` chip, `press y to confirm`. which-key, the palette and `␣hk` carry the rest.
+A chip or hint prints Option as `⌥` with the key in capitals (`⌥P`, `⌥⏎`), as it prints Command (`⌘K`); `keymap.toml`, `settings.toml` and this file write it `M-`. A disabled action prints no chip (`stop · off`). Server text never names a client key. The one plain-word key is the echo after a click on the `y` chip, `press y to confirm`. which-key, the palette and `␣hk` carry the rest.
 
 ## 10. Editors
 

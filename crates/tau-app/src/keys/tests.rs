@@ -224,7 +224,14 @@ fn sequences_print_as_the_design_prints_them() {
     assert_eq!(display(&k("<leader>.")), "␣.");
     assert_eq!(display(&k("<D-k>")), "⌘K");
     assert_eq!(display(&k("<D-CR>")), "⌘⏎");
-    assert_eq!(display(&k("<M-CR>")), "M-⏎");
+    assert_eq!(display(&k("<M-CR>")), "⌥⏎");
+    assert_eq!(display(&k("<M-p>")), "⌥P", "Option prints as ⌘ does");
+    assert_eq!(display(&k("<D-M-k>")), "⌥⌘K");
+    assert_eq!(
+        written(&k("<M-p>")),
+        "<M-p>",
+        "the file keeps the keymap's notation"
+    );
     assert_eq!(display(&k("<C-h>")), "C-h");
     assert_eq!(display(&k("<CR>")), "⏎");
     assert_eq!(display(&k("<Esc>")), "Esc");

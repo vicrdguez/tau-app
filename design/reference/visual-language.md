@@ -224,7 +224,7 @@ IBM Carbon icons (`@carbon/icons` 11.90.0, Apache-2.0), drawn as SVG paths and t
 
 The failed `×` replaces the octagon everywhere: the sidebar, Home, the lists, tool rows, facts lines and the `×` tag. Workflows in pickers have no icon (`w1 · workflow`): the outline diamond means a decision and nothing else.
 
-**Key glyphs.** Letters, digits, punctuation and `⌘` in chips and hints come from Iosevka. `␣` and `⏎` are the client's own drawings (`tau.icon.key_space`, `tau.icon.key_return`), 9 px, in the chip's text colour: the sketch's `⏎` came from a fallback font and drew greyer than its neighbours, and a path needs no font.
+**Key glyphs.** Letters, digits, punctuation, `⌘` and `⌥` in chips and hints come from Iosevka, which draws both modifier glyphs; an Option chord prints `⌥P`, never the keymap's `M-p`. `␣` and `⏎` are the client's own drawings (`tau.icon.key_space`, `tau.icon.key_return`), 9 px, in the chip's text colour: the sketch's `⏎` came from a fallback font and drew greyer than its neighbours, and a path needs no font.
 
 ## 7. Motion
 

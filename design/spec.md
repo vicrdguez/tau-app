@@ -2,7 +2,7 @@
 
 The desktop client of a tau server: what it shows, how it flows, and what each screen asks of the server. Visual rules are in `reference/visual-language.md`, keyboard rules in `reference/grammar.md` and `keymap.toml`, and connection behaviour in `client.md`. Test data shaped like the protocol is `fixture.json`.
 
-**Words.** *The server* is a running `tau`: the host layer and the store layer of `docs/core`. *A call* is one `POST /v1/<name>`. *A stream* is a call answered by server-sent events (`open`, `inbox`, `timeline`). *Extension text* is text an extension's code wrote: a decision title, an event's `text`, a fault's `error`. *Agent text* is what a model wrote. *A place* is one of Home, Conversations, Timeline, Projects and Faults. *An open item* is a conversation, decision or project you opened; the sidebar lists them. The name is written `tau`; `τau` is the logo only. Keys: `␣` is Space (the leader), `⏎` Enter, `C-x` Ctrl, `M-x` Option, `⌘` Cmd.
+**Words.** *The server* is a running `tau`: the host layer and the store layer of `docs/core`. *A call* is one `POST /v1/<name>`. *A stream* is a call answered by server-sent events (`open`, `inbox`, `timeline`). *Extension text* is text an extension's code wrote: a decision title, an event's `text`, a fault's `error`. *Agent text* is what a model wrote. *A place* is one of Home, Conversations, Timeline, Projects and Faults. *An open item* is a conversation, decision or project you opened; the sidebar lists them. The name is written `tau`; `τau` is the logo only. Keys: `␣` is Space (the leader), `⏎` Enter, `C-x` Ctrl, `M-x` Option, `⌘` Cmd. On screen the app prints an Option chord as it prints a Cmd one, `⌥P` beside `⌘K`; `M-x` is only the keymap's notation.
 
 ---
 

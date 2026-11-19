@@ -206,7 +206,7 @@ fn an_unknown_command_or_a_key_the_command_lacks_is_reported() {
         p,
         vec![
             "no.such is not a command",
-            "<M-q> is not one of start.workflow's keys (M-w)",
+            "<M-q> is not one of start.workflow's keys (<M-w>)",
         ]
     );
 }

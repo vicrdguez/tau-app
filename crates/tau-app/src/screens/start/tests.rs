@@ -266,9 +266,9 @@ fn the_start_line_prints_the_key_this_device_types_lit_in_insert() {
             .find(|e| e.text.as_deref() == Some(key))
             .map(|e| e.text_color)
     };
-    assert_eq!(printed("M-m"), Some(Some(lit)), "the moved key, lit");
-    assert_eq!(printed("M-p"), Some(Some(lit)), "the project's key, lit");
-    assert_eq!(printed("M-w"), None, "the key it replaced");
+    assert_eq!(printed("⌥M"), Some(Some(lit)), "the moved key, lit");
+    assert_eq!(printed("⌥P"), Some(Some(lit)), "the project's key, lit");
+    assert_eq!(printed("⌥W"), None, "the key it replaced");
 }
 
 #[test]
@@ -506,7 +506,7 @@ fn each_start_control_has_one_accessible_name() {
     assert!(
         nodes
             .iter()
-            .all(|n| !["w1", "workflow", "M-p", "M-w", "⌘"].contains(&n.2.as_str())),
+            .all(|n| !["w1", "workflow", "⌥P", "⌥W", "⌘"].contains(&n.2.as_str())),
         "no loose words: {nodes:?}"
     );
     let mut a = ready();

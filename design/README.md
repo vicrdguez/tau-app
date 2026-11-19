@@ -42,7 +42,7 @@ Before building, reconcile the citations with the current core once its docs set
 3. `reference/grammar.md` and `keymap.toml` for keys; `reference/visual-language.md` and `tokens.json` for how it looks.
 4. Build against `fixture.json` first; `client.md` §9 lists what the client must show for each piece of it.
 
-**Notation:** `␣` is Space (the leader), `⏎` Enter, `C-x` Ctrl, `M-x` Option, `⌘` Cmd. `#4` is conversation 4 of a project; `w1:3:design#2` is a decision ID.
+**Notation:** `␣` is Space (the leader), `⏎` Enter, `C-x` Ctrl, `M-x` Option, `⌘` Cmd. The app prints Option as `⌥` (`⌥P`, as `⌘K`); `keymap.toml`, `settings.toml` and these files write `M-`. `#4` is conversation 4 of a project; `w1:3:design#2` is a decision ID.
 
 ## Status
 
