@@ -1,9 +1,15 @@
 //! The one shell every bottom float shares (`spec.md` §6): head, body, foot; `surface.raised`, a
 //! hairline, a 2 px coral top rule, `radius.surface` and the upward shadow.
 
-use rune::{El, Transition, col, el, row, text};
+use rune::{El, ScrollSpec, Transition, col, el, row, text};
 
 use crate::theme::{Motion, Theme};
+
+/// The key of what a float's keys act on: its selected row, or the bind float's field.
+pub const FLOAT_CURSOR: &str = "float-cursor";
+/// The key of a float's body, between its head and its foot. It scrolls; the app keeps the
+/// selected row in it.
+pub const FLOAT_BODY: &str = "float-body";
 
 /// What a float shows. The frame places it over the stage and clips the page at its top edge.
 pub struct Shell {
@@ -69,7 +75,11 @@ pub fn shell(t: Theme, s: Shell) -> El {
                 .py(2.0)
                 .min_h(0.0)
                 .shrink()
-                .clip_rounded(0.0)
+                .scroll(ScrollSpec {
+                    stick_bottom: false,
+                })
+                .scroll_margin(2.0)
+                .key(FLOAT_BODY)
                 .child(s.body),
         );
     if s.input.is_some() || !s.hints.is_empty() {
@@ -81,7 +91,8 @@ pub fn shell(t: Theme, s: Shell) -> El {
             .pt(9.0)
             .min_h(f.foot_min_height)
             .border_sides([1.0, 0.0, 0.0, 0.0], t.c.border.hairline)
-            .border_layout();
+            .border_layout()
+            .key("float-foot");
         foot = match s.input {
             Some(input) => foot.child(input.grow(1.0).min_w(0.0)),
             None => foot.child(rune::spacer()),
@@ -125,6 +136,7 @@ pub fn float_row(t: Theme, selected: bool, content: El) -> El {
     if selected {
         r.fill(t.c.surface.cursor_side)
             .border_sides([0.0, 0.0, 0.0, 2.0], t.c.state.attn)
+            .key(FLOAT_CURSOR)
     } else {
         r
     }
@@ -136,12 +148,22 @@ pub fn kv_row(t: Theme, label: &str, value: El) -> El {
         .center_y()
         .min_h(t.l.float.row)
         .px(t.l.float.padding_x)
-        .child(
-            text(label.to_string())
-                .font(t.ty.ui_small)
-                .color(t.c.kind.you)
-                .w(t.l.float.kv_label)
-                .wrap(),
-        )
+        .child(kv_label(t, label))
         .child(value.grow(1.0).min_w(0.0))
+}
+
+/// A key-value grid row whose value is a list of float rows: the label sits beside the first.
+pub fn kv_list(t: Theme, label: &str, rows: El) -> El {
+    row()
+        .px(t.l.float.padding_x)
+        .child(row().center_y().h(t.l.float.row).child(kv_label(t, label)))
+        .child(rows.grow(1.0).min_w(0.0))
+}
+
+fn kv_label(t: Theme, label: &str) -> El {
+    text(label.to_string())
+        .font(t.ty.ui_small)
+        .color(t.c.kind.you)
+        .w(t.l.float.kv_label)
+        .wrap()
 }

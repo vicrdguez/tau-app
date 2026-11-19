@@ -16,8 +16,7 @@ pub fn view(
     edit: &TextEdit,
 ) -> El {
     let mut body = col().w_full();
-    let start = cursor.saturating_sub(5);
-    for (i, label) in rows.iter().enumerate().skip(start).take(8) {
+    for (i, label) in rows.iter().enumerate() {
         body = body.child(ui::float_row(
             t,
             i == cursor,

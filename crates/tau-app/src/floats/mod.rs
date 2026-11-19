@@ -89,11 +89,12 @@ impl Float {
         })
     }
 
-    pub fn messages() -> Float {
+    /// `:messages`, on the newest of `count`.
+    pub fn messages(count: usize) -> Float {
         Float::Picker(Picker {
             kind: PickerKind::Messages,
             query: focused_edit(),
-            cursor: 0,
+            cursor: count.saturating_sub(1),
         })
     }
 
@@ -273,7 +274,7 @@ pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String], settings: &Settin
         Float::Picker(p) if p.kind == PickerKind::Palette => {
             let rows = palette_rows(t.keymap, &p.query.text);
             let mut body = rune::col().w_full();
-            for (i, c) in rows.iter().enumerate().take(12) {
+            for (i, c) in rows.iter().enumerate() {
                 let here = unavailable(t.keymap, c, ctx).is_none();
                 let fg = if here { t.c.fg.default } else { t.c.fg.muted };
                 let mut keys = row().center_y().gap(8.0).w(120.0);
@@ -334,7 +335,7 @@ pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String], settings: &Settin
         Float::Picker(p) => {
             let rows = message_rows(history, &p.query.text);
             let mut body = rune::col().w_full();
-            for (i, m) in rows.iter().enumerate().skip(rows.len().saturating_sub(12)) {
+            for (i, m) in rows.iter().enumerate() {
                 body = body.child(float_row(
                     t,
                     i == p.cursor,
@@ -365,7 +366,7 @@ pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String], settings: &Settin
         Float::CmdLine(c) => {
             let rows = completions(t.keymap, &c.line.text);
             let mut body = rune::col().w_full();
-            for (i, cmd) in rows.iter().enumerate().take(8) {
+            for (i, cmd) in rows.iter().enumerate() {
                 let content = row()
                     .center_y()
                     .gap(12.0)

@@ -51,12 +51,22 @@ pub fn on_key(app: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
         Some(key) => press(app, key, tx.key_repeat(), tx),
         None => false,
     };
+    // Each float moves its cursor in its own handler, and every one of them runs from here.
+    if !app.floats.is_empty() {
+        reveal_float_cursor(tx);
+    }
     if app.theme().motion.on && Moving::of(app).moved_since(&before) {
         tx.animated();
     } else {
         tx.instant();
     }
     handled
+}
+
+/// Scrolls the top float's body just far enough to show its whole selected row, once the
+/// commit this change causes is laid out.
+pub fn reveal_float_cursor(tx: &mut Tx) {
+    tx.scroll_into_view(crate::ui::FLOAT_CURSOR);
 }
 
 /// A focused field's `on_input_key`: the same keys, before the field types them.

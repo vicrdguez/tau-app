@@ -358,7 +358,8 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
                 floats::which_key::view(t, &wk, scope.ctx, &why, float_w)
             }),
         None => None,
-    };
+    }
+    .map(|f| f.on_layout_tx(|_: &mut App, _, tx| input::reveal_float_cursor(tx)));
     let bar = frame::bar(
         t,
         Bar {

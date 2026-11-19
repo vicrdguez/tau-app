@@ -68,7 +68,9 @@ fn frame() -> HashMap<&'static str, Handler> {
     // The floats.
     t.insert("palette", |a, _, _| a.open_float(Float::palette()));
     t.insert("cmdline.open", |a, _, _| a.open_float(Float::cmdline()));
-    t.insert("open.messages", |a, _, _| a.open_float(Float::messages()));
+    t.insert("open.messages", |a, _, _| {
+        a.open_float(Float::messages(a.messages.len()))
+    });
     t.insert("help.keys", |a, _, _| {
         a.open_float(Float::Sheet(Sheet::keys(a.settings.keymap)))
     });

@@ -120,17 +120,10 @@ fn mode_word(mode: Mode) -> &'static str {
     }
 }
 
-/// How many rows the body shows around the cursor.
-const WINDOW: usize = 10;
-
 pub fn view(t: Theme, scope: Scope, s: &Sheet) -> El {
     let shown = s.shown();
-    let start = s
-        .cursor
-        .saturating_sub(WINDOW / 2)
-        .min(shown.len().saturating_sub(WINDOW));
     let mut body = col().w_full();
-    for (at, &i) in shown.iter().enumerate().skip(start).take(WINDOW) {
+    for (at, &i) in shown.iter().enumerate() {
         let r = &s.rows[i];
         let mut content = row().center_y().gap(12.0);
         if !s.rows.iter().all(|r| r.keys.is_empty()) {

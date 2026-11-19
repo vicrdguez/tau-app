@@ -135,7 +135,12 @@ impl ScreenFloat for Bind {
                             .color(t.c.fg.muted),
                     );
                 }
-                body = body.child(ui::kv_row(t, label, value));
+                let field = ui::kv_row(t, label, value);
+                body = body.child(if edit.focused {
+                    field.key(ui::FLOAT_CURSOR)
+                } else {
+                    field
+                });
             }
         }
         let mut checklist = col().w_full();
@@ -175,7 +180,7 @@ impl ScreenFloat for Bind {
                 }),
             );
         }
-        body = body.child(ui::kv_row(t, "extensions", checklist));
+        body = body.child(ui::kv_list(t, "extensions", checklist));
         if let Some(error) = &self.error {
             body = body.child(line(t, error, t.ty.ui_small, t.c.text.failed).px(24.0));
         }

@@ -107,12 +107,8 @@ impl ScreenFloat for Picker {
     fn view(&self, t: Theme, _: &App) -> El {
         let rows = self.filtered();
         let selected = self.current().map(|r| &r.value);
-        let at = rows
-            .iter()
-            .position(|r| Some(&r.value) == selected)
-            .unwrap_or(0);
         let mut body = col().w_full();
-        for r in rows.iter().skip(at.saturating_sub(7)).take(9) {
+        for r in &rows {
             let mut content = row().center_y().gap(12.0).w_full();
             if r.project {
                 content = content.child(icon(&carbon::FOLDER, 14.0).color(t.c.fg.muted));

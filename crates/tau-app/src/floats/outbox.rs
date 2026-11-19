@@ -79,12 +79,7 @@ pub fn view(
     details: Option<&str>,
 ) -> El {
     let mut body = col().w_full();
-    for (i, r) in rows
-        .iter()
-        .enumerate()
-        .skip(cursor.saturating_sub(5))
-        .take(8)
-    {
+    for (i, r) in rows.iter().enumerate() {
         let line = ui::slot_row(
             Some(if r.unknown {
                 ui::mark(t, Mark::Unknown)

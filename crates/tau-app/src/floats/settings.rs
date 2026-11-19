@@ -299,10 +299,9 @@ pub fn view(t: Theme, f: &SettingsFloat, s: &Settings) -> El {
         ctx: Ctx::Settings,
     };
     let rows = rows(s.keymap, &f.query.text);
-    let start = f.cursor.saturating_sub(5);
     let mut body = col().w_full();
-    for (i, r) in rows.iter().enumerate().skip(start).take(12) {
-        if i > start && matches!(r, Row::Key(_)) && matches!(rows[i - 1], Row::Field(_)) {
+    for (i, r) in rows.iter().enumerate() {
+        if i > 0 && matches!(r, Row::Key(_)) && matches!(rows[i - 1], Row::Field(_)) {
             body = body.child(
                 el().h(1.0)
                     .mx(t.l.float.padding_x)
