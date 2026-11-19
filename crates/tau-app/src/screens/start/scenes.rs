@@ -48,7 +48,7 @@ pub(super) fn choose_project(a: &mut App) {
     s.project = None;
     s.with = None;
 }
-pub(super) fn no_projects(a: &mut App) {
+pub(crate) fn no_projects(a: &mut App) {
     fixture_with(a, |v| {
         v["calls"]["projects"]["result"]["items"] = serde_json::json!([])
     });

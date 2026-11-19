@@ -63,6 +63,10 @@ pub(super) fn all() -> Vec<Scene> {
             base(a);
             a.show(Stage::Place(Place::Projects));
         }),
+        ("projects-none", |a| {
+            crate::screens::start::scenes::no_projects(a);
+            a.show(Stage::Place(Place::Projects));
+        }),
         ("project-options-unset", |a| {
             scratch(a);
             open_options(a, "scratch".into(), true);

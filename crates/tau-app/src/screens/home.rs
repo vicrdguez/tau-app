@@ -474,16 +474,7 @@ impl Screen for Home {
             .value()
             .is_some_and(Vec::is_empty)
         {
-            return body.child(
-                row()
-                    .center_y()
-                    .gap(8.0)
-                    .mt(14.0)
-                    .mx(12.0)
-                    .child(list::line(t, "No projects yet", t.c.fg.alt))
-                    .child(ui::chip(t, app.scope(), "<leader>pb", false))
-                    .child(list::line(t, "binds one", t.c.fg.alt)),
-            );
+            return body.child(no_projects(t, app.scope()).mt(14.0).mx(12.0));
         }
         let rs = rows(app);
         let grid = list::Grid::home(app, &rs);
@@ -699,4 +690,25 @@ fn calm_scene(app: &mut App) {
     crate::app::link::refresh(app);
     reconcile(app);
     super::peek::settle_scene(app);
+}
+
+/// `No projects yet · ␣pb binds one`, on Home and the Projects place when the server has no
+/// project. The chip and its words press as `␣pb` does, while it is lit.
+pub fn no_projects(t: Theme, scope: ui::Scope) -> El {
+    let key = t.keymap.chip("<leader>pb", scope.mode, scope.ctx);
+    let bind = row()
+        .center_y()
+        .gap(8.0)
+        .child(ui::chip(t, scope, "<leader>pb", false))
+        .child(list::line(t, "binds one", t.c.fg.alt));
+    row()
+        .center_y()
+        .gap(8.0)
+        .child(list::line(t, "No projects yet", t.c.fg.alt))
+        .child(ui::control(
+            bind,
+            ui::with_keys("binds one", &[&key]),
+            key.lit,
+            |a: &mut App, tx| crate::app::commands::press_key(a, "<leader>pb", tx),
+        ))
 }

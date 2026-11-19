@@ -542,3 +542,37 @@ fn project_list_opens_by_identity_and_counts_use_the_polls() {
     run(&mut a, "list.open");
     assert_eq!(a.stage, Stage::Item(Item::Project("notes-cli".into())));
 }
+
+/// How the line for a server with no projects could fail (`spec.md` §5.3, §5.8): the Projects
+/// place says only `No projects yet`, or prints `␣pb` muted, or its chip and words do nothing
+/// when pressed or open something other than Bind; Home and Projects say it differently.
+#[test]
+fn with_no_projects_home_and_projects_offer_a_pressable_bind() {
+    for place in [Place::Home, Place::Projects] {
+        let mut a = App::default();
+        crate::screens::start::scenes::no_projects(&mut a);
+        a.show(Stage::Place(place));
+        let mut rt = crate::app::testing::window(a);
+        let texts: Vec<String> = rt.elements().into_iter().filter_map(|e| e.text).collect();
+        assert!(texts.iter().any(|s| s == "No projects yet"), "{place:?}");
+        let bind = rt
+            .elements()
+            .into_iter()
+            .find(|e| e.label.as_deref() == Some("binds one, Space p b"))
+            .unwrap_or_else(|| panic!("{place:?}: no binds one, Space p b"));
+        assert_eq!(bind.role, "button", "{place:?}");
+        let (x, y) = (
+            bind.rect[0] + bind.rect[2] / 2.0,
+            bind.rect[1] + bind.rect[3] / 2.0,
+        );
+        rt.pointer_move(x, y);
+        rt.pointer_down(x, y);
+        rt.pointer_up(x, y);
+        rt.frame(0.02);
+        assert!(
+            crate::screens::top_float::<crate::floats::project_bind::Bind>(&mut rt.state)
+                .is_some_and(|f| f.project.is_none()),
+            "{place:?}: the press opens Bind"
+        );
+    }
+}

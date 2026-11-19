@@ -378,7 +378,7 @@ fn projects(t: Theme, a: &App) -> El {
             )
         }
         Some(ps) if ps.is_empty() => {
-            body = body.child(text("No projects yet").font(t.ty.ui).color(t.c.fg.alt))
+            body = body.child(crate::screens::home::no_projects(t, a.scope()))
         }
         Some(ps) => {
             for p in ps {
