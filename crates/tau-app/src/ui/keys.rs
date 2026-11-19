@@ -54,8 +54,12 @@ pub fn glyphs(printed: &str, style: TextStyle, color: rune::Color) -> El {
 /// A key chip: `key` orange on `surface.bar` (`surface.cursor.side` inside a float), or muted
 /// and inert where its key doesn't run.
 pub fn chip(t: Theme, scope: Scope, seq: &str, in_float: bool) -> El {
+    chip_if(t, scope, seq, in_float, true)
+}
+
+fn chip_if(t: Theme, scope: Scope, seq: &str, in_float: bool, acts: bool) -> El {
     let key = t.keymap.chip(seq, scope.mode, scope.ctx);
-    let fg = if key.lit {
+    let fg = if key.lit && acts {
         t.c.kind.literal
     } else {
         t.c.fg.muted
@@ -81,9 +85,15 @@ pub fn hint(t: Theme, scope: Scope, seq: &str) -> El {
 
 /// A float's foot hint: the chip, then a muted word (`Esc closes`).
 pub fn float_hint(t: Theme, scope: Scope, seqs: &[&str], word: &str) -> El {
+    float_hint_if(t, scope, seqs, word, true)
+}
+
+/// A foot hint whose key does something only when `acts`: `⏎ choose` with no row to choose
+/// draws muted and inert, and stays in its place.
+pub fn float_hint_if(t: Theme, scope: Scope, seqs: &[&str], word: &str, acts: bool) -> El {
     let mut chips = row().center_y().gap(4.0);
     for seq in seqs {
-        chips = chips.child(chip(t, scope, seq, true));
+        chips = chips.child(chip_if(t, scope, seq, true, acts));
     }
     chips.child(
         text(word.to_string())

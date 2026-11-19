@@ -303,7 +303,14 @@ fn picker_keys(a: &mut App, inv: &Invocation, tx: &mut Tx) {
         }
         return;
     }
-    if key != Key::plain(Code::Enter) {
+    let nothing_to_choose = match a.floats.last() {
+        Some((Float::Picker(p), _)) if p.kind == PickerKind::Palette => {
+            floats::palette_rows(a.settings.keymap, &p.query.text).is_empty()
+        }
+        Some((Float::Sheet(s), _)) => s.choose.is_some() && s.shown().is_empty(),
+        _ => false,
+    };
+    if key != Key::plain(Code::Enter) || nothing_to_choose {
         return;
     }
     match a.close_float() {

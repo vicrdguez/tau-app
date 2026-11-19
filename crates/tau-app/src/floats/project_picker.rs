@@ -1,5 +1,6 @@
 //! Frozen, filterable choices for the start page and option fields.
 
+use super::{FILTER, Input, Noun, input, no_match};
 use crate::app::{App, Invocation};
 use crate::assets::carbon;
 use crate::content::line;
@@ -7,7 +8,7 @@ use crate::keys::{Code, Ctx, Key, Mode};
 use crate::screens::{ScreenFloat, ScreenId, top_float};
 use crate::theme::Theme;
 use crate::ui::{self, Badge, Scope, Shell};
-use rune::{El, TextEdit, col, icon, row, text, text_input};
+use rune::{El, TextEdit, col, icon, row};
 
 pub struct Choice {
     pub value: String,
@@ -40,7 +41,7 @@ pub struct Picker {
     pub owner: ScreenId,
     pub title: String,
     pub subtitle: String,
-    pub noun: &'static str,
+    pub noun: Noun,
     pub rows: Vec<Choice>,
     pub query: TextEdit,
     pub selected: Option<String>,
@@ -51,7 +52,7 @@ impl Picker {
         owner: ScreenId,
         title: &str,
         subtitle: String,
-        noun: &'static str,
+        noun: Noun,
         rows: Vec<Choice>,
         selected: Option<String>,
         choose: Choose,
@@ -148,26 +149,20 @@ impl ScreenFloat for Picker {
                     .child(line(t, &r.note, t.ty.ui_small, t.c.fg.muted));
             body = body.child(ui::float_row(t, Some(&r.value) == selected, content));
         }
-        let input = row()
-            .center_y()
-            .gap(10.0)
-            .child(
-                text_input(&self.query, t.ty.float_input)
-                    .single_line()
-                    .caret(t.c.state.attn, t.c.surface.selection)
-                    .color(t.c.fg.default)
-                    .on_edit(|a: &mut App| a.float_edit())
-                    .on_input_key(crate::app::input::on_field_key)
-                    .label(format!("Filter {}", self.title))
-                    .key("project-picker-input")
-                    .min_w(2.0)
-                    .shrink(),
-            )
-            .child(
-                text(format!("{} {}", rows.len(), self.noun))
-                    .font(t.ty.ui_small)
-                    .color(t.c.fg.muted),
-            );
+        if rows.is_empty() && !self.rows.is_empty() {
+            body = body.child(no_match(t, self.noun.none(&self.query.text)));
+        }
+        let input = input(
+            t,
+            Input {
+                edit: &self.query,
+                label: &format!("Filter {}", self.noun.many),
+                placeholder: FILTER,
+                count: self
+                    .noun
+                    .kept(&self.query.text, rows.len(), self.rows.len()),
+            },
+        );
         ui::shell(
             t,
             Shell {
@@ -178,7 +173,7 @@ impl ScreenFloat for Picker {
                 body,
                 input: Some(input),
                 hints: vec![
-                    ui::float_hint(t, self.scope(), &["<CR>"], "choose"),
+                    ui::float_hint_if(t, self.scope(), &["<CR>"], "choose", !rows.is_empty()),
                     ui::float_hint(t, self.scope(), &["<Esc>"], "back"),
                 ],
             },

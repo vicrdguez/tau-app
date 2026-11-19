@@ -114,7 +114,12 @@ fn open_jumps(app: &mut App, _: &Invocation, _: &mut Tx) {
         return;
     }
     let rows = entries.iter().map(|s| row(app, s)).collect();
-    let mut sheet = Sheet::new("Jumps", "the places jumps left, newest last".into(), rows);
+    let mut sheet = Sheet::new(
+        "Jumps",
+        crate::floats::Noun::new("jump", "jumps"),
+        "the places jumps left, newest last".into(),
+        rows,
+    );
     sheet.cursor = app.jumps.current().unwrap_or(entries.len() - 1);
     sheet.choose = Some(|a, i| {
         let here = here(a);

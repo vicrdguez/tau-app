@@ -10,15 +10,16 @@
 
 use rune::{El, TextEdit, Tx, col, el, row, text};
 
-use super::{Float, input, matches, plural};
+use super::{FILTER, Float, Input, Noun, input, matches, no_match};
 use crate::app::{App, Invocation};
 use crate::keys::{Code, Ctx, Key, KeyRow, Keymap, Mode, Refusal, display, written};
 use crate::settings::{self, Edit, FILE, Field, Settings};
 use crate::theme::Theme;
-use crate::ui::{Scope, Shell, float_hint, float_row, glyphs, shell, title};
+use crate::ui::{Scope, Shell, float_hint, float_hint_if, float_row, glyphs, shell, title};
 
 /// A new key is at most this many keys long.
 const MOST: usize = 4;
+const SETTINGS: Noun = Noun::new("setting", "settings");
 
 pub struct SettingsFloat {
     pub query: TextEdit,
@@ -376,12 +377,15 @@ pub fn view(t: Theme, f: &SettingsFloat, s: &Settings) -> El {
                 hint(&["<Esc>"], "back"),
             ]
         }
-        (None, _) => vec![
-            hint(&["<CR>"], "new key"),
-            hint(&["<C-x>"], "default"),
+        (None, row) => vec![
+            float_hint_if(t, scope, &["<CR>"], "new key", row.is_some()),
+            float_hint_if(t, scope, &["<C-x>"], "default", row.is_some()),
             hint(&["<Esc>"], "back"),
         ],
     };
+    if rows.is_empty() {
+        body = body.child(no_match(t, SETTINGS.none(&f.query.text)));
+    }
     if f.capture.as_ref().is_some_and(|k| k.len() == MOST) {
         hints.insert(
             0,
@@ -403,9 +407,12 @@ pub fn view(t: Theme, f: &SettingsFloat, s: &Settings) -> El {
             body,
             input: Some(input(
                 t,
-                &query,
-                None,
-                plural(rows.len(), "setting", "settings"),
+                Input {
+                    edit: &query,
+                    label: "Filter settings",
+                    placeholder: FILTER,
+                    count: SETTINGS.kept(&f.query.text, rows.len(), self::rows(s.keymap, "").len()),
+                },
             )),
             hints,
         },

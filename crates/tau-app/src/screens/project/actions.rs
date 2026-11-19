@@ -374,7 +374,7 @@ pub(super) fn edit(a: &mut App, inv: &Invocation, _: &mut Tx) {
             ScreenId::Project,
             if model { "Model" } else { "Choice" },
             format!("for {} · {}", id.extension, id.key),
-            "choices",
+            crate::floats::Noun::new("choice", "choices"),
             rows,
             selected,
             Box::new(move |a, v| {

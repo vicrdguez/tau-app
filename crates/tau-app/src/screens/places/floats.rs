@@ -1,7 +1,7 @@
 //! Controllers for list floats. Renderers under `floats/` take only plain text and marks.
 use super::{RowId, home, list, place, reconcile, save, settings_mut};
 use crate::app::{App, Invocation};
-use crate::floats::{self as draw, Float};
+use crate::floats::{self as draw, Float, Noun};
 use crate::keys::{Code, Ctx, Key, Mode};
 use crate::screens::{ScreenFloat, ScreenId, top_float};
 use crate::theme::Theme;
@@ -40,9 +40,12 @@ impl Picker {
         if let Some(rows) = &self.frozen {
             return rows.clone();
         }
+        self.matching(a, &self.query.text)
+    }
+    fn matching(&self, a: &App, query: &str) -> Vec<PickRow> {
         match self.kind {
-            Kind::Find => find_rows(a, &self.query.text),
-            Kind::Search => super::matching_rows(a, &self.query.text)
+            Kind::Find => find_rows(a, query),
+            Kind::Search => super::matching_rows(a, query)
                 .into_iter()
                 .map(|r| PickRow {
                     label: r.label,
@@ -77,11 +80,7 @@ impl Picker {
                     }));
                 }
                 rows.into_iter()
-                    .filter(|r| {
-                        r.label
-                            .to_lowercase()
-                            .contains(&self.query.text.to_lowercase())
-                    })
+                    .filter(|r| r.label.to_lowercase().contains(&query.to_lowercase()))
                     .collect()
             }
         }
@@ -104,23 +103,61 @@ impl ScreenFloat for Picker {
         Some(&mut self.query)
     }
     fn view(&self, t: Theme, a: &App) -> El {
-        let (title, subtitle) = match self.kind {
-            Kind::Find => ("Find", "projects, conversations, decisions, events"),
-            Kind::Filter => ("Filter", place(a).name()),
-            Kind::Search => ("Search", place(a).name()),
+        let rows = self.rows(a);
+        let q = &self.query.text;
+        let total = self.matching(a, "").len();
+        let (title, subtitle, label, noun) = match self.kind {
+            Kind::Find => (
+                "Find",
+                "projects, conversations, decisions, events",
+                "Search projects, conversations, decisions and events".to_string(),
+                Noun::new("result", "results"),
+            ),
+            Kind::Filter => (
+                "Filter",
+                place(a).name(),
+                if place(a) == crate::frame::Place::Conversations {
+                    "Filter projects and states".to_string()
+                } else {
+                    "Filter projects".to_string()
+                },
+                Noun::new("filter", "filters"),
+            ),
+            Kind::Search => {
+                let noun = match place(a) {
+                    crate::frame::Place::Timeline => Noun::new("event", "events"),
+                    crate::frame::Place::Faults => Noun::new("fault", "faults"),
+                    _ => Noun::new("conversation", "conversations"),
+                };
+                (
+                    "Search",
+                    place(a).name(),
+                    format!("Search {}", noun.many),
+                    noun,
+                )
+            }
         };
+        let find = matches!(self.kind, Kind::Find);
         draw::list_picker::view(
             t,
             self.scope(),
-            title,
-            subtitle,
-            &self
-                .rows(a)
-                .iter()
-                .map(|r| r.label.clone())
-                .collect::<Vec<_>>(),
-            self.cursor,
-            &self.query,
+            draw::list_picker::List {
+                title,
+                subtitle,
+                rows: &rows.iter().map(|r| r.label.clone()).collect::<Vec<_>>(),
+                cursor: self.cursor,
+                input: draw::Input {
+                    edit: &self.query,
+                    label: &label,
+                    placeholder: if find { "type to search" } else { draw::FILTER },
+                    count: noun.kept(q, rows.len(), total),
+                },
+                none: if find {
+                    format!("Nothing matches \"{q}\"")
+                } else {
+                    noun.none(q)
+                },
+            },
         )
     }
 }
@@ -212,7 +249,7 @@ pub fn picker_keys(a: &mut App, inv: &Invocation, tx: &mut Tx) {
         return;
     };
     let rows = p.rows(a);
-    if key == Key::plain(Code::Enter) {
+    if key == Key::plain(Code::Enter) && p.cursor < rows.len() {
         if let Some(r) = rows.get(p.cursor) {
             match &r.target {
                 Choice::Object(id) => {

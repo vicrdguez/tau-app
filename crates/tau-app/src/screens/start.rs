@@ -475,7 +475,7 @@ pub(crate) fn project_picker(a: &mut App, purpose: ProjectPurpose) {
         owner,
         "Project",
         sub.into(),
-        "projects",
+        crate::floats::Noun::new("project", "projects"),
         rows,
         current,
         Box::new(move |a, p| match purpose {
@@ -538,7 +538,7 @@ fn workflow_picker(a: &mut App) {
         ScreenId::Start,
         "Workflow",
         format!("for the new conversation in {p}"),
-        "choices",
+        crate::floats::Noun::new("choice", "choices"),
         rows,
         selected,
         Box::new(|a, v| {

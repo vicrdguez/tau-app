@@ -349,3 +349,151 @@ fn messages_open_on_the_newest() {
     advance(&mut rt);
     shows(&rt, "message 29");
 }
+
+/// The picker's input: the name a screen reader says, and the words drawn after its caret, which
+/// end before the count starts.
+fn input_says(rt: &Runtime<App>) -> (String, String) {
+    fn find(v: &serde_json::Value) -> Option<&serde_json::Value> {
+        if v["key"] == "float-input" {
+            return Some(v);
+        }
+        v["children"].as_array()?.iter().find_map(find)
+    }
+    let tree = rt.accessibility_json();
+    let name = find(&tree).expect("the picker's input")["name"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
+    let els = rt.elements();
+    let field = els
+        .iter()
+        .position(|e| e.key.as_deref() == Some("float-input"))
+        .unwrap();
+    let after = |i: usize| {
+        els.iter()
+            .skip(i + 1)
+            .find(|e| e.text.is_some() && !e.path.starts_with(&els[i].path))
+            .unwrap()
+    };
+    let placeholder = after(field);
+    let count = after(els.iter().position(|e| e.path == placeholder.path).unwrap());
+    assert!(
+        placeholder.rect[0] + placeholder.rect[2] <= count.rect[0],
+        "{:?} runs into {:?}",
+        placeholder.text,
+        count.text
+    );
+    (name, placeholder.text.clone().unwrap())
+}
+fn has_text(rt: &Runtime<App>, s: &str) -> bool {
+    rt.elements().iter().any(|e| e.text.as_deref() == Some(s))
+}
+/// Whether the chip before `word` in the foot is lit.
+fn lit(rt: &Runtime<App>, word: &str) -> bool {
+    let els = rt.elements();
+    let hint = els
+        .iter()
+        .find(|e| e.text.as_deref() == Some(word))
+        .and_then(|e| e.parent)
+        .unwrap_or_else(|| panic!("no hint {word}"));
+    let inside = format!("{}/", els[hint].path);
+    let chip = els
+        .iter()
+        .filter(|e| e.path.starts_with(&inside) && e.text.as_deref() != Some(word))
+        .find_map(|e| e.text_color)
+        .expect("a chip");
+    let t = rt.state.theme();
+    assert!(chip == t.c.kind.literal || chip == t.c.fg.muted, "{chip:?}");
+    chip == t.c.kind.literal
+}
+fn rows_shown(rt: &Runtime<App>) -> usize {
+    let els = rt.elements();
+    let body = els
+        .iter()
+        .position(|e| e.key.as_deref() == Some(FLOAT_BODY))
+        .unwrap();
+    let col = els.iter().position(|e| e.parent == Some(body)).unwrap();
+    els.iter().filter(|e| e.parent == Some(col)).count()
+}
+
+#[test]
+fn the_project_picker_says_how_to_filter_and_what_its_query_kept() {
+    let mut rt = scene_at("start-project-picker", (1512.0, 982.0));
+    assert_eq!(
+        input_says(&rt),
+        ("Filter projects".into(), "type to filter".into())
+    );
+    assert!(has_text(&rt, "3 projects"));
+    assert!(lit(&rt, "choose"));
+    press(&mut rt, "render");
+    assert!(has_text(&rt, "1 of 3 projects"));
+    assert!(!has_text(&rt, "type to filter"));
+    assert_eq!(rows_shown(&rt), 1);
+    press(&mut rt, &"<BS>".repeat(6));
+    press(&mut rt, "websearch");
+    assert!(has_text(&rt, "2 of 3 projects"));
+    assert_eq!(rows_shown(&rt), 2);
+    press(&mut rt, &"<BS>".repeat(9));
+    press(&mut rt, "zzzz");
+    assert!(has_text(&rt, "0 of 3 projects"));
+    assert!(has_text(&rt, "No project matches \"zzzz\""));
+    assert_eq!(rows_shown(&rt), 1, "one line where the rows were");
+    assert!(
+        rt.elements()
+            .iter()
+            .all(|e| e.key.as_deref() != Some(FLOAT_CURSOR))
+    );
+    assert!(!lit(&rt, "choose"), "⏎ resolves to nothing");
+    press(&mut rt, "<CR>");
+    assert_eq!(rt.state.floats.len(), 1, "⏎ chose nothing");
+    press(&mut rt, &"<BS>".repeat(4));
+    assert!(has_text(&rt, "3 projects"));
+    assert_eq!(rows_shown(&rt), 3);
+    shows(&rt, "render-core");
+    assert!(lit(&rt, "choose"));
+}
+
+#[test]
+fn find_says_what_it_searches_and_what_its_query_kept() {
+    let mut rt = scene_at("find", (1512.0, 982.0));
+    assert_eq!(
+        input_says(&rt),
+        (
+            "Search projects, conversations, decisions and events".into(),
+            "type to search".into()
+        )
+    );
+    let total = crate::screens::places::floats::find_rows(&rt.state, "").len();
+    assert!(total > 8, "{total}");
+    assert!(has_text(&rt, &format!("{total} results")));
+    press(&mut rt, "pi-durable");
+    assert!(has_text(&rt, &format!("1 of {total} results")));
+    assert_eq!(rows_shown(&rt), 1);
+    press(&mut rt, &"<BS>".repeat(10));
+    press(&mut rt, "notes-cli");
+    let several = crate::screens::places::floats::find_rows(&rt.state, "notes-cli").len();
+    assert!(several > 1);
+    assert!(has_text(&rt, &format!("{several} of {total} results")));
+    press(&mut rt, &"<BS>".repeat(9));
+    press(&mut rt, "zzzz");
+    assert!(has_text(&rt, &format!("0 of {total} results")));
+    assert!(has_text(&rt, "Nothing matches \"zzzz\""));
+    assert!(!lit(&rt, "choose"));
+    press(&mut rt, "<CR>");
+    assert_eq!(rt.state.floats.len(), 1, "⏎ opened nothing");
+    press(&mut rt, &"<BS>".repeat(4));
+    assert!(has_text(&rt, &format!("{total} results")));
+    assert!(lit(&rt, "choose"));
+    shows(&rt, "forecasts");
+}
+
+#[test]
+fn a_palette_query_that_keeps_nothing_says_so_and_enter_keeps_it_open() {
+    let mut rt = scene_at("palette", (800.0, 600.0));
+    assert_eq!(input_says(&rt).0, "Filter commands");
+    press(&mut rt, "zzzz");
+    assert!(has_text(&rt, "No command matches \"zzzz\""));
+    assert!(!lit(&rt, "choose"));
+    press(&mut rt, "<CR>");
+    assert_eq!(rt.state.floats.len(), 1);
+}

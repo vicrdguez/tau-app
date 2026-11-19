@@ -1,8 +1,9 @@
 //! A picker over rows made when it opened: `:jumps` and the keys cheat sheet (`␣hk`). Typing
 //! filters the rows; `C-j C-k` move, `⏎` chooses (the jumps go there), `Esc` closes.
 
-use rune::{El, TextEdit, col, row, text, text_input};
+use rune::{El, TextEdit, col, row, text};
 
+use super::{FILTER, Input, Noun, input, no_match};
 use crate::app::App;
 use crate::keys::{Ctx, Keymap, Mode, Target, display};
 use crate::theme::Theme;
@@ -19,6 +20,8 @@ pub struct SheetRow {
 
 pub struct Sheet {
     pub title: &'static str,
+    /// What a row is, for the count: `162 keys`.
+    pub noun: Noun,
     pub subtitle: String,
     pub rows: Vec<SheetRow>,
     pub query: TextEdit,
@@ -29,11 +32,12 @@ pub struct Sheet {
 }
 
 impl Sheet {
-    pub fn new(title: &'static str, subtitle: String, rows: Vec<SheetRow>) -> Sheet {
+    pub fn new(title: &'static str, noun: Noun, subtitle: String, rows: Vec<SheetRow>) -> Sheet {
         let mut query = TextEdit::new("");
         query.focused = true;
         Sheet {
             title,
+            noun,
             subtitle,
             rows,
             query,
@@ -44,7 +48,12 @@ impl Sheet {
 
     /// `␣hk`: the keys cheat sheet, at the keys this device types.
     pub fn keys(km: Keymap) -> Sheet {
-        Sheet::new("Keys", "every key in keymap.toml".into(), keys_rows(km))
+        Sheet::new(
+            "Keys",
+            Noun::new("key", "keys"),
+            "every key in keymap.toml".into(),
+            keys_rows(km),
+        )
     }
 
     /// The indices of the rows the query keeps, in order.
@@ -151,29 +160,28 @@ pub fn view(t: Theme, scope: Scope, s: &Sheet) -> El {
             );
         body = body.child(ui::float_row(t, at == s.cursor, content));
     }
-    let input = row()
-        .center_y()
-        .gap(10.0)
-        .child(
-            text_input(&s.query, t.ty.float_input)
-                .single_line()
-                .caret(t.c.state.attn, t.c.surface.selection)
-                .color(t.c.fg.default)
-                .on_edit(|a: &mut App| a.float_edit())
-                .on_input_key(crate::app::input::on_field_key)
-                .label(format!("{} query", s.title))
-                .key("sheet-input")
-                .min_w(2.0)
-                .shrink(),
-        )
-        .child(
-            text(format!("{} of {}", shown.len(), s.rows.len()))
-                .font(t.ty.ui_small)
-                .color(t.c.fg.muted),
-        );
+    if shown.is_empty() && !s.rows.is_empty() {
+        body = body.child(no_match(t, s.noun.none(&s.query.text)));
+    }
+    let label = format!("Filter {}", s.noun.many);
+    let input = input(
+        t,
+        Input {
+            edit: &s.query,
+            label: &label,
+            placeholder: FILTER,
+            count: s.noun.kept(&s.query.text, shown.len(), s.rows.len()),
+        },
+    );
     let mut hints = vec![ui::float_hint(t, scope, &["<C-j>", "<C-k>"], "move")];
     if s.choose.is_some() {
-        hints.push(ui::float_hint(t, scope, &["<CR>"], "goes there"));
+        hints.push(ui::float_hint_if(
+            t,
+            scope,
+            &["<CR>"],
+            "goes there",
+            !shown.is_empty(),
+        ));
     }
     hints.push(ui::float_hint(t, scope, &["<Esc>"], "back"));
     ui::shell(
