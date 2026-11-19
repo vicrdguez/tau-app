@@ -165,6 +165,10 @@ pub fn line(t: Theme, s: &str, color: rune::Color) -> El {
 fn small(t: Theme, s: &str, color: rune::Color, w: f32) -> El {
     content::line(t, s, t.ty.mono_small, color).w(w).min_w(w)
 }
+/// A project name in sage, always whole: an event row cuts its text instead (`spec.md` §5.3).
+fn project(t: Theme, name: &str) -> El {
+    text(name.to_string()).font(t.ty.ui).color(t.c.kind.worker)
+}
 
 fn stamp(at: i64, now: Wall) -> String {
     crate::time::stamp(Wall(at), now)
@@ -285,13 +289,13 @@ pub fn row_view(t: Theme, app: &App, r: &ListRow, selected: bool, grid: &Grid) -
                     .w_full()
                     .child(lead)
                     .child(label.shrink().min_w(0.0))
-                    .child(line(t, &r.project, t.c.kind.worker))
+                    .child(project(t, &r.project))
                     .child(small(t, &number, t.c.kind.literal, 26.0))
                     .h(28.0)
                     .px(12.0)
             } else {
                 slots.push(small(t, &r.extension, t.c.fg.muted, 86.0));
-                slots.push(line(t, &r.project, t.c.kind.worker).w(96.0));
+                slots.push(project(t, &r.project).min_w(96.0));
                 slots.push(small(t, &number, t.c.kind.literal, 26.0));
                 ui::slot_row(Some(lead), label, slots, 12.0)
                     .h(28.0)

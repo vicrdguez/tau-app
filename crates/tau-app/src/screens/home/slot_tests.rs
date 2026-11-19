@@ -239,3 +239,44 @@ fn a_needs_you_age_ends_ten_px_before_the_chip_slot_on_every_row() {
         }
     }
 }
+
+/// An Activity or Timeline row could cut its project (`render-c…`), its `#id` or its time when the
+/// event text is long: only the text may take the cut (`spec.md` §5.3, visual-language §3).
+#[test]
+fn activity_and_timeline_rows_cut_only_their_text() {
+    for place in ["home", "timeline"] {
+        let wide = scene(place, 3000.0, 1400.0);
+        let wide_els = wide.elements();
+        let mut cut_text = false;
+        for w in [1300.0, 800.0] {
+            let rt = scene(place, w, 1400.0);
+            let els = rt.elements();
+            let now = super::now(&rt.state);
+            let events: Vec<_> = if place == "home" {
+                rows(&rt.state)
+            } else {
+                places::rows(&rt.state)
+            }
+            .into_iter()
+            .filter(|r| matches!(r.id, RowId::Event(..)))
+            .collect();
+            assert!(!events.is_empty());
+            for r in &events {
+                let texts = row_texts(&els, &r.id);
+                let whole = row_texts(&wide_els, &r.id);
+                let number = format!("#{}", r.conversation.unwrap_or_default());
+                let stamp = crate::time::stamp(Wall(r.at.unwrap()), now);
+                for part in [r.project.as_str(), number.as_str(), stamp.as_str()] {
+                    let (got, full) = (find(&texts, part).rect[2], find(&whole, part).rect[2]);
+                    assert!(
+                        got >= full - 0.5,
+                        "{place} at {w}: {part} is {got} wide of {full} in {:?}",
+                        r.label
+                    );
+                }
+                cut_text |= find(&texts, &r.label).rect[2] < find(&whole, &r.label).rect[2] - 0.5;
+            }
+        }
+        assert!(cut_text, "{place}: some event text is long enough to cut");
+    }
+}
