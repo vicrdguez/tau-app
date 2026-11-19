@@ -152,6 +152,9 @@ pub fn frame(t: Theme, p: Parts) -> El {
     let stage_w = w - stage_x;
     let stage_h = h - l.height.bottombar;
     let band_h = rune::memo::layout_with(FLOAT_BAND, |r| r[3]).unwrap_or(0.0);
+    let page_w = stage_w
+        - p.peek.as_ref().map_or(0.0, |_| l.peek.width)
+        - p.details.as_ref().map_or(0.0, |_| l.details.width);
 
     let mut columns = row()
         .w_full()
@@ -162,6 +165,7 @@ pub fn frame(t: Theme, p: Parts) -> El {
             t,
             p.page,
             p.room,
+            [page_w, stage_w],
             stage_h - l.stage_header.height,
             band_h,
             p.float.is_some(),
@@ -282,7 +286,19 @@ pub fn frame(t: Theme, p: Parts) -> El {
 /// on one spring. A page that shrinks lays out in the port; one that lifts keeps its whole height,
 /// and `sticky_bottom` holds its target above the port's foot, worked out by rune on every frame
 /// from where the foot is drawn. `first` is the page's height until it has been laid out.
-fn page_box(t: Theme, page: El, room: Room, first: f32, band_h: f32, float: bool) -> El {
+///
+/// The port spans the stage, not just the page. It clips, and its width springs while the page
+/// lands at its new width at once, so a port as wide as the page would cut the page short while
+/// the stage widens.
+fn page_box(
+    t: Theme,
+    page: El,
+    room: Room,
+    [page_w, stage_w]: [f32; 2],
+    first: f32,
+    band_h: f32,
+    float: bool,
+) -> El {
     let full = rune::memo::layout_with("page-box", |r| r[3]).unwrap_or(first);
     let port = (full - band_h).max(0.0);
     let page = page
@@ -302,7 +318,7 @@ fn page_box(t: Theme, page: El, room: Room, first: f32, band_h: f32, float: bool
     // Sticky lifts within its parent's box: this one starts a page above the port and ends at
     // the port's foot, so the port never has anything to scroll.
     let holder = col()
-        .w_full()
+        .w(page_w)
         .mt(-full)
         .h(full + port)
         .child(el().h(full))
@@ -315,7 +331,7 @@ fn page_box(t: Theme, page: El, room: Room, first: f32, band_h: f32, float: bool
         .child(
             col()
                 .key("page-port")
-                .w_full()
+                .w(stage_w)
                 .h(port)
                 .scroll(ScrollSpec {
                     stick_bottom: false,

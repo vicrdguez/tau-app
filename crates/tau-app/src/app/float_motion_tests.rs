@@ -9,7 +9,9 @@
 //! - what the float covers moves before or after the edge, or by more than it is covered;
 //! - what it never reaches moves at all;
 //! - a key after the closing key waits for the float to leave;
-//! - motion off, or a close that changes the page, still glides.
+//! - motion off, or a close that changes the page, still glides;
+//! - the port the page stands in clips it narrower than its laid-out width while the stage's
+//!   width springs, as the sidebar slides away or back.
 use super::*;
 use rune::{Env, KeyEvent, Mods, Runtime};
 
@@ -308,6 +310,45 @@ fn rows(rt: &Runtime<App>) -> Vec<(String, [f32; 4])> {
         .filter(|e| !e.exiting && e.key.as_deref().is_some_and(|k| k.starts_with("list-")))
         .map(|e| (e.key.unwrap(), e.rect))
         .collect()
+}
+
+/// While the sidebar slides away and back, Home's rows draw whole wherever the stage shows them.
+#[test]
+fn the_page_draws_whole_while_the_sidebar_slides() {
+    let mut rt = window("home", (1512.0, 982.0));
+    for direction in ["hiding", "showing"] {
+        for c in [' ', 't', 'b'] {
+            key(&mut rt, ch(c));
+        }
+        for frame in 0..30 {
+            let els = rt.elements();
+            let stage = els
+                .iter()
+                .find(|e| e.key.as_deref() == Some("stage"))
+                .unwrap();
+            if frame == 0 {
+                assert_ne!(stage.rect, stage.target, "{direction}: the stage slides");
+            }
+            let s = stage.rect;
+            let rows: Vec<_> = els
+                .iter()
+                .filter(|e| !e.exiting && e.key.as_deref().is_some_and(|k| k.starts_with("list-")))
+                .filter(|e| bottom(e.rect) <= bottom(s))
+                .collect();
+            assert!(!rows.is_empty(), "{direction}: Home shows its rows");
+            for e in rows {
+                let (r, v) = (e.rect, e.visible);
+                let left = r[0].max(s[0]);
+                let right = (r[0] + r[2]).min(s[0] + s[2]);
+                assert!(
+                    (v[0] - left).abs() < 0.5 && (v[0] + v[2] - right).abs() < 0.5,
+                    "{direction}, frame {frame}: {:?} drawn {r:?} shows {v:?} in stage {s:?}",
+                    e.key
+                );
+            }
+            rt.frame(FRAME);
+        }
+    }
 }
 
 /// What the float would cover rides its edge once the edge reaches it, `float.inset_x` above it
