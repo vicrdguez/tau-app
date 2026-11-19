@@ -346,6 +346,190 @@ fn the_checklist_foot_prints_space_enter_and_esc_lit() {
     );
 }
 
+// How an unsaved option could look saved (spec §5.9 Saving):
+// - a committed edit has no mark at its row, on the cursor row or off it;
+// - its group head doesn't say how many of that group's options are not saved, or counts
+//   another group's, or a group with no drafts says it;
+// - the head's `:w save` doesn't save, or the bottom bar loses its save state;
+// - after a save the marks or the head's segment stay; after a refusal they go.
+
+fn base_id() -> FieldKey {
+    FieldKey {
+        project: "render-core".into(),
+        extension: "w1".into(),
+        key: "base".into(),
+    }
+}
+
+/// The window on render-core's Project view, paired with the fixture's server through `Wire`.
+fn project_window() -> (
+    rune::Runtime<App>,
+    std::sync::Arc<crate::app::testing::Wire>,
+) {
+    let mut s = crate::app::testing::paired(false);
+    s.link.set_focused(true);
+    let wire = s.wire.clone();
+    let mut a = App::launch(s.link);
+    for _ in 0..5 {
+        crate::app::link::pump(&mut a, &mut Tx::default());
+    }
+    a.show(Stage::Item(Item::Project("render-core".into())));
+    let text = rune::text::TextSystem::new(crate::assets::fonts().unwrap(), crate::theme::FAMILIES);
+    let mut rt = rune::Runtime::with_text(
+        a,
+        crate::app::view,
+        (1512.0, 982.0),
+        rune::Env::new(true, 1.0),
+        text,
+    );
+    rt.poll = Some(crate::app::poll);
+    frames(&mut rt);
+    rt.update(|a, _| a.screens.project.cursor = Some(Target::Field(base_id())));
+    frames(&mut rt);
+    (rt, wire)
+}
+
+fn frames(rt: &mut rune::Runtime<App>) {
+    for _ in 0..6 {
+        rt.frame(0.1);
+    }
+}
+
+fn press_keys(rt: &mut rune::Runtime<App>, seq: &str) {
+    rt.update(|a, tx| {
+        for k in parse_seq(seq).unwrap() {
+            input::press(a, k, false, tx);
+        }
+    });
+    frames(rt);
+}
+
+fn commit_base(rt: &mut rune::Runtime<App>, value: &str) {
+    press_keys(rt, "i");
+    rt.update(|a, _| {
+        let e = a.screens.project.editing.as_mut().expect("base is edited");
+        e.editor.edit.replace_text(value);
+    });
+    press_keys(rt, "<CR>");
+}
+
+fn element(rt: &rune::Runtime<App>, key: &str) -> Option<rune::ElementInfo> {
+    rt.elements()
+        .into_iter()
+        .find(|e| e.key.as_deref() == Some(key) && !e.exiting)
+}
+
+/// The texts drawn inside the element keyed `key`.
+fn texts_in(rt: &rune::Runtime<App>, key: &str) -> Vec<String> {
+    let Some(at) = element(rt, key) else {
+        return Vec::new();
+    };
+    let inside = format!("{}/", at.path);
+    rt.elements()
+        .into_iter()
+        .filter(|e| e.path.starts_with(&inside))
+        .filter_map(|e| e.text)
+        .collect()
+}
+
+fn marked(rt: &rune::Runtime<App>, row: &str) -> bool {
+    let Some(r) = element(rt, row) else {
+        return false;
+    };
+    let inside = format!("{}/", r.path);
+    rt.elements()
+        .into_iter()
+        .any(|e| e.key.as_deref() == Some("draft-mark") && e.path.starts_with(&inside))
+}
+
+fn drawn(rt: &rune::Runtime<App>, words: &str) -> usize {
+    rt.elements()
+        .into_iter()
+        .filter(|e| e.text.as_deref() == Some(words))
+        .count()
+}
+
+#[test]
+fn a_committed_option_is_marked_at_its_row_and_its_group_head() {
+    let (mut rt, _) = project_window();
+    assert!(
+        element(&rt, "options-save-w1").is_none(),
+        "nothing drafted yet"
+    );
+    commit_base(&mut rt, "release-2");
+    assert!(marked(&rt, "option-w1-base"), "on the cursor row");
+    assert_eq!(
+        texts_in(&rt, "options-save-w1"),
+        vec!["1 not saved", ":w", "save"]
+    );
+    assert!(element(&rt, "options-save-websearch").is_none());
+    assert_eq!(drawn(&rt, "1 not saved"), 2, "the head and the bottom bar");
+    press_keys(&mut rt, "k");
+    assert!(marked(&rt, "option-w1-base"), "off the cursor row");
+    assert!(!marked(&rt, "option-w1-reviewer"));
+    rt.update(|a, _| {
+        let drafts = &mut a.screens.project.drafts;
+        drafts.insert(
+            FieldKey {
+                key: "implementer".into(),
+                ..base_id()
+            },
+            json!("openai/gpt-5.1"),
+        );
+        drafts.insert(
+            FieldKey {
+                extension: "websearch".into(),
+                key: "provider".into(),
+                ..base_id()
+            },
+            json!("tavily"),
+        );
+    });
+    frames(&mut rt);
+    assert_eq!(texts_in(&rt, "options-save-w1")[0], "2 not saved");
+    assert_eq!(texts_in(&rt, "options-save-websearch")[0], "1 not saved");
+}
+
+#[test]
+fn the_head_s_save_sends_and_clears_the_marks() {
+    let (mut rt, _) = project_window();
+    commit_base(&mut rt, "release-2");
+    let r = element(&rt, "options-save-w1").unwrap().rect;
+    let (x, y) = (r[0] + r[2] / 2.0, r[1] + r[3] / 2.0);
+    rt.pointer_down(x, y);
+    rt.pointer_up(x, y);
+    frames(&mut rt);
+    assert!(rt.state.link.outbox().entries().iter().any(
+        |e| e.call == WriteCall::SetOptions && e.body["patch"] == json!({"base": "release-2"})
+    ));
+    assert!(rt.state.screens.project.drafts.is_empty());
+    assert!(!marked(&rt, "option-w1-base"));
+    assert!(element(&rt, "options-save-w1").is_none());
+    assert_eq!(drawn(&rt, "1 not saved"), 0);
+}
+
+#[test]
+fn a_refused_save_keeps_the_drafts_and_their_marks() {
+    let (mut rt, wire) = project_window();
+    commit_base(&mut rt, "release-2");
+    let f = crate::app::testing::fixture();
+    let reply =
+        &f.value()["refusals"]["bad_options (setOptions designer to an unknown model)"]["reply"];
+    *wire.refuse.lock().unwrap() = Some(tau_client::wire::parse_reply(
+        400,
+        Some("1"),
+        &serde_json::to_vec(reply).unwrap(),
+    ));
+    press_keys(&mut rt, ":w<CR>");
+    assert!(rt.state.screens.project.saving.is_empty(), "the reply came");
+    assert_eq!(
+        rt.state.screens.project.drafts.get(&base_id()),
+        Some(&json!("release-2"))
+    );
+    assert!(marked(&rt, "option-w1-base"));
+    assert_eq!(texts_in(&rt, "options-save-w1")[0], "1 not saved");
+}
+
 #[test]
 fn project_list_opens_by_identity_and_counts_use_the_polls() {
     let mut a = ready();

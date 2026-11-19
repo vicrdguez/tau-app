@@ -14,6 +14,17 @@ fn project(a: &mut App) {
 pub(super) fn all() -> Vec<Scene> {
     vec![
         ("project", project),
+        ("project-draft", |a| {
+            project(a);
+            a.screens.project.drafts.insert(
+                FieldKey {
+                    project: "render-core".into(),
+                    extension: "w1".into(),
+                    key: "base".into(),
+                },
+                Value::String("release".into()),
+            );
+        }),
         ("project-saved", |a| {
             project(a);
             a.screens.project.drafts.insert(

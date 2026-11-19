@@ -181,7 +181,7 @@ Every bottom float is one component (`../spec.md` §6), and one that takes the k
 - `⏎` on the Needs you cursor head;
 - the header's segments: `◆ ␣ad Answer`, `␣ar send again`, `␣cx stop`, `␣cc continue`;
 - `␣cc` in the run-failure and stopped lines;
-- `:w` with option drafts, in the bottom bar;
+- `:w` with option drafts: in the bottom bar, and as `:w save` on the head of each Options group that has drafts. The Project view prints no other chip in the stage, so it keeps the budget while drafts span at most three groups;
 - `c` in the first-note ghost (`+ note c`);
 - `␣rc` on the offline notice, `␣rp` on the revoked notice, `␣rt` on an unknown row that isn't an answer;
 - `␣pb` on a Home with no projects (the start page says `⌘⏎ binds one` instead, since it is in Insert);

@@ -14,33 +14,63 @@ pub(super) fn save(t: Theme, a: &App) -> Option<El> {
     if n == 0 {
         return None;
     }
-    Some(
-        row()
-            .center_y()
-            .gap(7.0)
-            .mr(14.0)
-            .child(icon(&carbon::EDIT, 12.0).color(t.c.state.local))
-            .child(
-                text(format!("{n} not saved"))
-                    .font(t.ty.ui_small)
-                    .color(t.c.fg.alt),
-            )
-            .child(
-                ui::glyphs(
-                    ":w",
-                    t.ty.key,
-                    if a.scope().lit(t.keymap, "<leader>ms") {
-                        t.c.kind.literal
-                    } else {
-                        t.c.fg.muted
-                    },
-                )
-                .h(18.0)
-                .px(5.0)
-                .radius(t.l.radius.pill)
-                .fill(t.c.surface.bar),
-            ),
+    Some(not_saved(t, n).child(save_key(t, a)).mr(14.0))
+}
+/// The sage `edit` mark and how many drafts are not saved.
+fn not_saved(t: Theme, n: usize) -> El {
+    row()
+        .center_y()
+        .gap(7.0)
+        .child(icon(&carbon::EDIT, 12.0).color(t.c.state.local))
+        .child(
+            text(format!("{n} not saved"))
+                .font(t.ty.ui_small)
+                .color(t.c.fg.alt),
+        )
+}
+/// The `:w` chip, lit while the save resolves where the keys are.
+fn save_key(t: Theme, a: &App) -> El {
+    ui::glyphs(
+        ":w",
+        t.ty.key,
+        if a.scope().lit(t.keymap, "<leader>ms") {
+            t.c.kind.literal
+        } else {
+            t.c.fg.muted
+        },
     )
+    .h(18.0)
+    .px(5.0)
+    .radius(t.l.radius.pill)
+    .fill(t.c.surface.bar)
+}
+/// An Options group's head; with drafts in the group, `✎ 1 not saved :w save` at its right,
+/// which saves as `:w` does.
+fn options_head(t: Theme, a: &App, p: &str, extension: &str) -> El {
+    let n = a
+        .screens
+        .project
+        .drafts
+        .keys()
+        .filter(|id| id.project == p && id.extension == extension)
+        .count();
+    let mut r = row()
+        .center_y()
+        .pl(40.0)
+        .pr(12.0)
+        .mt(26.0)
+        .mb(4.0)
+        .child(ui::group_head(t, &format!("Options · {extension}"), None));
+    if n > 0 {
+        r = r.child(rune::spacer()).child(
+            not_saved(t, n)
+                .child(save_key(t, a))
+                .child(text("save").font(t.ty.ui_small).color(t.c.fg.alt))
+                .key(format!("options-save-{extension}"))
+                .on_press_tx(|a: &mut App, tx| crate::app::commands::run_id(a, "options.save", tx)),
+        );
+    }
+    r
 }
 fn selected(t: Theme, a: &App, target: &Target, body: El) -> El {
     if a.screens.project.cursor.as_ref() != Some(target) {
@@ -230,7 +260,7 @@ pub(super) fn view(t: Theme, a: &App) -> El {
     for f in fields(a, p) {
         if extension != f.id.extension {
             extension = f.id.extension.clone();
-            doc = doc.child(head(t, &format!("Options · {extension}"), false));
+            doc = doc.child(options_head(t, a, p, &extension));
         }
         doc = doc.child(field(t, a, &f));
     }
@@ -311,12 +341,12 @@ fn field(t: Theme, a: &App, f: &Field) -> El {
         }
     }
     if f.draft {
-        r = r.child(icon(&carbon::EDIT, 12.0).color(t.c.state.local).pin(
-            Some(14.0),
-            Some(7.0),
-            None,
-            None,
-        ));
+        r = r.child(
+            icon(&carbon::EDIT, 12.0)
+                .color(t.c.state.local)
+                .pin(Some(14.0), Some(7.0), None, None)
+                .key("draft-mark"),
+        );
     }
     let id = f.id.clone();
     selected(t, a, &Target::Field(f.id.clone()), r)
