@@ -588,7 +588,7 @@ A search that matches nothing reads `No matching rows.`
 
 | Float | Opens with | Head | Body | Calls |
 |---|---|---|---|---|
-| which-key | 300 ms after a prefix | `␣ leader` alone; for `␣a`: `answer` · `every command reads back what it sends before y` | key grid: group entries first in `fg` 600, a hairline, single commands in `fg.alt` 400 (`reference/grammar.md` §5); hints `Esc closes`; display only | none |
+| which-key | 300 ms after a prefix begins a sequence; it stays until the sequence ends | `␣ leader` alone; for `␣a`: `answer` · `every command reads back what it sends before y` | key grid: group entries first in `fg` 600, a hairline, single commands in `fg.alt` 400 (`reference/grammar.md` §5); hints `Esc closes`; display only | none |
 | Palette | `␣;`, `⌘K` | `Commands` | rows: desc, `:ex`, keys; unavailable ones listed with the reason; input | none |
 | `:` line | `:` | `Command line` | completions as rows; input with `:`; history on Up/Down | the command's |
 | Find | `␣.`, the sidebar's `Find` | `Find` · `projects, conversations, decisions, events` | rows: the kind's icon as the sidebar draws it (`folder`, `chat`, outline diamond, `time`; 14 px, `fg.muted`), the label (`ui`, cut with `…`), then the project in sage in a 160 px slot at the right, so the projects line up; a project's row is its `folder` and its name in sage. Prefixes `p: c: d: e:` in the input; input `36 results` | held data |

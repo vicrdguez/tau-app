@@ -275,10 +275,10 @@ fn which_key_waits_its_delay_and_esc_closes_it() {
     let mut tx = Tx::default();
     a.now = 10.0;
     keys(&mut a, "<leader>");
-    assert!(!poll(&mut a, 10.2, &mut tx) && !a.which_key_shown);
-    assert!(poll(&mut a, 10.31, &mut tx) && a.which_key_shown);
+    assert!(!poll(&mut a, 10.2, &mut tx) && !a.which_key());
+    assert!(poll(&mut a, 10.31, &mut tx) && a.which_key());
     keys(&mut a, "<Esc>");
-    assert!(poll(&mut a, 10.4, &mut tx) && !a.which_key_shown);
+    assert!(!a.which_key(), "Esc ends it before the next poll");
 }
 
 #[test]

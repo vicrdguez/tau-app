@@ -1,4 +1,4 @@
-//! which-key (`grammar.md` §5): 300 ms after a prefix, the keys that can follow it. It takes no
+//! which-key (`grammar.md` §5): 300 ms into a sequence, the keys that can follow it. It takes no
 //! keys and leaves every cursor as it is.
 
 use rune::{El, col, el, icon, row, text};

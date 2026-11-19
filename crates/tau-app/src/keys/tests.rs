@@ -742,19 +742,26 @@ fn which_key_lists_a_groups_leaves_from_every_view_greying_those_that_cannot_run
 }
 
 #[test]
-fn which_key_waits_its_delay_after_the_last_key() {
+fn which_key_waits_its_delay_from_the_first_key_and_stays_for_the_sequence() {
     let mut keys = Keys::default();
     keys.press(km(), Mode::Normal, Ctx::List, Key::char(' '), false, 10.0);
     assert!(!keys.which_key_due(10.29, 300.0));
     assert!(keys.which_key_due(10.3, 300.0));
     keys.press(km(), Mode::Normal, Ctx::List, Key::char('o'), false, 10.5);
     assert!(
-        !keys.which_key_due(10.6, 300.0),
-        "a new prefix key restarts the wait"
+        keys.which_key_due(10.5, 300.0),
+        "the next prefix key keeps it up"
     );
     assert_eq!(keys.shown(), "␣o");
     keys.press(km(), Mode::Normal, Ctx::List, Key::char('h'), false, 10.7);
     assert!(!keys.which_key_due(20.0, 300.0), "nothing pending");
+    keys.press(km(), Mode::Normal, Ctx::List, Key::char(' '), false, 30.0);
+    keys.press(km(), Mode::Normal, Ctx::List, Key::char('o'), false, 30.1);
+    assert!(
+        !keys.which_key_due(30.29, 300.0),
+        "a new sequence waits again"
+    );
+    assert!(keys.which_key_due(30.3, 300.0));
 }
 
 #[test]

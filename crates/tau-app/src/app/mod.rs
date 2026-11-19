@@ -60,8 +60,6 @@ pub struct App {
     /// The floats, the top one holding the keys, each with the region that opened it.
     pub floats: Vec<(Float, Focus)>,
     pub keys: Keys,
-    /// Whether which-key was drawn, so `poll` redraws when it comes due.
-    pub which_key_shown: bool,
     reveal_float_target: bool,
     pub stage: Stage,
     /// The open item shown last, for `]b [b` from a place.
@@ -121,7 +119,6 @@ impl App {
             focus: Focus::Stage,
             floats: Vec::new(),
             keys: Keys::default(),
-            which_key_shown: false,
             reveal_float_target: false,
             stage: Stage::Place(Place::Home),
             last_item: None,
@@ -183,6 +180,15 @@ impl App {
                 }
             }
         }
+    }
+
+    /// Whether which-key shows: no float holds the keys and the pending sequence began its delay
+    /// ago (`grammar.md` §5).
+    pub fn which_key(&self) -> bool {
+        self.floats.is_empty()
+            && self
+                .keys
+                .which_key_due(self.now, self.settings.keymap.whichkey_delay_ms())
     }
 
     pub fn badge(&self) -> Badge {
@@ -322,7 +328,7 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
                 sidebar_shown: place == Some(SidebarPlace::Beside),
                 crumbs: page.crumbs(app),
                 segments: page.segments(app),
-                answer_solid: app.floats.is_empty() && !app.which_key_shown,
+                answer_solid: app.floats.is_empty() && !app.which_key(),
                 scope,
             },
             |a: &mut App, tx| commands::run_id(a, "toggle.sidebar", tx),
@@ -350,7 +356,7 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
             };
             Some(floats::view(t, f, ctx, &app.messages, &app.settings))
         }
-        None if app.which_key_shown => app
+        None if app.which_key() => app
             .settings
             .keymap
             .which_key(app.keys.pending(), scope.mode, scope.ctx)
@@ -402,14 +408,11 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
 /// Runs at the start of every frame: keeps the clock, shows which-key when its delay is up, pumps
 /// the link into `App::server`, and runs each screen's `poll`.
 pub fn poll(app: &mut App, now: f64, tx: &mut Tx) -> bool {
+    let was = app.which_key();
     app.now = now;
-    let due = app.floats.is_empty()
-        && app
-            .keys
-            .which_key_due(now, app.settings.keymap.whichkey_delay_ms());
-    let reveal = std::mem::take(&mut app.reveal_float_target) || (due && !app.which_key_shown);
-    let mut changed = due != app.which_key_shown;
-    app.which_key_shown = due;
+    let rises = app.which_key() && !was;
+    let reveal = std::mem::take(&mut app.reveal_float_target) || rises;
+    let mut changed = rises;
     changed |= link::pump(app, tx);
     for id in screens::ALL {
         changed |= screens::get(id).poll(app, now, tx);
@@ -440,6 +443,8 @@ pub fn which_key_delay(km: Keymap) -> Duration {
     Duration::from_secs_f64(km.whichkey_delay_ms() / 1000.0)
 }
 
+#[cfg(test)]
+mod float_motion_tests;
 #[cfg(test)]
 mod float_tests;
 #[cfg(test)]
