@@ -237,7 +237,7 @@ pub fn frame(t: Theme, p: Parts) -> El {
             .size(side_w, stage_h)
             .child(side.w_full().h_full().instant_changes());
         if p.sidebar_place.is_none() {
-            side = side.inert();
+            side = side.inert().a11y_hidden();
         }
         root = root.child(side);
     }

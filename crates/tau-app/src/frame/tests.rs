@@ -97,3 +97,25 @@ fn header_segments_and_float_hints_read_as_one_name() {
     );
     assert!(nodes.iter().any(|n| n.name.ends_with(", Escape")));
 }
+
+/// What is not drawn is not exposed: a sidebar hidden by `␣tb` or by a window under 1000 px
+/// leaves no row in the accessibility tree, and one the keys bring back over the stage does.
+#[test]
+fn a_hidden_sidebar_exposes_no_row() {
+    let home = |width: f32, visible: bool, focus: crate::app::Focus| {
+        let mut a = App::default();
+        scenes::home(&mut a);
+        a.sidebar_visible = visible;
+        a.focus = focus;
+        a.window[0] = width;
+        has(
+            &spoken(&crate::app::testing::window_at(a, [width, 982.0])),
+            "New, Space c n",
+        )
+    };
+    use crate::app::Focus::{Sidebar, Stage};
+    assert_eq!(home(1512.0, true, Stage), 1, "drawn beside the stage");
+    assert_eq!(home(1512.0, false, Stage), 0, "hidden by ␣tb");
+    assert_eq!(home(900.0, true, Stage), 0, "hidden under 1000 px");
+    assert_eq!(home(900.0, true, Sidebar), 1, "drawn over the stage");
+}
