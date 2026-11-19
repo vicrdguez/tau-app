@@ -195,7 +195,7 @@ fn add_extensions_excludes_bound_extensions_and_requires_confirm() {
             .collect::<Vec<_>>(),
         vec!["w2"]
     );
-    keys(&mut a, "<Tab><CR>");
+    keys(&mut a, "<Space><CR>");
     assert!(matches!(a.floats.last(), Some((Float::Confirm(_), _))));
     keys(&mut a, "y");
     assert!(
@@ -204,6 +204,145 @@ fn add_extensions_excludes_bound_extensions_and_requires_confirm() {
             .entries()
             .iter()
             .any(|e| e.call == WriteCall::AddExtensions && e.body["extensions"] == json!(["w2"]))
+    );
+}
+
+// How Bind's keys could fail (spec §6):
+// - Tab or S-Tab in the checklist ticks a row, or doesn't go on to a field, or doesn't wrap;
+// - S-Tab from name doesn't wrap to the checklist;
+// - Space doesn't tick the row under the cursor, or ticks another, or opens the leader;
+// - j k, C-j C-k, Down Up or C-n C-p don't move the cursor, or move it past either end;
+// - in Add extensions Tab still ticks, or Space doesn't;
+// - the confirmation names other extensions than the ticked ones;
+// - the checklist's foot prints a key that doesn't work there.
+
+fn bind_float(a: &mut App) -> &mut crate::floats::project_bind::Bind {
+    super::super::top_float::<crate::floats::project_bind::Bind>(a).expect("bind float")
+}
+
+fn ticked(a: &mut App) -> Vec<String> {
+    bind_float(a).selected()
+}
+
+fn part(a: &mut App) -> crate::floats::project_bind::Part {
+    bind_float(a).part
+}
+
+fn confirm_sentence(a: &App) -> String {
+    match a.floats.last() {
+        Some((Float::Confirm(c), _)) => c.sentence.clone(),
+        _ => panic!("no Confirm float"),
+    }
+}
+
+/// The Bind float with a valid name and directory, its checklist holding the keys.
+fn bind_checklist() -> App {
+    let mut a = ready();
+    run(&mut a, "project.bind");
+    a.float_edit().replace_text("scratch");
+    keys(&mut a, "<Tab>");
+    a.float_edit().replace_text("/home/vrod/src/scratch");
+    keys(&mut a, "<Tab>");
+    a
+}
+
+#[test]
+fn bind_tab_walks_name_directory_extensions_and_wraps_without_ticking() {
+    use crate::floats::project_bind::Part;
+    let mut a = bind_checklist();
+    assert!(part(&mut a) == Part::Extensions);
+    keys(&mut a, "<Tab>");
+    assert!(part(&mut a) == Part::Name, "Tab wraps to the name");
+    keys(&mut a, "<S-Tab>");
+    assert!(
+        part(&mut a) == Part::Extensions,
+        "S-Tab wraps to the checklist"
+    );
+    keys(&mut a, "<S-Tab>");
+    assert!(part(&mut a) == Part::Directory);
+    keys(&mut a, "<Tab><Tab><Tab>");
+    assert!(part(&mut a) == Part::Directory);
+    assert!(ticked(&mut a).is_empty(), "Tab never ticks");
+    assert_eq!(bind_float(&mut a).name.text(), "scratch");
+}
+
+#[test]
+fn bind_checklist_moves_with_j_k_ctrl_and_arrows_and_space_ticks_the_cursor_row() {
+    let mut a = bind_checklist();
+    keys(&mut a, "<Down><Down>");
+    assert_eq!(bind_float(&mut a).cursor, 2);
+    keys(&mut a, "<Down>");
+    assert_eq!(bind_float(&mut a).cursor, 2, "the last row holds");
+    keys(&mut a, "<Up>");
+    assert_eq!(bind_float(&mut a).cursor, 1);
+    keys(&mut a, "kk");
+    assert_eq!(bind_float(&mut a).cursor, 0, "the first row holds");
+    keys(&mut a, "j<C-j>");
+    assert_eq!(bind_float(&mut a).cursor, 2);
+    keys(&mut a, "<C-k><C-p>");
+    assert_eq!(bind_float(&mut a).cursor, 0);
+    keys(&mut a, "<C-n>");
+    assert_eq!(bind_float(&mut a).cursor, 1);
+    keys(&mut a, "<Space>");
+    assert_eq!(ticked(&mut a), vec!["w2"]);
+    assert!(a.keys.pending().is_empty(), "Space is no leader here");
+    keys(&mut a, "<Space>");
+    assert!(ticked(&mut a).is_empty(), "Space unticks");
+}
+
+#[test]
+fn bind_confirmation_names_exactly_the_ticked_extensions() {
+    let mut a = bind_checklist();
+    keys(&mut a, "<CR>");
+    assert!(
+        confirm_sentence(&a).starts_with("Bind scratch with no extensions?"),
+        "{}",
+        confirm_sentence(&a)
+    );
+    keys(&mut a, "n<Space><CR>");
+    assert!(
+        confirm_sentence(&a).starts_with("Bind scratch with w1?"),
+        "{}",
+        confirm_sentence(&a)
+    );
+    keys(&mut a, "njj<Space><CR>");
+    assert!(
+        confirm_sentence(&a).starts_with("Bind scratch with w1, websearch?"),
+        "{}",
+        confirm_sentence(&a)
+    );
+    keys(&mut a, "y");
+    assert!(
+        a.link.outbox().entries().iter().any(
+            |e| e.call == WriteCall::Bind && e.body["extensions"] == json!(["w1", "websearch"])
+        )
+    );
+}
+
+#[test]
+fn add_extensions_ticks_with_space_and_never_with_tab() {
+    let mut a = ready();
+    run(&mut a, "project.add");
+    keys(&mut a, "<Tab><S-Tab>");
+    assert!(ticked(&mut a).is_empty(), "Tab never ticks");
+    keys(&mut a, "<Space>");
+    assert_eq!(ticked(&mut a), vec!["w2"]);
+}
+
+#[test]
+fn the_checklist_foot_prints_space_enter_and_esc_lit() {
+    let a = bind_checklist();
+    let scope = a.scope();
+    for seq in ["<Space>", "<CR>", "<Esc>"] {
+        let chip = a.settings.keymap.chip(seq, scope.mode, scope.ctx);
+        assert!(chip.lit, "{seq} works in the checklist");
+    }
+    assert_eq!(
+        a.settings
+            .keymap
+            .chip("<Space>", scope.mode, scope.ctx)
+            .printed,
+        "␣"
     );
 }
 

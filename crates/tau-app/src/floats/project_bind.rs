@@ -70,7 +70,7 @@ impl ScreenFloat for Bind {
     fn scope(&self) -> Scope {
         if self.part == Part::Extensions {
             Scope {
-                ctx: Ctx::Picker,
+                ctx: Ctx::Bind,
                 mode: Mode::Command,
             }
         } else {
@@ -182,7 +182,7 @@ impl ScreenFloat for Bind {
         let scope = self.scope();
         let hints = if self.part == Part::Extensions {
             vec![
-                ui::float_hint(t, scope, &["<Tab>"], "toggle"),
+                ui::float_hint(t, scope, &["<Space>"], "toggle"),
                 ui::float_hint(
                     t,
                     scope,

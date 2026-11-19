@@ -32,8 +32,8 @@ connect = "editor"                 # the Connect screen's fields
 start = "editor"                   # the start page's composer
 hint = "global"
 # Floats that take the keys: each a root of its own, so nothing of global passes (no leader, no :, no ⌘K under them).
-picker = ""                        # palette, find, project, workflow (with the models), model, thinking, filter, the bind and add-extension checklists
-bind = ""                          # the bind float's two text fields
+picker = ""                        # palette, find, project, workflow (with the models), model, thinking, filter
+bind = ""                          # the bind float's two text fields (Insert) and the bind and add-extension checklists (Command)
 readback = ""                      # the answer readback and send-again
 reply = ""                         # the not-recorded reply an answer readback turns into
 confirm = ""                       # the y/n float before bind, addExtensions and pairing over plain HTTP
@@ -769,7 +769,7 @@ tier = "write"
 kind = "command"
 ctx = ["global"]
 wire = ["bind"]
-note = "The bind float (name, working directory, a checklist of extensions where Tab toggles; zero extensions is valid), then a y/n confirm: a project can't be unbound."
+note = "The bind float (name, working directory, a checklist of extensions where Space ticks; zero extensions is valid), then a y/n confirm: a project can't be unbound."
 keys = [{ mode = "n", ctx = "global", seq = "<leader>pb" }]
 
 [[command]]
@@ -780,7 +780,7 @@ tier = "write"
 kind = "command"
 ctx = ["global"]
 wire = ["addExtensions"]
-note = "The project the current view names, else the last one used on this device, else the picker asks first. A checklist of the server's extensions not in the project (Tab toggles), then a y/n confirm: an extension can't be removed."
+note = "The project the current view names, else the last one used on this device, else the picker asks first. A checklist of the server's extensions not in the project (Space ticks), then a y/n confirm: an extension can't be removed."
 keys = [{ mode = "n", ctx = "global", seq = "<leader>pa" }]
 
 [[command]]
@@ -990,10 +990,10 @@ desc = "picker keys"
 tier = "local"
 kind = "modal"
 ctx = ["picker"]
-note = "C-j C-k move the cursor (the fzf habit; in Normal mode they stay reserved for splits); C-n C-p page the preview; Enter chooses or confirms the checklist; Tab toggles the item under the cursor in a checklist (bind, add extensions); S-Tab goes back to the bind float's fields; Esc and C-c cancel."
+note = "C-j C-k move the cursor (the fzf habit; in Normal mode they stay reserved for splits); C-n C-p page the preview; Enter chooses; Esc and C-c cancel."
 keys = [{ mode = "c", ctx = "picker", seq = "<C-j>" }, { mode = "c", ctx = "picker", seq = "<C-k>" },
         { mode = "c", ctx = "picker", seq = "<C-n>" }, { mode = "c", ctx = "picker", seq = "<C-p>" },
-        { mode = "c", ctx = "picker", seq = "<CR>" }, { mode = "c", ctx = "picker", seq = "<Tab>" }, { mode = "c", ctx = "picker", seq = "<S-Tab>" },
+        { mode = "c", ctx = "picker", seq = "<CR>" }, { mode = "c", ctx = "picker", seq = "<Tab>" },
         { mode = "c", ctx = "picker", seq = "<Esc>" }, { mode = "c", ctx = "picker", seq = "<C-c>" }]
 
 [[command]]
@@ -1012,14 +1012,20 @@ keys = [{ mode = "c", ctx = "settings", seq = "<C-j>" }, { mode = "c", ctx = "se
 [[command]]
 id = "bind.keys"
 ex = "-"
-desc = "bind float field keys"
+desc = "bind float keys"
 tier = "local"
 kind = "modal"
 ctx = ["bind"]
-note = "The bind float's name and working directory, in Insert: Tab and Enter go to the next field (from the last, to the checklist), S-Tab to the previous; C-w, C-u, BS edit; Esc goes to the checklist, whose Esc cancels (Esc Esc cancel). The fields have no Normal mode, so nothing outside the float ever acts."
+note = "The bind float's regions are name, working directory and the extensions checklist; Add extensions has the checklist alone. Tab goes to the next region, S-Tab to the previous, wrapping; Tab never ticks. In the fields (Insert): Enter goes to the next region too; C-w, C-u, BS edit; Esc goes to the checklist, whose Esc cancels (Esc Esc cancel). The fields have no Normal mode, so nothing outside the float ever acts. In the checklist (Command): j k, C-j C-k and C-n C-p move the cursor (the float's own Down and Up too); Space ticks or unticks the row under the cursor; Enter goes on to Confirm; Esc and C-c cancel."
 keys = [{ mode = "i", ctx = "bind", seq = "<Tab>" }, { mode = "i", ctx = "bind", seq = "<S-Tab>" }, { mode = "i", ctx = "bind", seq = "<CR>" },
         { mode = "i", ctx = "bind", seq = "<Esc>" }, { mode = "i", ctx = "bind", seq = "<C-w>" }, { mode = "i", ctx = "bind", seq = "<C-u>" },
-        { mode = "i", ctx = "bind", seq = "<BS>" }]
+        { mode = "i", ctx = "bind", seq = "<BS>" },
+        { mode = "c", ctx = "bind", seq = "j" }, { mode = "c", ctx = "bind", seq = "k" },
+        { mode = "c", ctx = "bind", seq = "<C-j>" }, { mode = "c", ctx = "bind", seq = "<C-k>" },
+        { mode = "c", ctx = "bind", seq = "<C-n>" }, { mode = "c", ctx = "bind", seq = "<C-p>" },
+        { mode = "c", ctx = "bind", seq = "<Space>" }, { mode = "c", ctx = "bind", seq = "<CR>" },
+        { mode = "c", ctx = "bind", seq = "<Tab>" }, { mode = "c", ctx = "bind", seq = "<S-Tab>" },
+        { mode = "c", ctx = "bind", seq = "<Esc>" }, { mode = "c", ctx = "bind", seq = "<C-c>" }]
 
 [[command]]
 id = "reply.keys"

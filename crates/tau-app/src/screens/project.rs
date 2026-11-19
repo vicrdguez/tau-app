@@ -276,7 +276,7 @@ impl Screen for Project {
             ("options.save", actions::save),
             ("field.commit", actions::commit),
             ("list.open", actions::open),
-            ("picker.keys", actions::picker_keys),
+            ("picker.keys", project_picker::keys),
             ("bind.keys", actions::bind_keys),
             ("peek", actions::schema),
             ("float.close", |a, _, _| {
@@ -311,6 +311,9 @@ impl Screen for Project {
             if let Some(f) = super::top_float::<crate::floats::project_bind::Bind>(a) {
                 if f.part != crate::floats::project_bind::Part::Extensions {
                     return false;
+                }
+                if let [k] = keys {
+                    actions::checklist_key(a, *k);
                 }
                 return true;
             }

@@ -51,8 +51,8 @@ global
 │  ├─ connect      the Connect screen
 │  └─ start        the start page's composer
 └─ hint
-picker             palette, find, project, workflow, model, thinking, filter, the bind and add-extension checklists
-bind               the bind float's two text fields
+picker             palette, find, project, workflow, model, thinking, filter
+bind               the bind float's two text fields, and the bind and add-extension checklists
 readback           the answer readback, send again
 reply              the not-recorded reply
 confirm            before bind, addExtensions and pairing over plain HTTP
@@ -170,7 +170,8 @@ Every bottom float is one component (`../spec.md` §6), and one that takes the k
 
 - `:` takes ex names from the table (`:w`, `:answer`, `:theme`, `:bind`). `Tab` completes; Up/Down walk the history.
 - **Palette** (`␣;`, `⌘K`): every command as `desc · :ex · keys`, with `◇` on answers; one that can't run here is listed with the reason. Choosing an answer command opens its readback.
-- **Pickers** (`␣.`, `M-p` and `M-w` on the start page, `␣cm`, `␣ct`, `␣pf`, `␣pa`): `C-j C-k` move, `C-n C-p` page the preview, `⏎` chooses (or confirms a checklist), `Tab` toggles an item in a checklist, `S-Tab` goes back from the bind float's checklist to its fields, `Esc C-c` cancel. Results freeze once you move. Every picker is one step: `M-w` lists the workflows and the models together.
+- **Pickers** (`␣.`, `M-p` and `M-w` on the start page, `␣cm`, `␣ct`, `␣pf`, `␣pa` when no view names a project): `C-j C-k` move, `C-n C-p` page the preview, `⏎` chooses, `Esc C-c` cancel. Results freeze once you move. Every picker is one step: `M-w` lists the workflows and the models together.
+- **The bind and add-extension checklists** (`bind.keys`): `j k`, `C-j C-k`, `C-n C-p` and Down Up move, `␣` ticks or unticks the row under the cursor, `⏎` goes on to Confirm, `Esc C-c` cancel. `Tab` and `S-Tab` walk the bind float's regions (name, working directory, extensions), wrapping, and never tick.
 - **The bottom bar** (26 px, always there) holds the badge, pending keys, the echo and the save state; while the sidebar is hidden, the count tags and abnormal server state at its right end. The echo is the last transient message: it never repeats the bar and prints no key chips. Anything the user must act on is a notice band, never only an echo. `:messages` keeps the history.
 
 ## 9. Printed keys
