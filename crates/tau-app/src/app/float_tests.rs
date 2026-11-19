@@ -339,6 +339,61 @@ fn a_bind_field_that_takes_the_caret_back_is_shown() {
     );
 }
 
+/// Bind's errors (`spec.md` §6) could fail by standing under the checklist, away from their
+/// field, or under the other field, or out of the float body while their field has the caret.
+#[test]
+fn a_bind_error_stands_under_its_field_in_view_with_the_caret() {
+    let cases = [
+        (
+            "Not A Name",
+            "/home/vrod/src/scratch",
+            "Use 1–63 lowercase letters",
+            "bind-name",
+            "bind-working directory",
+        ),
+        (
+            "scratch",
+            "relative/path",
+            "Use an absolute path on the server.",
+            "bind-working directory",
+            "extensions",
+        ),
+    ];
+    for (name, dir, words, field, next) in cases {
+        let mut rt = scene_at("bind-float", (800.0, 600.0));
+        press(&mut rt, "<C-j><C-j>");
+        rt.update(|a, _| {
+            bind(a).name.edit.replace_text(name);
+            bind(a).directory.edit.replace_text(dir);
+        });
+        press(&mut rt, "<CR>");
+        advance(&mut rt);
+        let error = rt
+            .elements()
+            .into_iter()
+            .find(|e| e.text.as_deref().is_some_and(|t| t.starts_with(words)))
+            .unwrap_or_else(|| panic!("no {words:?}"))
+            .rect;
+        let below = |key: &str| {
+            rt.elements()
+                .into_iter()
+                .find(|e| e.key.as_deref() == Some(key) || e.text.as_deref() == Some(key))
+                .unwrap_or_else(|| panic!("no {key}"))
+                .rect
+        };
+        let (f, n) = (below(field), below(next));
+        assert!(
+            f[1] + f[3] <= error[1] && error[1] + error[3] <= n[1],
+            "{words}: field {f:?}, error {error:?}, next {n:?}"
+        );
+        let body = rect(&rt, FLOAT_BODY);
+        assert!(
+            error[1] >= body[1] - 0.5 && error[1] + error[3] <= body[1] + body[3] + 0.5,
+            "{words}: error {error:?}, body {body:?}"
+        );
+    }
+}
+
 #[test]
 fn messages_open_on_the_newest() {
     let mut rt = scene_at("home", (800.0, 600.0));

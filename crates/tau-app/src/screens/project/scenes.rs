@@ -11,6 +11,25 @@ fn project(a: &mut App) {
         key: "reviewer".into(),
     }));
 }
+fn bind_float(a: &mut App) {
+    base(a);
+    a.open = Default::default();
+    a.server.counts = Default::default();
+    a.show(Stage::Place(Place::Home));
+    bind(a);
+    let f = super::super::top_float::<crate::floats::project_bind::Bind>(a).unwrap();
+    f.name.edit.replace_text("scratch");
+    f.directory.edit.replace_text("/home/vrod/src/scratch");
+    f.part = crate::floats::project_bind::Part::Extensions;
+    f.cursor = f
+        .extensions
+        .iter()
+        .position(|e| e.name == "w1")
+        .unwrap_or(0);
+    if let Some(e) = f.extensions.get_mut(f.cursor) {
+        e.checked = true;
+    }
+}
 pub(super) fn all() -> Vec<Scene> {
     vec![
         ("project", project),
@@ -78,24 +97,12 @@ pub(super) fn all() -> Vec<Scene> {
                 .insert(("scratch".into(), "w1".into()), errors);
             a.say("The options of w1 do not fit.");
         }),
-        ("bind-float", |a| {
-            base(a);
-            a.open = Default::default();
-            a.server.counts = Default::default();
-            a.show(Stage::Place(Place::Home));
-            bind(a);
+        ("bind-float", bind_float),
+        ("bind-error", |a| {
+            bind_float(a);
             let f = super::super::top_float::<crate::floats::project_bind::Bind>(a).unwrap();
-            f.name.edit.replace_text("scratch");
-            f.directory.edit.replace_text("/home/vrod/src/scratch");
-            f.part = crate::floats::project_bind::Part::Extensions;
-            f.cursor = f
-                .extensions
-                .iter()
-                .position(|e| e.name == "w1")
-                .unwrap_or(0);
-            if let Some(e) = f.extensions.get_mut(f.cursor) {
-                e.checked = true;
-            }
+            f.directory.edit.replace_text("src/scratch");
+            actions::checklist_key(a, crate::keys::Key::plain(crate::keys::Code::Enter));
         }),
         ("add-extensions", |a| {
             project(a);

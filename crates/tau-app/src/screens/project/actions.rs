@@ -171,15 +171,19 @@ fn confirm(a: &mut App) {
                 .enumerate()
                 .all(|(i, b)| b.is_ascii_lowercase() || b.is_ascii_digit() || (i > 0 && b == b'-'));
         if !valid {
-            f.error = Some(
+            f.error = Some((
+                Part::Name,
                 "Use 1–63 lowercase letters, digits or hyphens; begin with a letter or digit."
                     .into(),
-            );
+            ));
             f.part = Part::Name;
             return;
         }
         if !dir.starts_with('/') {
-            f.error = Some("Use an absolute path on the server.".into());
+            f.error = Some((
+                Part::Directory,
+                "Use an absolute path on the server.".into(),
+            ));
             f.part = Part::Directory;
             return;
         }

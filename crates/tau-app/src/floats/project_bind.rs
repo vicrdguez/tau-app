@@ -29,7 +29,8 @@ pub struct Bind {
     pub part: Part,
     pub extensions: Vec<Extension>,
     pub cursor: usize,
-    pub error: Option<String>,
+    /// What is wrong with the name or the working directory, and which of the two.
+    pub error: Option<(Part, String)>,
 }
 impl Bind {
     pub fn new(project: Option<String>, extensions: Vec<Extension>) -> Self {
@@ -135,7 +136,16 @@ impl ScreenFloat for Bind {
                             .color(t.c.fg.muted),
                     );
                 }
-                let field = ui::kv_row(t, label, value);
+                let mut field = col().w_full().gap(8.0).child(ui::kv_row(t, label, value));
+                if let Some((_, words)) = self.error.as_ref().filter(|(about, _)| *about == part) {
+                    field = field.child(
+                        row()
+                            .w_full()
+                            .pl(t.l.float.padding_x + t.l.float.kv_label)
+                            .pr(t.l.float.padding_x)
+                            .child(ui::field_error(t, words).grow(1.0).min_w(0.0)),
+                    );
+                }
                 body = body.child(if edit.focused {
                     field.key(ui::FLOAT_CURSOR)
                 } else {
@@ -181,9 +191,6 @@ impl ScreenFloat for Bind {
             );
         }
         body = body.child(ui::kv_list(t, "extensions", checklist));
-        if let Some(error) = &self.error {
-            body = body.child(line(t, error, t.ty.ui_small, t.c.text.failed).px(24.0));
-        }
         let scope = self.scope();
         let hints = if self.part == Part::Extensions {
             vec![

@@ -12,14 +12,14 @@ use tau_client::{LinkEvent, LinkPhase};
 use super::Screen;
 use crate::app::scenes::Scene;
 use crate::app::{App, Handler, Invocation, Stage, input};
-use crate::assets::{carbon, marks};
+use crate::assets::carbon;
 use crate::copy;
 use crate::editor::{EditMode, Editor, Lines, Reply};
 use crate::floats::{Confirm, Float};
 use crate::frame::Place;
 use crate::keys::{Code, Ctx, Key, Mode};
 use crate::theme::Theme;
-use crate::ui::{Scope, chip, text_field, wordmark};
+use crate::ui::{Scope, chip, field_error, text_field, wordmark};
 
 /// The server field's text until one is kept (`client.md` §7: the server listens there).
 pub const DEFAULT_URL: &str = "http://127.0.0.1:6283";
@@ -358,7 +358,7 @@ fn view(t: Theme, app: &App) -> El {
     let failed_about = |field| {
         failure
             .filter(|f| f.about == field)
-            .map(|f| under(failed(t, &f.words)))
+            .map(|f| under(field_error(t, &f.words)))
     };
     let mut fields = col().gap(10.0).mt(24.0).w_full();
     fields = fields.child(field_row(
@@ -468,20 +468,6 @@ fn warning(t: Theme) -> El {
         .child(icon(&carbon::WARNING_ALT, 14.0).color(t.c.fg.alt).mt(2.0))
         .child(
             text(WARNING)
-                .font(t.ty.prose_small)
-                .color(t.c.fg.default)
-                .wrap()
-                .grow(1.0)
-                .min_w(0.0),
-        )
-}
-
-fn failed(t: Theme, words: &str) -> El {
-    row()
-        .gap(8.0)
-        .child(icon(&marks::FAILED, 8.0).color(t.c.state.blocked).mt(5.0))
-        .child(
-            text(words.to_string())
                 .font(t.ty.prose_small)
                 .color(t.c.fg.default)
                 .wrap()

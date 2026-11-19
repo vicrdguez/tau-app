@@ -15,4 +15,4 @@ pub use keys::{Scope, chip, control, float_hint, float_hint_if, glyphs, hint, na
 pub use marks::{Counts, Mark, Tag, count_tag, count_tags, mark, mark_in};
 pub use rows::{Part, facts, group_head, label, slot_row};
 pub use shell::{FLOAT_BODY, FLOAT_CURSOR, Shell, float_row, kv_list, kv_row, shell, title};
-pub use surfaces::{NoticeAction, container, notice, text_field};
+pub use surfaces::{NoticeAction, container, field_error, notice, text_field};
