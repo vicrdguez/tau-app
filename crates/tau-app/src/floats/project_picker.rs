@@ -147,7 +147,15 @@ impl ScreenFloat for Picker {
                 content
                     .child(rune::spacer())
                     .child(line(t, &r.note, t.ty.ui_small, t.c.fg.muted));
-            body = body.child(ui::float_row(t, Some(&r.value) == selected, content));
+            let value = r.value.clone();
+            // The press sits on a wrapper: the selected row keeps the key the shell scrolls to.
+            body = body.child(
+                row()
+                    .w_full()
+                    .key(format!("pick-{}", r.value))
+                    .on_press(move |a: &mut App| choose(a, value.clone()))
+                    .child(ui::float_row(t, Some(&r.value) == selected, content)),
+            );
         }
         if rows.is_empty() && !self.rows.is_empty() {
             body = body.child(no_match(t, self.noun.none(&self.query.text)));
@@ -190,11 +198,7 @@ pub fn keys(a: &mut App, inv: &Invocation, _: &mut rune::Tx) {
         return;
     };
     if k.code == Code::Enter {
-        let value = p.current().map(|r| r.value.clone());
-        if let Some(value) = value
-            && let Some(choose) = p.choose.take()
-        {
-            a.close_float();
+        if let Some(value) = p.current().map(|r| r.value.clone()) {
             choose(a, value);
         }
     } else {
@@ -216,6 +220,14 @@ pub fn keys(a: &mut App, inv: &Invocation, _: &mut rune::Tx) {
             .unwrap_or(0);
         let to = (at as isize + delta).clamp(0, rows.len().saturating_sub(1) as isize) as usize;
         p.selected = rows.get(to).map(|r| r.value.clone());
+    }
+}
+
+/// `⏎` on the selected row, or a click on any row.
+fn choose(a: &mut App, value: String) {
+    if let Some(choose) = top_float::<Picker>(a).and_then(|p| p.choose.take()) {
+        a.close_float();
+        choose(a, value);
     }
 }
 

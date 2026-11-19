@@ -2,7 +2,7 @@
 //! keymap (`t.keymap`) prints the key this device types for it and says whether it is lit
 //! (`spec.md` §4.6, `grammar.md` §9).
 
-use rune::{El, TextStyle, icon, row, text};
+use rune::{El, TextStyle, Tx, icon, row, text};
 
 use crate::assets::marks;
 use crate::keys::{Ctx, Keymap, Mode};
@@ -81,6 +81,22 @@ pub fn hint(t: Theme, scope: Scope, seq: &str) -> El {
     let key = t.keymap.chip(seq, scope.mode, scope.ctx);
     let fg = if key.lit { t.c.fg.alt } else { t.c.fg.muted };
     glyphs(&key.printed, t.ty.hint, fg)
+}
+
+/// A control made of printed keys and words (`⌘⏎ start`, the start line's project): one
+/// accessible name for the whole, and a press that does what its key does, only while `lit`.
+pub fn control<S: 'static>(
+    body: El,
+    name: String,
+    lit: bool,
+    press: impl Fn(&mut S, &mut Tx) + 'static,
+) -> El {
+    let c = row()
+        .role("button")
+        .label(name)
+        .disabled(!lit)
+        .child(body.a11y_hidden());
+    if lit { c.on_press_tx(press) } else { c }
 }
 
 /// A float's foot hint: the chip, then a muted word (`Esc closes`).

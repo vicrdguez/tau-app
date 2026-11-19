@@ -257,8 +257,8 @@ A page in the stage, not a float. The app opens on it (D11). Breadcrumb `New con
 
 **Layout.** Only three things, centred in the stage:
 - the wordmark (`tau-wordmark-on-dark-coral.svg`, `-on-light-coral` in Ember Light), 44 px tall, 36 px above the composer;
-- **the composer**, the container style, 640 px wide and at least 112 px tall, growing to 12 lines and then scrolling; its top edge at 0.325 of the stage's height below the header (296 px at 982). Placeholder `What do you want to work on?` in `fg.muted`. In Insert its edge is coral and `⌘⏎ start` sits inside at the bottom right (`hint`);
-- **the start line**, 12 px under the composer (`ui.small`): a `folder` icon, the project (sage) and its hint `M-p`, `·`, then the workflow, `w1` (`mono`, `fg`) and `workflow` (`fg.alt`), and its hint `M-w`: `render-core M-p · w1 workflow M-w`. For the bare agent the line names the model: `notes-cli M-p · bare agent · claude-sonnet-4-5 M-w`. The two hints are lit in Insert and in Normal: both keys work in both modes (**Keys**, below).
+- **the composer**, the container style, 640 px wide and at least 112 px tall, growing to 12 lines and then scrolling; its top edge at 0.325 of the stage's height below the header (296 px at 982). Placeholder `What do you want to work on?` in `fg.muted`. In Insert its edge is coral and `⌘⏎ start` sits inside at the bottom right (`hint`); a press on that hint does what `⌘⏎` does, in each of its wordings;
+- **the start line**, 12 px under the composer (`ui.small`): a `folder` icon, the project (sage) and its hint `M-p`, `·`, then the workflow, `w1` (`mono`, `fg`) and `workflow` (`fg.alt`), and its hint `M-w`: `render-core M-p · w1 workflow M-w`. For the bare agent the line names the model: `notes-cli M-p · bare agent · claude-sonnet-4-5 M-w`. The two hints are lit in Insert and in Normal: both keys work in both modes (**Keys**, below). The project part (icon, name, hint) and the workflow part (its words and hint) are each one control: a press runs `start.project` or `start.workflow` as its key does, only while that key is lit, and the text and its caret stay as they were through the picker.
 
 **What it starts.** A start page with no draft takes:
 - **the project:** the one the current view names (a Project view, a conversation, a decision, or the sidebar item under the cursor when the sidebar has the keys), else the last project used on this device, else the only project. `␣pa` and `␣po` take their project by the same rule. With none of these, the line reads `choose a project M-p`, and `⌘⏎` opens the project picker and keeps the text.
@@ -269,11 +269,11 @@ The page keeps its project, workflow and text as one draft on this device until 
 **Before you type, the line says what can't start:**
 - a workflow whose options have errors (§3.2): `scratch M-p · w1 workflow · needs options: designer, implementer, reviewer M-w`, or `· options don't fit: reviewer` (the last part in rose). The composer's hint reads `⌘⏎ set its options`; `⌘⏎` opens the Project view at the first field with an error and keeps the text.
 - a workflow the server lacks: `extensions` lists only what the server has, and `projects` gives a project's `missing` as bare names, so the workflow picker never lists a missing extension. The line reads `· missing on the server` (rose) only when the remembered workflow (`lastWorkflow`) is in the project's `missing`; `⌘⏎` then echoes `the server has no code for w1`.
-- no projects at all: the line reads `No projects yet · ⌘⏎ binds one`, and `⌘⏎` opens the bind float.
+- no projects at all: the line reads `No projects yet`, the composer's hint reads `⌘⏎ bind a project`, and `⌘⏎` opens the bind float.
 
 **Sending.** `⌘⏎` sends what the drawn line names (keys act on the drawn frame):
 1. Empty or white-space text: nothing happens. Text over 1 MiB: echo `Over 1 MiB · nothing was sent`; nothing is sent.
-2. `create {project, workflow}`, or `create {project, model}` for the bare agent. From the press until `create` replies or times out, the composer's hint reads `starting…`, the text is read-only, and `⌘⏎`, `M-p` and `M-w` are off; auto-repeat never fires `⌘⏎`.
+2. `create {project, workflow}`, or `create {project, model}` for the bare agent. From the press until `create` replies or times out, the composer's hint reads `starting…`, the text is read-only, and `⌘⏎`, `M-p` and `M-w` are off, with the start line's two controls; auto-repeat never fires `⌘⏎`.
 3. On its `result`, the page becomes that conversation in place: the breadcrumb reads `render-core › #9`, your text moves to the top as the unsent row `sending…`, the composer drops to the column's foot, empty, and `#9` joins the sidebar under its project, current. The mode is Normal, the cursor is on the unsent row, and follow is on. Until the label is known, the title is the first line of the text being sent.
 4. `input {project, conversation, text, requestId}`, with the outbox's rules (`client.md` §2).
 
