@@ -587,7 +587,7 @@ fn fact_parts(
             parts.push(Part::text(t, "open"));
             parts.push(Part::text(
                 t,
-                &format!("requested {}", time::clock(*requested)),
+                &format!("requested {}", time::stamp(*requested, now(app))),
             ));
             let ago = time::span(time::between(*requested, now(app)));
             parts.push(Part::text(t, &format!("{ago} ago")));

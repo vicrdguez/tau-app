@@ -92,25 +92,7 @@ fn small(t: Theme, s: &str, color: rune::Color, w: f32) -> El {
 }
 
 fn stamp(at: i64, now: Wall) -> String {
-    let local = |at: i64| {
-        let seconds = at.div_euclid(1000) as libc::time_t;
-        // SAFETY: localtime_r initializes the tm and both pointers remain valid for the call.
-        unsafe {
-            let mut tm: libc::tm = std::mem::zeroed();
-            libc::localtime_r(&seconds, &mut tm);
-            tm
-        }
-    };
-    let date = local(at);
-    let today = local(now.0);
-    let clock = crate::time::clock(Wall(at));
-    if date.tm_year == today.tm_year && date.tm_yday == today.tm_yday {
-        return clock;
-    }
-    let month = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    ][date.tm_mon as usize];
-    format!("{month} {} {clock}", date.tm_mday)
+    crate::time::stamp(Wall(at), now)
 }
 
 pub fn row_view(t: Theme, app: &App, r: &ListRow, selected: bool, home: bool) -> El {

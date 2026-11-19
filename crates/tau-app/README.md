@@ -36,7 +36,7 @@ Fonts load at run time from `$TAU_ASSETS/fonts`, which every command sets. The p
 | `keys` | the keymap engine over `design/keymap.toml`: contexts, modes, prefix-free resolution with `shadows`, counts, pending sequences, which-key entries, `:` names, lit and muted chips. It returns an `Outcome` and never runs anything. |
 | `editor` | one modal editor (Insert, Normal, Visual) layered over rune's `TextEdit`, for the composer, notes, fields, Connect and the start page |
 | `copy` | the copy's words for what the link reports: refusals, outbox rows, link echoes, Connect's failures. Pure functions; key hints come apart from the words |
-| `time` | clock times in local time (`16:41`) and spans (`4.2 s`, `17 m`, `1 h 5 m`) |
+| `time` | clock times in local time (`16:41`, `Nov 14 16:41` on another day) and spans (`4.2 s`, `17 m`, `1 h 5 m`, `4 d 15 h`, `12 d`) |
 | `content` | agent and extension text: one plain line for rows and titles, and tau Markdown (§ Content) |
 | `open` | the open items in the sidebar's order: open, close, cycle |
 | `ui` | primitives that take the theme and plain data: rows, chips and hints, count tags, the mode badge, group heads, facts lines, the container, the text field, the notice band, the float shell, the wordmark |
