@@ -1,5 +1,5 @@
 //! Object identities and row projections shared by Home, places, and the peek.
-pub use super::rows::{Slots, line, row_view, stage_width};
+pub use super::rows::{Grid, Slots, line, row_view, stage_width};
 use serde::{Deserialize, Serialize};
 use tau_client::shapes::event_extension;
 use tau_client::wire::RunState;

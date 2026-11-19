@@ -484,6 +484,7 @@ impl Screen for Home {
             );
         }
         let rs = rows(app);
+        let grid = list::Grid::home(app, &rs);
         let selected = selected(app).map(|r| r.id);
         let mut group = "";
         for r in &rs {
@@ -507,7 +508,7 @@ impl Screen for Home {
                     .iter()
                     .rfind(|r| r.group == "Needs you")
                     .is_some_and(|last| last.id == r.id);
-            let rendered = list::row_view(t, app, r, selected.as_ref() == Some(&r.id), true);
+            let rendered = list::row_view(t, app, r, selected.as_ref() == Some(&r.id), &grid);
             body = body.child(if last_need {
                 rendered.mb(2.0)
             } else {

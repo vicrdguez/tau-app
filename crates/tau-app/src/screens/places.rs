@@ -239,7 +239,13 @@ impl Screen for Places {
                         ),
                 );
             }
-            body = body.child(list::row_view(t, app, r, id.as_ref() == Some(&r.id), false));
+            body = body.child(list::row_view(
+                t,
+                app,
+                r,
+                id.as_ref() == Some(&r.id),
+                &list::Grid::place(),
+            ));
             if r.hidden {
                 body = body.child(list::line(t, "hidden on this device", t.c.fg.muted).pl(36.0));
             }

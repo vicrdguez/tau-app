@@ -79,6 +79,37 @@ impl Slots {
     }
 }
 
+/// The columns one list draws its rows on, decided once from every row it shows.
+pub struct Grid {
+    pub home: bool,
+    /// The width of the event time column: the widest time drawn.
+    pub stamp: f32,
+}
+
+impl Grid {
+    pub fn home(app: &App, rows: &[ListRow]) -> Self {
+        let now = super::now(app);
+        let stamp = rows
+            .iter()
+            .filter(|r| matches!(r.id, RowId::Event(..)))
+            .filter_map(|r| r.at)
+            .map(|at| mono_width(app.theme(), &stamp(at, now)))
+            .fold(0.0, f32::max);
+        Self { home: true, stamp }
+    }
+    pub fn place() -> Self {
+        Self {
+            home: false,
+            stamp: 94.0,
+        }
+    }
+}
+
+/// The drawn width of `s` in `mono.small`: Iosevka advances half an em per character.
+fn mono_width(t: Theme, s: &str) -> f32 {
+    s.chars().count() as f32 * t.ty.mono_small.size / 2.0
+}
+
 pub fn active(app: &App) -> bool {
     app.focus == Focus::Stage
         && (app.floats.is_empty() || app.scope().ctx == crate::keys::Ctx::Peek)
@@ -88,14 +119,15 @@ pub fn line(t: Theme, s: &str, color: rune::Color) -> El {
     content::line(t, s, t.ty.ui, color)
 }
 fn small(t: Theme, s: &str, color: rune::Color, w: f32) -> El {
-    content::line(t, s, t.ty.mono_small, color).w(w)
+    content::line(t, s, t.ty.mono_small, color).w(w).min_w(w)
 }
 
 fn stamp(at: i64, now: Wall) -> String {
     crate::time::stamp(Wall(at), now)
 }
 
-pub fn row_view(t: Theme, app: &App, r: &ListRow, selected: bool, home: bool) -> El {
+pub fn row_view(t: Theme, app: &App, r: &ListRow, selected: bool, grid: &Grid) -> El {
+    let home = grid.home;
     let keys = active(app);
     let mut slots = Vec::new();
     let lead = if r.hidden {
@@ -193,12 +225,7 @@ pub fn row_view(t: Theme, app: &App, r: &ListRow, selected: bool, home: bool) ->
             let date =
                 r.at.map(|at| stamp(at, super::now(app)))
                     .unwrap_or_default();
-            let date = if home && date.contains(' ') {
-                date.rsplit_once(' ').map(|(day, _)| day).unwrap_or(&date)
-            } else {
-                &date
-            };
-            let lead = small(t, date, t.c.fg.muted, if home { 44.0 } else { 94.0 });
+            let lead = small(t, &date, t.c.fg.muted, grid.stamp);
             let number = r
                 .conversation
                 .map(|id| format!("#{id}"))
