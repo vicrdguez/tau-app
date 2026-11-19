@@ -506,6 +506,7 @@ impl Screen for Places {
                 scene(a, Place::Conversations);
                 a.screens.places.conversations.state = Some("running".into());
                 reconcile(a);
+                super::peek::settle_scene(a);
             }),
             ("timeline-filtered", |a| {
                 scene(a, Place::Timeline);
