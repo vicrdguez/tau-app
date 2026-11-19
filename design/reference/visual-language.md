@@ -27,6 +27,8 @@ How the tau desktop client looks. Every value is a token in `../tokens.json` (th
 - **opened tool output**, on `surface.sunken` (recessed);
 - **floats**, which add a 2 px coral top rule and an upward shadow.
 
+**Where boxes sit.** In the conversation every box (your message, the composer, opened tool output, a tool row's tint or cursor band, the run-failure head, a record's band, a code block in bare prose) spans the text column and 16 px on each side. Every box is one width, and text in a box starts on the same x as text outside one (`../spec.md` §5.5).
+
 A **text field** (Connect's fields, the bind float's name and working directory) is the same style made small: `surface.sunken`, a 1 px `border.hairline` edge, `radius.pill`, 26 px tall, 10 px in (`tau.layout.text_field`). Its edge turns coral while it has the caret in Insert.
 
 Everything else (agent text, records, tool rows, groups, the peek, the details panel, notes that are not being typed) has no box. In Insert, the focused container's edge turns coral, and its muted keys sit inside at the bottom right in `hint`.
@@ -69,7 +71,7 @@ Chrome is told from content by lane, surface, size and case, not by face: conten
 
 ## 3. Reading layout
 
-- **Measure:** prose in reading columns wraps at **840 px**, about 112 average characters of Etoile at 14 px. The conversation's column is 880 px so that containers and tool rows have room around their text. Forms keep their 600/640 px columns. Wider panes centre the column.
+- **Measure:** prose in reading columns wraps at **840 px**, about 112 average characters of Etoile at 14 px. The conversation's column is the measure plus 56 px, 896 px by default: its boxes reach 16 px past the text on each side, and a 24 px gutter left of them holds the speaker marks (§6). Every line of its text starts on one x. Forms keep their 600/640 px columns. Wider panes centre the column.
 - **Wrapping:** rune's native wrap (UAX #14), no inserted hyphens, no inserted characters: copied text equals the source bytes. IDs, paths, key names and inline code up to 40 characters never break: inline code is a drawn pill; IDs and paths in prose are transparent pills, only when they contain a break opportunity (`-`, `/`, `.`). A longer token wraps anywhere.
 - **Line breaks:** in every rendered Markdown (basis, inputs, agent text, records, peek), a single newline is a line break, as in a chat or a GitHub comment. Paragraphs are separated by a blank line.
 - **Blocks that don't wrap** (tables) start at the text column's left edge and grow right to the pane's content edge, or to the column's edge where a margin or a panel sits beside it (the decision's notes margin, the details panel); beyond it they scroll, and each clipped edge shows a 32 px fade, a 2 px `fg.muted` edge rule and a `caret--right`.
@@ -86,7 +88,7 @@ Chrome is told from content by lane, surface, size and case, not by face: conten
 | Table | header 600 `fg.alt` with a 1 px `border.strong` rule; 1 px `border.hairline` row rules; no vertical rules; cells 6 × 12 px; grows right, then scrolls |
 | Blockquote | a 3 px `border.strong` bar, Etoile italic `fg.alt` |
 | Alert | the quote shape plus the kind word; no icon, no hue |
-| Code block | `surface.code`, a 2 px gold left rule, the language label top-right in gold `ui.small`, `mono` 13/20, wraps at spaces and inside tokens wider than the column; square |
+| Code block | `surface.code`, a 2 px gold left rule, the language label top-right in gold `ui.small`, `mono` 13/20, wraps at spaces and inside tokens wider than the column; square. In the conversation's bare prose it reaches 16 px past the text on each side, its code and label on the text's edges |
 | Inline code | gold on a `surface.code` pill, `radius.pill` |
 | Link | prose face, salmon, 1 pt solid underline; `kind.link_active` under the cursor; `gx` opens after a confirm showing the URL |
 | Emphasis | italic neutral; **bold** 700 in steel |
@@ -126,7 +128,7 @@ Each hue has a token for marks (icons, bars, fills) and a token for text; they d
 | Hue | Means | Mark token | Text token | Goes on |
 |---|---|---|---|---|
 | **Coral** | what needs you; where your keys act; the brand | `state.attn` | `state.attn`, only in `title.page` | §4.3 |
-| **Steel** | a label; running | `state.stale` (the `time` mark, the running triangle) | `kind.you` | group heads, field labels, `input`, the composer's caption, the readback's labels, **bold** in content (`content.strong`) |
+| **Steel** | a label; running | `state.stale` (the `time` mark, the running triangle, the person by your message) | `kind.you` | group heads, field labels, `input`, the composer's caption, the readback's labels, **bold** in content (`content.strong`) |
 | **Orange** | literal machine text | none | `kind.literal` | `#4`, `#2`, decision IDs and subjects, task and entry kinds, key chips; content `h2` (`content.h2`) |
 | **Gold** | code as a thing | `kind.code` (the code block's rule) | `kind.code` | inline code, the code block's rule and label |
 | **Salmon** | you can go there | none | `kind.link`, `kind.link_active` under the cursor | links in content |
@@ -221,6 +223,9 @@ IBM Carbon icons (`@carbon/icons` 11.90.0, Apache-2.0), drawn as SVG paths and t
 | offline, reconnecting | ring | `fg.muted` |
 | sidebar rows and kinds | `add` new, `search` find, `home`, `chat` conversation and Conversations, `time` Timeline, `folder` project and Projects, outline diamond decision, `settings` Server | `fg.muted`; `fg.alt` on the current row |
 | the sidebar toggle | `side-panel--close` (shown), `side-panel--open` (hidden) | `fg.muted` |
+| who speaks: your message, the agent's | Carbon `user` by `input`, Carbon `bot` by `agent`; 14 px | steel (`state.stale`); `fg.muted` |
+
+The speaker marks stand in the conversation's gutter, left of the box edge: one per message, centred in a 16 px slot 8 px clear of the box and on its header's line, all on one vertical line. They come from the entry's kind, never its text; the header word stays, so the mark has no name of its own (`../spec.md` §5.5).
 
 The failed `×` replaces the octagon everywhere: the sidebar, Home, the lists, tool rows, facts lines and the `×` tag. Workflows in pickers have no icon (`w1 · workflow`): the outline diamond means a decision and nothing else.
 

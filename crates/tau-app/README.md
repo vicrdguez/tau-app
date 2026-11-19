@@ -31,7 +31,7 @@ Fonts load at run time from `$TAU_ASSETS/fonts`, which every command sets. The p
 
 | Module | Holds |
 |---|---|
-| `theme` | `design/tokens.json` parsed once: three colour variants (`t.c`), the type scale (`t.ty`), layout and timings (`t.l`), derived reading widths (`t.read`), and motion policy (`t.motion`). `Motion::moves` creates user-triggered animation islands for floats, panels, folds and sends. Motion off uses `Spring::NONE` and no islands. `Theme::of(variant)` swaps colours only, so `␣ht` never reflows. |
+| `theme` | `design/tokens.json` parsed once: three colour variants (`t.c`), the type scale (`t.ty`), layout and timings (`t.l`), derived reading widths (`t.read`: the measure; the conversation's column, the measure plus its 24 px gutter and 16 px each side; the decision's block), and motion policy (`t.motion`). `Motion::moves` creates user-triggered animation islands for floats, panels, folds and sends. Motion off uses `Spring::NONE` and no islands. `Theme::of(variant)` swaps colours only, so `␣ht` never reflows. |
 | `assets` | the fonts, the Carbon icons, the client's small marks and key glyphs, the brand SVGs |
 | `keys` | the keymap engine over `design/keymap.toml`: contexts, modes, prefix-free resolution with `shadows`, counts, pending sequences, which-key entries, `:` names, lit and muted chips. It returns an `Outcome` and never runs anything. |
 | `editor` | one modal editor (Insert, Normal, Visual) layered over rune's `TextEdit`, for the composer, notes, fields, Connect and the start page |
@@ -50,13 +50,13 @@ Fonts load at run time from `$TAU_ASSETS/fonts`, which every command sets. The p
 
 ## Settings
 
-`App::settings` is one `Copy` value: the theme variant, the reading `Measure`, the motion flag and the `Keymap` with this device's moved keys. `App::theme()` derives the `Theme` from it each frame, so a change shows on the next frame everywhere: colours, the reading column, every printed key.
+`App::settings` is one `Copy` value: the theme variant, the reading `Measure`, the motion flag and the `Keymap` with this device's moved keys. `App::theme()` derives the `Theme` from it each frame, so a change shows on the next frame everywhere: colours, the reading columns (the conversation's grows with the measure and keeps its gutter and 16 px each side), every printed key.
 
 **The file.** `settings.toml` at the link's store root, beside `client.toml` (`TAU_CLIENT_DIR` or `~/.config/tau`). The fixture link has no root, so scenes, tests on `App::default()` and `--demo` read and write nothing.
 
 ```toml
 theme = "ember-soft"      # ember | ember-soft | ember-light
-reading_width = 880       # px, 600 to 1200
+reading_width = 880       # px where prose wraps, 600 to 1200
 motion = false
 
 [keys."start.workflow"]   # the command id from keymap.toml
@@ -146,7 +146,7 @@ let noted = markdown(t, source)
 
 `line(Theme, &str, TextStyle, Color) -> El` returns one rich-text element with rune's end truncation. Give it a bounded width, or a shrinking slot such as `ui::slot_row`. `runs(&str) -> Vec<Run>` is the pure parser. `Run` is `Text(String)` or `Escape(String)`. Equal-length paired backtick delimiters disappear. Other Markdown, unmatched delimiters, and ordinary Unicode stay literal. Invisible characters use uppercase Unicode escapes such as `U+000A`, `U+202E`, and `U+200B`, in `mono.small` on `surface.bar`.
 
-`markdown(Theme, &str) -> Markdown<'_>` borrows the source until `build(self) -> El`. The consuming options are `peek()`, `streaming(bool)`, and `tint(impl IntoIterator<Item = Tint>)`. Full Markdown uses `prose`; the peek uses `prose.small` and the peek heading tokens. The caller owns the reading column's width, outer spacing, scrolling, and the gap below its page title.
+`markdown(Theme, &str) -> Markdown<'_>` borrows the source until `build(self) -> El`. The consuming options are `peek()`, `streaming(bool)`, `hang(f32)`, and `tint(impl IntoIterator<Item = Tint>)`. Only the conversation's bare prose passes `hang(16.0)`: a code block outside lists and quotes then reaches 16 px past the text on each side, its code and label on the text's edges. Full Markdown uses `prose`; the peek uses `prose.small` and the peek heading tokens. The caller owns the reading column's width, outer spacing, scrolling, and the gap below its page title.
 
 `Tint { range: Range<usize>, active: bool }` uses UTF-8 bytes of the original source, not UTF-16 or preprocessed bytes. Invalid and empty ranges paint nothing. Endpoints inside a character expand to its boundaries, ranges crossing the cap clip, and ranges wholly beyond it disappear. Tints use `tint.note_range` or `tint.note_active` without a ring. Their local rune keys are `note-0`, `note-1`, and so on, under the caller's keyed content element. Note conversion from server UTF-16 ranges belongs to the decision screen.
 
