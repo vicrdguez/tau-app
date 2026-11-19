@@ -1,8 +1,8 @@
-//! The conversation page (`spec.md` §5.5): the 880 px column, centred in the stage and moved only
-//! as far as an open details panel needs (§4.7),
-//! holds the title block, the transcript and, at its foot, the queue, the unsent rows and the
-//! composer. Sizes follow the prototype (`tools/proto/calm.css` `.ccol`, `.msg`, `.tool`,
-//! `.cstack`, `.comp`).
+//! The conversation page (`spec.md` §5.5): the column, centred in the stage and moved only as far
+//! as an open details panel needs (§4.7), holds the title block, the transcript and, at its foot,
+//! the queue, the unsent rows and the composer. Every line of text starts on one axis, and every
+//! box spans the text column and [`LANE`] on each side; left of the boxes is the [`GUTTER`].
+//! Other sizes follow the prototype (`tools/proto/calm.css` `.msg`, `.tool`, `.cstack`, `.comp`).
 
 use rune::{El, ScrollSpec, TextStyle, Transition, col, el, icon, row, spacer, text, text_input};
 use tau_client::shapes::{ConversationState, QueueMode};
@@ -27,9 +27,15 @@ pub const TRANSCRIPT: &str = "conv-transcript";
 /// What the transcript scrolls.
 const DOC: &str = "conv-doc";
 
-/// Agent text, headers and rows sit 12 px in from the column, so the cursor's band and bar span
-/// it whole (prototype `.ccol .tool`, `.ccol .mh`).
-const LANE: f32 = 12.0;
+/// The column's left 24 px, where a message's speaker mark stands (`visual-language.md` §6).
+const GUTTER: f32 = 24.0;
+/// How far every box (a container, a band, a tint) reaches past the text on each side, so text
+/// in a box and text outside one start on one x.
+const LANE: f32 = 16.0;
+/// A container's padding: its 1 px hairline takes the rest of [`LANE`].
+const INSIDE: f32 = LANE - 1.0;
+/// The content bar stands this far left of its text.
+const BAR: f32 = 12.0;
 /// Below a message, a record or a chrome line.
 const AFTER_MESSAGE: f32 = 18.0;
 /// Below a tool row (`tokens.json` `layout.tool_row.gap`).
@@ -131,9 +137,14 @@ pub fn page(t: Theme, app: &App) -> El {
         .transition(Transition::none())
         .w(width)
         .h_full()
-        .child(title_block(t, app, &s, &model).instant_changes())
+        .child(
+            title_block(t, app, &s, &model)
+                .pl(GUTTER + LANE)
+                .pr(LANE)
+                .instant_changes(),
+        )
         .child(transcript(&cx, &s, &items, following, ride))
-        .child(stack(t, app, &s, &model, keys && composing));
+        .child(stack(t, app, &s, &model, keys && composing).pl(GUTTER));
     row().w_full().h_full().pl(left).child(column)
 }
 
@@ -254,14 +265,14 @@ fn ride(t: Theme, stop: &str) -> Option<f32> {
 
 fn transcript(cx: &Draw, s: &Shown, items: &[Item], following: bool, ride: Option<f32>) -> El {
     let t = cx.t;
-    let mut doc = col().key(DOC).w_full().pb(8.0);
+    let mut doc = col().key(DOC).w_full().pl(GUTTER).pb(8.0);
     match s.held.map(|h| &h.docs) {
         Some(tau_client::Known::Gone { .. }) => {
             doc = doc.child(
                 text("gone from the server")
                     .font(t.ty.ui)
                     .color(t.c.fg.alt)
-                    .pl(LANE),
+                    .mx(LANE),
             )
         }
         _ if items.is_empty() && s.docs.is_none() => {
@@ -269,7 +280,7 @@ fn transcript(cx: &Draw, s: &Shown, items: &[Item], following: bool, ride: Optio
                 text(NOTHING_RECEIVED)
                     .font(t.ty.ui)
                     .color(t.c.fg.alt)
-                    .pl(LANE),
+                    .mx(LANE),
             )
         }
         _ => {}
@@ -321,7 +332,7 @@ fn item_el(cx: &Draw, item: &Item) -> El {
             if *open && let Some(src) = opened {
                 c = c.child(
                     prose(t, src)
-                        .pl(LANE)
+                        .mx(LANE)
                         .mt(6.0)
                         .transition(Transition::opacity().springs(Motion::pair(t.motion.page))),
                 );
@@ -331,7 +342,7 @@ fn item_el(cx: &Draw, item: &Item) -> El {
         Item::Gap => text("fetching entries missed while away…")
             .font(t.ty.ui_small)
             .color(t.c.fg.muted)
-            .pl(LANE)
+            .mx(LANE)
             .mb(AFTER_MESSAGE),
         Item::Turn {
             head,
@@ -368,7 +379,7 @@ fn item_el(cx: &Draw, item: &Item) -> El {
                 None => text("no text")
                     .font(t.ty.prose)
                     .color(t.c.fg.muted)
-                    .pl(LANE),
+                    .mx(LANE),
             };
             col()
                 .w_full()
@@ -395,7 +406,7 @@ fn item_el(cx: &Draw, item: &Item) -> El {
                 );
             }
             col().w_full().mb(AFTER_MESSAGE).child(h).child(
-                row().w_full().pl(LANE).child(
+                row().w_full().px(LANE).child(
                     markdown(t, src)
                         .streaming(true)
                         .build()
@@ -431,7 +442,7 @@ fn item_el(cx: &Draw, item: &Item) -> El {
                         .font(t.ty.mono_small)
                         .color(t.c.fg.alt)
                         .wrap()
-                        .px(LANE)
+                        .mx(LANE)
                         .mt(3.0),
                 );
             }
@@ -483,7 +494,7 @@ fn agent_head(cx: &Draw, model: &str, at: Option<i64>) -> El {
 /// Your message: the container on `tint.human`, `input` in steel and its time, then the body.
 fn input(cx: &Draw, head: EntryId, at: Option<i64>, body: &[Body]) -> El {
     let t = cx.t;
-    let mut h = row().w_full().center_y().gap(8.0).px(16.0).h(16.0).child(
+    let mut h = row().w_full().center_y().gap(8.0).px(INSIDE).h(16.0).child(
         text("input")
             .font(TextStyle {
                 weight: 600.0,
@@ -516,7 +527,7 @@ fn input(cx: &Draw, head: EntryId, at: Option<i64>, body: &[Body]) -> El {
                 c = c.child(
                     cx.band(
                         &tx.stop,
-                        row().w_full().px(16.0).child(prose(t, &tx.source)),
+                        row().w_full().px(INSIDE).child(prose(t, &tx.source)),
                     )
                     .mt(gap),
                 );
@@ -527,7 +538,7 @@ fn input(cx: &Draw, head: EntryId, at: Option<i64>, body: &[Body]) -> El {
                     text(format!("image · {mime}"))
                         .font(t.ty.ui_small)
                         .color(t.c.fg.muted)
-                        .px(16.0)
+                        .mx(INSIDE)
                         .mt(AFTER_BLOCK),
                 )
             }
@@ -554,7 +565,7 @@ fn texts(cx: &Draw, blocks: &[Text]) -> El {
         c = c.child(
             cx.band(
                 &b.stop,
-                row().w_full().pl(LANE).child(prose(cx.t, &b.source)),
+                row().w_full().px(LANE).child(prose(cx.t, &b.source)),
             )
             .mt(gap),
         );
@@ -612,7 +623,7 @@ fn turn_parts(cx: &Draw, parts: &[Part]) -> El {
                 prev_text = Some(&b.source);
                 after = Some(AFTER_BLOCK);
                 c = c.child(
-                    cx.band(&b.stop, row().w_full().pl(LANE).child(prose(t, &b.source)))
+                    cx.band(&b.stop, row().w_full().px(LANE).child(prose(t, &b.source)))
                         .mt(gap),
                 );
                 continue;
@@ -644,7 +655,7 @@ fn turn_parts(cx: &Draw, parts: &[Part]) -> El {
                             .key(format!("{}-body", stop.key()))
                             .transition(Transition::opacity().springs(Motion::pair(t.motion.page)))
                             .w_full()
-                            .pl(LANE)
+                            .px(LANE)
                             .mt(4.0)
                             .child(prose(t, src)),
                     );
@@ -752,7 +763,7 @@ fn tool_block(t: Theme, key: String, source: &str, label: Option<&str>) -> El {
         .mb(4.0)
         .pt(9.0)
         .pb(10.0)
-        .px(14.0)
+        .px(INSIDE)
         .fill(t.c.surface.sunken)
         .border(1.0, t.c.border.hairline)
         .border_layout()
@@ -850,6 +861,7 @@ fn stack(t: Theme, app: &App, s: &Shown, model: &str, composing: bool) -> El {
                 row()
                     .center_y()
                     .gap(4.0)
+                    .px(LANE)
                     .mb(10.0)
                     .child(
                         text(format!("{new} new"))
@@ -873,6 +885,7 @@ fn stack(t: Theme, app: &App, s: &Shown, model: &str, composing: bool) -> El {
             c = c.child(
                 col()
                     .w_full()
+                    .px(LANE)
                     .mb(10.0)
                     .child(
                         row()
@@ -889,7 +902,7 @@ fn stack(t: Theme, app: &App, s: &Shown, model: &str, composing: bool) -> El {
             text("queued inputs can't be taken back")
                 .font(t.ty.ui_small)
                 .color(t.c.fg.muted)
-                .ml(14.0)
+                .mx(LANE)
                 .mb(14.0),
         );
     }
@@ -922,11 +935,12 @@ fn stack(t: Theme, app: &App, s: &Shown, model: &str, composing: bool) -> El {
                     .springs(Motion::pair(t.motion.page)),
             )
             .w_full()
+            .px(LANE)
             .mb(10.0)
             .child(head)
             .child(content_bar(t, e.text().unwrap_or_default()));
         if row_words.unknown {
-            let mut words = row().center_y().gap(6.0).ml(14.0).mt(4.0).child(
+            let mut words = row().center_y().gap(6.0).mt(4.0).child(
                 text(row_words.state.clone())
                     .font(t.ty.ui_small)
                     .color(t.c.fg.alt),
@@ -944,11 +958,12 @@ fn stack(t: Theme, app: &App, s: &Shown, model: &str, composing: bool) -> El {
     c.child(composer(t, app, s, model, composing))
 }
 
-/// Content on the 2 px content bar, in `prose.small`, two lines at most.
+/// Content on the 2 px content bar, in `prose.small`, two lines at most. The bar hangs left of
+/// the axis, inside the boxes' [`LANE`], so the text keeps the axis.
 fn content_bar(t: Theme, src: &str) -> El {
     row()
-        .w_full()
-        .pl(12.0)
+        .ml(-BAR)
+        .pl(BAR)
         .border_sides([0.0, 0.0, 0.0, 2.0], t.c.border.strong)
         .max_h(2.0 * t.ty.prose_small.line_height)
         .clip_rounded(0.0)
@@ -1004,7 +1019,7 @@ fn composer(t: Theme, app: &App, s: &Shown, model: &str, composing: bool) -> El 
         .w_full()
         .min_h(68.0)
         .pt(11.0)
-        .px(14.0)
+        .px(INSIDE)
         .pb(10.0)
         .fill(t.c.surface.raised)
         .border(

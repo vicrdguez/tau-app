@@ -4,6 +4,8 @@
 //! - A code line hides its tail in a horizontal viewport instead of growing taller.
 //! - Wrapped code loses note-range highlights or stops wrapping while streaming.
 //! - Reading columns stay narrow, or widening the decision folds notes at 1512 px.
+//! - The conversation's column is not the reading width plus its 24 px gutter and 16 px each
+//!   side, so its prose leaves the measure.
 //! - Opening Details moves a reading column that already clears the panel, moves it further than
 //!   its shortfall, or narrows it before it reaches its 16 px margin; the decision's text column
 //!   jumps when its margin folds; the cursor's paragraph moves on screen or out of view.
@@ -277,7 +279,7 @@ fn reading_layout_uses_the_supplied_measure_without_changing_the_peek() {
             rt.frame(1.0);
             let elements = rt.elements();
             if name.starts_with("conversation") {
-                assert!((keyed(&elements, "conv-column").rect[2] - (px + 40.0)).abs() <= 1.0);
+                assert!((keyed(&elements, "conv-column").rect[2] - (px + 56.0)).abs() <= 1.0);
                 let prose = elements
                     .iter()
                     .find(|e| {
@@ -412,8 +414,8 @@ fn reading_layout_details_moves_the_conversation_only_by_its_shortfall() {
         "1512: conversation column x {} closed, {} open",
         closed[0], open[0]
     );
-    assert_eq!((closed[0], closed[2]), (440.0, 880.0));
-    assert_eq!(open[2], 880.0, "its lines don't break again");
+    assert_eq!((closed[0], closed[2]), (432.0, 896.0));
+    assert_eq!(open[2], 896.0, "its lines don't break again");
     assert_eq!(
         open[0] + open[2],
         1512.0 - 240.0 - 24.0,

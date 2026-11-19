@@ -697,4 +697,6 @@ fn running_count(app: &App) -> Option<(String, Duration)> {
 }
 
 #[cfg(test)]
+mod layout_tests;
+#[cfg(test)]
 mod tests;

@@ -67,7 +67,7 @@ fn reading_defaults_and_motion_preserve_the_design() {
             t.read.decision_block,
             t.read.fold_notes_below
         ),
-        (840.0, 880.0, 1208.0, 1256.0)
+        (840.0, 896.0, 1208.0, 1256.0)
     );
     assert_eq!(t.motion.panel, rune::Spring::new(0.2, 0.0));
     assert_eq!(t.motion.page, rune::Spring::new(0.18, 0.0));
