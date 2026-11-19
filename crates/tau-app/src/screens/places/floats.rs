@@ -1,6 +1,7 @@
 //! Controllers for list floats. Renderers under `floats/` take only plain text and marks.
 use super::{RowId, home, list, place, reconcile, save, settings_mut};
 use crate::app::{App, Invocation};
+use crate::floats::list_picker::{Kind as Found, Line};
 use crate::floats::{self as draw, Float, Noun};
 use crate::keys::{Code, Ctx, Key, Mode};
 use crate::screens::{ScreenFloat, ScreenId, top_float};
@@ -144,7 +145,13 @@ impl ScreenFloat for Picker {
             draw::list_picker::List {
                 title,
                 subtitle,
-                rows: &rows.iter().map(|r| r.label.clone()).collect::<Vec<_>>(),
+                rows: &rows
+                    .iter()
+                    .map(|r| match &r.target {
+                        Choice::Object(id) if find => found(id, &r.label),
+                        _ => Line::Plain(r.label.clone()),
+                    })
+                    .collect::<Vec<_>>(),
                 cursor: self.cursor,
                 input: draw::Input {
                     edit: &self.query,
@@ -180,11 +187,28 @@ pub fn filter(a: &mut App) {
 pub fn search(a: &mut App) {
     picker(a, Kind::Search)
 }
+/// A Find row as the list picker draws it: its kind and its project come from what it opens.
+fn found(id: &RowId, label: &str) -> Line {
+    let (kind, project) = match id {
+        RowId::Project(_) => return Line::Project(label.into()),
+        RowId::Conversation(c) => (Found::Conversation, c.project.to_string()),
+        RowId::Decision(d) => (Found::Decision, d.project.to_string()),
+        RowId::Event(p, _) => (Found::Event, p.to_string()),
+        _ => return Line::Plain(label.into()),
+    };
+    Line::In {
+        kind,
+        label: label.into(),
+        project,
+    }
+}
 pub fn find_rows(a: &App, query: &str) -> Vec<PickRow> {
     let (prefix, query) = query
         .split_once(':')
         .filter(|(p, _)| matches!(*p, "p" | "c" | "d" | "e"))
         .map_or(("", query), |(p, q)| (p, q));
+    let query = query.trim().to_lowercase();
+    let hit = |s: &str| s.to_lowercase().contains(&query);
     let mut rows = Vec::new();
     if prefix.is_empty() || prefix == "p" {
         rows.extend(
@@ -194,6 +218,7 @@ pub fn find_rows(a: &App, query: &str) -> Vec<PickRow> {
                 .value()
                 .into_iter()
                 .flatten()
+                .filter(|p| hit(p.project.as_str()))
                 .map(|p| PickRow {
                     label: p.project.to_string(),
                     target: Choice::Object(RowId::Project(p.project.clone())),
@@ -212,19 +237,17 @@ pub fn find_rows(a: &App, query: &str) -> Vec<PickRow> {
         ("e", list::events(a)),
     ] {
         if prefix.is_empty() || prefix == p {
-            rows.extend(rs.into_iter().map(|r| PickRow {
-                label: format!("{} · {}", r.label, r.project),
-                target: Choice::Object(r.id),
-            }));
+            rows.extend(
+                rs.into_iter()
+                    .filter(|r| hit(&r.label) || hit(&r.project))
+                    .map(|r| PickRow {
+                        label: r.label,
+                        target: Choice::Object(r.id),
+                    }),
+            );
         }
     }
-    rows.into_iter()
-        .filter(|r| {
-            r.label
-                .to_lowercase()
-                .contains(&query.trim().to_lowercase())
-        })
-        .collect()
+    rows
 }
 pub fn typing(a: &mut App, _: &[Key]) -> bool {
     if let Some(p) = top_float::<Picker>(a) {

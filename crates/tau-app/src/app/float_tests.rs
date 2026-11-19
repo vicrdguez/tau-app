@@ -549,3 +549,50 @@ fn settings_groups_preferences_and_keys_under_counted_heads_the_cursor_skips() {
     assert_eq!(settings_heads(&rt), vec![("Keys".into(), "2".into())]);
     shows(&rt, "commands");
 }
+
+#[test]
+fn find_rows_lead_with_their_kind_and_line_up_their_projects() {
+    for size in [(1512.0, 982.0), (800.0, 600.0)] {
+        let rt = scene_at("find", size);
+        let t = rt.state.theme();
+        let els = rt.elements();
+        let body = els
+            .iter()
+            .position(|e| e.key.as_deref() == Some(FLOAT_BODY))
+            .unwrap();
+        let list = els.iter().position(|e| e.parent == Some(body)).unwrap();
+        let rows: Vec<&rune::ElementInfo> = els
+            .iter()
+            .filter(|e| e.parent == Some(list) && e.rect[1] < rect(&rt, "float-foot")[1])
+            .collect();
+        assert!(rows.len() >= 5, "{}", rows.len());
+        let mut icon_x = None;
+        let mut slot_x = None;
+        for row in rows {
+            let inside = format!("{}/", row.path);
+            let parts: Vec<&rune::ElementInfo> = els
+                .iter()
+                .filter(|e| e.path.starts_with(&inside) && e.text_color.is_some())
+                .collect();
+            let (icons, texts): (Vec<&rune::ElementInfo>, Vec<&rune::ElementInfo>) =
+                parts.iter().partition(|e| e.text.is_none());
+            assert_eq!(icons.len(), 1, "one kind icon: {:?}", row.path);
+            assert_eq!(icons[0].text_color, Some(t.c.fg.muted));
+            assert_eq!(icons[0].rect[2], 14.0);
+            assert_eq!(*icon_x.get_or_insert(icons[0].rect[0]), icons[0].rect[0]);
+            match texts.as_slice() {
+                [name] => assert_eq!(name.text_color, Some(t.c.kind.worker), "a project row"),
+                [label, project] => {
+                    assert_eq!(label.text_color, Some(t.c.fg.default));
+                    assert_eq!(project.text_color, Some(t.c.kind.worker));
+                    let p = project.text.as_deref().unwrap();
+                    assert!(!label.text.as_deref().unwrap().ends_with(p), "{p} twice");
+                    assert_eq!(*slot_x.get_or_insert(project.rect[0]), project.rect[0]);
+                    assert!(label.rect[0] + label.rect[2] <= project.rect[0]);
+                }
+                other => panic!("{:?}", other.iter().map(|e| &e.text).collect::<Vec<_>>()),
+            }
+        }
+        assert!(slot_x.is_some(), "an object row at {size:?}");
+    }
+}
