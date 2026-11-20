@@ -76,16 +76,14 @@ pub(super) fn bind_keys(a: &mut App, inv: &Invocation, _: &mut Tx) {
     let Some(f) = top_float::<Bind>(a) else {
         return;
     };
+    if f.part == Part::Extensions {
+        checklist_key(a, k);
+        return;
+    }
     match k.code {
         Code::Esc => f.part = Part::Extensions,
-        Code::Tab if k.mods.shift => f.part = Part::Name,
-        Code::Tab | Code::Enter => {
-            f.part = if f.part == Part::Name {
-                Part::Directory
-            } else {
-                Part::Extensions
-            }
-        }
+        Code::Tab => next_part(f, k.mods.shift),
+        Code::Enter => next_part(f, false),
         Code::Backspace => {
             f.editor().edit.key(
                 &rune::KeyEvent {
@@ -100,28 +98,47 @@ pub(super) fn bind_keys(a: &mut App, inv: &Invocation, _: &mut Tx) {
         }
     }
 }
-pub(super) fn picker_keys(a: &mut App, inv: &Invocation, tx: &mut Tx) {
-    if top_float::<Bind>(a).is_none() {
-        project_picker::keys(a, inv, tx);
-        return;
-    }
-    let Some(k) = inv.keys.last().copied() else {
+/// `Tab` and `S-Tab`: the next or previous of the float's regions, wrapping. Bind has the name,
+/// the working directory and the checklist; Add extensions only the checklist.
+fn next_part(f: &mut Bind, back: bool) {
+    let parts: &[Part] = if f.project.is_some() {
+        &[Part::Extensions]
+    } else {
+        &[Part::Name, Part::Directory, Part::Extensions]
+    };
+    let at = parts.iter().position(|p| *p == f.part).unwrap_or(0);
+    let by = if back { parts.len() - 1 } else { 1 };
+    f.part = parts[(at + by) % parts.len()];
+}
+
+/// A key in the checklist: the cursor moves, `Space` ticks its row, `⏎` goes on to Confirm.
+pub(super) fn checklist_key(a: &mut App, k: Key) {
+    let Some(f) = top_float::<Bind>(a) else {
         return;
     };
+    let down = [
+        Key::char('j'),
+        Key::ctrl('j'),
+        Key::ctrl('n'),
+        Key::plain(Code::Down),
+    ];
+    let up = [
+        Key::char('k'),
+        Key::ctrl('k'),
+        Key::ctrl('p'),
+        Key::plain(Code::Up),
+    ];
     if k.code == Code::Esc || k == Key::ctrl('c') {
         a.close_float();
-        return;
-    }
-    let f = top_float::<Bind>(a).unwrap();
-    if k.code == Code::Tab {
-        if k.mods.shift && f.project.is_none() {
-            f.part = Part::Directory;
-        } else if let Some(e) = f.extensions.get_mut(f.cursor) {
+    } else if k.code == Code::Tab {
+        next_part(f, k.mods.shift);
+    } else if k == Key::char(' ') {
+        if let Some(e) = f.extensions.get_mut(f.cursor) {
             e.checked = !e.checked;
         }
-    } else if k == Key::ctrl('j') || k == Key::ctrl('n') {
+    } else if down.contains(&k) {
         f.cursor = (f.cursor + 1).min(f.extensions.len().saturating_sub(1));
-    } else if k == Key::ctrl('k') || k == Key::ctrl('p') {
+    } else if up.contains(&k) {
         f.cursor = f.cursor.saturating_sub(1);
     } else if k.code == Code::Enter {
         confirm(a);
@@ -154,15 +171,19 @@ fn confirm(a: &mut App) {
                 .enumerate()
                 .all(|(i, b)| b.is_ascii_lowercase() || b.is_ascii_digit() || (i > 0 && b == b'-'));
         if !valid {
-            f.error = Some(
+            f.error = Some((
+                Part::Name,
                 "Use 1–63 lowercase letters, digits or hyphens; begin with a letter or digit."
                     .into(),
-            );
+            ));
             f.part = Part::Name;
             return;
         }
         if !dir.starts_with('/') {
-            f.error = Some("Use an absolute path on the server.".into());
+            f.error = Some((
+                Part::Directory,
+                "Use an absolute path on the server.".into(),
+            ));
             f.part = Part::Directory;
             return;
         }
@@ -357,7 +378,7 @@ pub(super) fn edit(a: &mut App, inv: &Invocation, _: &mut Tx) {
             ScreenId::Project,
             if model { "Model" } else { "Choice" },
             format!("for {} · {}", id.extension, id.key),
-            "choices",
+            crate::floats::Noun::new("choice", "choices"),
             rows,
             selected,
             Box::new(move |a, v| {

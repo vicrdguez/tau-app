@@ -1,9 +1,13 @@
-//! The conversation page (`spec.md` §5.5): the 880 px column, centred left of the details panel,
-//! holds the title block, the transcript and, at its foot, the queue, the unsent rows and the
-//! composer. Sizes follow the prototype (`tools/proto/calm.css` `.ccol`, `.msg`, `.tool`,
-//! `.cstack`, `.comp`).
+//! The conversation page (`spec.md` §5.5): the column, centred in the stage and moved only as far
+//! as an open details panel needs (§4.7), holds the title block, the transcript and, at its foot,
+//! the queue, the unsent rows and the composer. Every line of text starts on one axis, and every
+//! box spans the text column and [`LANE`] on each side; left of the boxes is the [`GUTTER`].
+//! Other sizes follow the prototype (`tools/proto/calm.css` `.msg`, `.tool`, `.cstack`, `.comp`).
 
-use rune::{El, ScrollSpec, TextStyle, Transition, col, el, icon, row, spacer, text, text_input};
+use rune::{
+    Color, El, Icon, ScrollSpec, TextStyle, Transition, col, el, icon, row, spacer, text,
+    text_input,
+};
 use tau_client::shapes::{ConversationState, QueueMode};
 use tau_client::wire::InputMode;
 use tau_client::{EntryId, Label, Wall};
@@ -23,10 +27,18 @@ use crate::ui::{Mark, Part as Fact, Scope, chip, facts, glyphs, mark};
 
 /// The transcript's scroll viewport.
 pub const TRANSCRIPT: &str = "conv-transcript";
+/// What the transcript scrolls.
+const DOC: &str = "conv-doc";
 
-/// Agent text, headers and rows sit 12 px in from the column, so the cursor's band and bar span
-/// it whole (prototype `.ccol .tool`, `.ccol .mh`).
-const LANE: f32 = 12.0;
+/// The column's left 24 px, where a message's speaker mark stands (`visual-language.md` §6).
+const GUTTER: f32 = 24.0;
+/// How far every box (a container, a band, a tint) reaches past the text on each side, so text
+/// in a box and text outside one start on one x.
+const LANE: f32 = 16.0;
+/// A container's padding: its 1 px hairline takes the rest of [`LANE`].
+const INSIDE: f32 = LANE - 1.0;
+/// The content bar stands this far left of its text.
+const BAR: f32 = 12.0;
 /// Below a message, a record or a chrome line.
 const AFTER_MESSAGE: f32 = 18.0;
 /// Below a tool row (`tokens.json` `layout.tool_row.gap`).
@@ -73,11 +85,18 @@ impl Draw<'_> {
                 None => el,
             };
         }
-        let el = el.fill(fill.unwrap_or(self.t.c.surface.cursor_read));
-        if self.keys {
-            el.border_sides([0.0, 0.0, 0.0, 2.0], self.t.c.state.attn)
-        } else {
-            el
+        let band = el.fill(fill.unwrap_or(self.t.c.surface.cursor_read));
+        let attn = self.t.c.state.attn;
+        match (self.keys, stop) {
+            (false, _) => band,
+            // A hung code block covers its text block's left edge, so the bar draws over it.
+            (true, Stop::Text(..)) => band.child(rune::el().w(2.0).fill(attn).pin(
+                Some(0.0),
+                Some(0.0),
+                None,
+                Some(0.0),
+            )),
+            (true, _) => band.border_sides([0.0, 0.0, 0.0, 2.0], attn),
         }
     }
 }
@@ -110,22 +129,33 @@ pub fn page(t: Theme, app: &App) -> El {
         },
     };
     let following = conv.is_none_or(|c| c.cursor.is_none());
+    let ride = cursor
+        .as_ref()
+        .filter(|_| !following && app.float_drawn())
+        .and_then(|c| ride(t, &c.key()));
+    let stage = crate::screens::stage_width(t, app);
+    let mut width = (stage - 32.0).min(t.read.conversation);
+    let mut left = (stage - width) / 2.0;
+    if app.details_visible {
+        let room = stage - t.l.details.width;
+        width = width.min(room - 32.0);
+        left = crate::screens::beside_details(t, left, width, room);
+    }
     let column = t
         .motion
         .moves(col().key("conv-column"), t.motion.page)
         .transition(Transition::none())
-        .w_full()
-        .max_w(t.read.conversation)
+        .w(width)
         .h_full()
-        .child(title_block(t, app, &s, &model).instant_changes())
-        .child(transcript(&cx, &s, &items, following))
-        .child(stack(t, app, &s, &model, keys && composing));
-    row()
-        .w_full()
-        .h_full()
-        .justify_center()
-        .px(16.0)
-        .child(column)
+        .child(
+            title_block(t, app, &s, &model)
+                .pl(GUTTER + LANE)
+                .pr(LANE)
+                .instant_changes(),
+        )
+        .child(transcript(&cx, &s, &items, following, ride))
+        .child(stack(t, app, &s, &model, keys && composing).pl(GUTTER));
+    row().w_full().h_full().pl(left).child(column)
 }
 
 /// `provider/model` → `model`, as the facts line and the caption name it.
@@ -231,16 +261,28 @@ fn facts_line(t: Theme, s: &Shown, model: &str) -> El {
     facts(t, parts)
 }
 
-fn transcript(cx: &Draw, s: &Shown, items: &[Item], following: bool) -> El {
+/// The `sticky_bottom` inset that holds the cursor's stop above the transcript's foot while the
+/// foot rides a bottom float's edge (`spec.md` §4): the stop stays put until the foot comes
+/// within `float.inset_x` of it, or of the room it had under it if that is less, then rides it.
+fn ride(t: Theme, stop: &str) -> Option<f32> {
+    use rune::memo::{layout_with, window_layout_with};
+    let bottom = |r: [f32; 4]| r[1] + r[3];
+    let foot = layout_with(TRANSCRIPT, bottom)? + layout_with(crate::frame::FLOAT_BAND, |r| r[3])?;
+    let under = foot - window_layout_with(stop, bottom)?;
+    let below = layout_with(DOC, bottom)? - layout_with(stop, bottom)?;
+    Some(t.l.float.inset_x.min(under) - below)
+}
+
+fn transcript(cx: &Draw, s: &Shown, items: &[Item], following: bool, ride: Option<f32>) -> El {
     let t = cx.t;
-    let mut doc = col().w_full().pb(8.0);
+    let mut doc = col().key(DOC).w_full().pl(GUTTER).pb(8.0);
     match s.held.map(|h| &h.docs) {
         Some(tau_client::Known::Gone { .. }) => {
             doc = doc.child(
                 text("gone from the server")
                     .font(t.ty.ui)
                     .color(t.c.fg.alt)
-                    .pl(LANE),
+                    .mx(LANE),
             )
         }
         _ if items.is_empty() && s.docs.is_none() => {
@@ -248,13 +290,16 @@ fn transcript(cx: &Draw, s: &Shown, items: &[Item], following: bool) -> El {
                 text(NOTHING_RECEIVED)
                     .font(t.ty.ui)
                     .color(t.c.fg.alt)
-                    .pl(LANE),
+                    .mx(LANE),
             )
         }
         _ => {}
     }
     for item in items {
         doc = doc.child(item_el(cx, item));
+    }
+    if let Some(inset) = ride {
+        doc = doc.sticky_bottom(inset);
     }
     col()
         .key(TRANSCRIPT)
@@ -296,8 +341,8 @@ fn item_el(cx: &Draw, item: &Item) -> El {
                 );
             if *open && let Some(src) = opened {
                 c = c.child(
-                    prose(t, src)
-                        .pl(LANE)
+                    prose(t, src, LANE)
+                        .mx(LANE)
                         .mt(6.0)
                         .transition(Transition::opacity().springs(Motion::pair(t.motion.page))),
                 );
@@ -307,7 +352,7 @@ fn item_el(cx: &Draw, item: &Item) -> El {
         Item::Gap => text("fetching entries missed while away…")
             .font(t.ty.ui_small)
             .color(t.c.fg.muted)
-            .pl(LANE)
+            .mx(LANE)
             .mb(AFTER_MESSAGE),
         Item::Turn {
             head,
@@ -344,7 +389,7 @@ fn item_el(cx: &Draw, item: &Item) -> El {
                 None => text("no text")
                     .font(t.ty.prose)
                     .color(t.c.fg.muted)
-                    .pl(LANE),
+                    .mx(LANE),
             };
             col()
                 .w_full()
@@ -360,6 +405,7 @@ fn item_el(cx: &Draw, item: &Item) -> El {
                 .px(LANE)
                 .py(4.0)
                 .mb(1.0)
+                .child(speaker(&carbon::BOT, t.c.fg.muted, 0.0))
                 .child(text("agent").font(t.ty.ui_small).color(t.c.fg.alt))
                 .child(text("·").font(t.ty.ui_small).color(t.c.fg.muted))
                 .child(text("writing").font(t.ty.ui_small).color(t.c.fg.alt));
@@ -371,9 +417,10 @@ fn item_el(cx: &Draw, item: &Item) -> El {
                 );
             }
             col().w_full().mb(AFTER_MESSAGE).child(h).child(
-                row().w_full().pl(LANE).child(
+                row().w_full().px(LANE).child(
                     markdown(t, src)
                         .streaming(true)
+                        .hang(LANE)
                         .build()
                         .max_w(t.read.measure)
                         .grow(1.0),
@@ -407,7 +454,7 @@ fn item_el(cx: &Draw, item: &Item) -> El {
                         .font(t.ty.mono_small)
                         .color(t.c.fg.alt)
                         .wrap()
-                        .px(LANE)
+                        .mx(LANE)
                         .mt(3.0),
                 );
             }
@@ -431,7 +478,8 @@ fn continue_line(cx: &Draw, words: &str) -> El {
     )
 }
 
-/// A header line: `agent` and its time, and the model when it differs from the facts line's.
+/// A header line: the robot in the gutter, `agent` and its time, and the model when it differs
+/// from the facts line's.
 fn agent_head(cx: &Draw, model: &str, at: Option<i64>) -> El {
     let t = cx.t;
     let mut h = row()
@@ -441,6 +489,7 @@ fn agent_head(cx: &Draw, model: &str, at: Option<i64>) -> El {
         .px(LANE)
         .py(4.0)
         .mb(1.0)
+        .child(speaker(&carbon::BOT, t.c.fg.muted, 0.0))
         .child(text("agent").font(t.ty.ui_small).color(t.c.fg.alt));
     let m = short_model(model);
     if !m.is_empty() && m != cx.model {
@@ -456,17 +505,37 @@ fn agent_head(cx: &Draw, model: &str, at: Option<i64>) -> El {
     h
 }
 
-/// Your message: the container on `tint.human`, `input` in steel and its time, then the body.
+/// A message's speaker mark (`visual-language.md` §6): a 16 px slot at the column's left edge,
+/// 8 px clear of the box, centred on the header line, which starts `inset` inside the box edge.
+/// It has no name: the header's word names the speaker.
+fn speaker(glyph: &'static Icon, color: Color, inset: f32) -> El {
+    row()
+        .w(16.0)
+        .center()
+        .pin(Some(-GUTTER - inset), Some(0.0), None, Some(0.0))
+        .child(icon(glyph, 14.0).color(color))
+}
+
+/// Your message: the container on `tint.human`, the person in the gutter, `input` in steel and its
+/// time, then the body, whose code blocks keep the text's width: they can't reach past the
+/// container.
 fn input(cx: &Draw, head: EntryId, at: Option<i64>, body: &[Body]) -> El {
     let t = cx.t;
-    let mut h = row().w_full().center_y().gap(8.0).px(16.0).h(16.0).child(
-        text("input")
-            .font(TextStyle {
-                weight: 600.0,
-                ..t.ty.ui_small
-            })
-            .color(t.c.kind.you),
-    );
+    let mut h = row()
+        .w_full()
+        .center_y()
+        .gap(8.0)
+        .px(INSIDE)
+        .h(16.0)
+        .child(speaker(&carbon::USER, t.c.state.stale, LANE - INSIDE))
+        .child(
+            text("input")
+                .font(TextStyle {
+                    weight: 600.0,
+                    ..t.ty.ui_small
+                })
+                .color(t.c.kind.you),
+        );
     if let Some(at) = at {
         h = h.child(
             text(time::clock(Wall(at)))
@@ -492,7 +561,7 @@ fn input(cx: &Draw, head: EntryId, at: Option<i64>, body: &[Body]) -> El {
                 c = c.child(
                     cx.band(
                         &tx.stop,
-                        row().w_full().px(16.0).child(prose(t, &tx.source)),
+                        row().w_full().px(INSIDE).child(prose(t, &tx.source, 0.0)),
                     )
                     .mt(gap),
                 );
@@ -503,7 +572,7 @@ fn input(cx: &Draw, head: EntryId, at: Option<i64>, body: &[Body]) -> El {
                     text(format!("image · {mime}"))
                         .font(t.ty.ui_small)
                         .color(t.c.fg.muted)
-                        .px(16.0)
+                        .mx(INSIDE)
                         .mt(AFTER_BLOCK),
                 )
             }
@@ -512,9 +581,10 @@ fn input(cx: &Draw, head: EntryId, at: Option<i64>, body: &[Body]) -> El {
     c
 }
 
-/// One Markdown block in the reading measure.
-fn prose(t: Theme, src: &str) -> El {
+/// One Markdown block in the reading measure, its code blocks reaching `hang` past it.
+fn prose(t: Theme, src: &str, hang: f32) -> El {
     markdown(t, src)
+        .hang(hang)
         .build()
         .max_w(t.read.measure)
         .grow(1.0)
@@ -530,7 +600,7 @@ fn texts(cx: &Draw, blocks: &[Text]) -> El {
         c = c.child(
             cx.band(
                 &b.stop,
-                row().w_full().pl(LANE).child(prose(cx.t, &b.source)),
+                row().w_full().px(LANE).child(prose(cx.t, &b.source, LANE)),
             )
             .mt(gap),
         );
@@ -588,8 +658,11 @@ fn turn_parts(cx: &Draw, parts: &[Part]) -> El {
                 prev_text = Some(&b.source);
                 after = Some(AFTER_BLOCK);
                 c = c.child(
-                    cx.band(&b.stop, row().w_full().pl(LANE).child(prose(t, &b.source)))
-                        .mt(gap),
+                    cx.band(
+                        &b.stop,
+                        row().w_full().px(LANE).child(prose(t, &b.source, LANE)),
+                    )
+                    .mt(gap),
                 );
                 continue;
             }
@@ -620,9 +693,9 @@ fn turn_parts(cx: &Draw, parts: &[Part]) -> El {
                             .key(format!("{}-body", stop.key()))
                             .transition(Transition::opacity().springs(Motion::pair(t.motion.page)))
                             .w_full()
-                            .pl(LANE)
+                            .px(LANE)
                             .mt(4.0)
-                            .child(prose(t, src)),
+                            .child(prose(t, src, LANE)),
                     );
                 }
                 (f, AFTER_BLOCK)
@@ -728,7 +801,7 @@ fn tool_block(t: Theme, key: String, source: &str, label: Option<&str>) -> El {
         .mb(4.0)
         .pt(9.0)
         .pb(10.0)
-        .px(14.0)
+        .px(INSIDE)
         .fill(t.c.surface.sunken)
         .border(1.0, t.c.border.hairline)
         .border_layout()
@@ -826,6 +899,7 @@ fn stack(t: Theme, app: &App, s: &Shown, model: &str, composing: bool) -> El {
                 row()
                     .center_y()
                     .gap(4.0)
+                    .px(LANE)
                     .mb(10.0)
                     .child(
                         text(format!("{new} new"))
@@ -849,6 +923,7 @@ fn stack(t: Theme, app: &App, s: &Shown, model: &str, composing: bool) -> El {
             c = c.child(
                 col()
                     .w_full()
+                    .px(LANE)
                     .mb(10.0)
                     .child(
                         row()
@@ -865,7 +940,7 @@ fn stack(t: Theme, app: &App, s: &Shown, model: &str, composing: bool) -> El {
             text("queued inputs can't be taken back")
                 .font(t.ty.ui_small)
                 .color(t.c.fg.muted)
-                .ml(14.0)
+                .mx(LANE)
                 .mb(14.0),
         );
     }
@@ -898,11 +973,12 @@ fn stack(t: Theme, app: &App, s: &Shown, model: &str, composing: bool) -> El {
                     .springs(Motion::pair(t.motion.page)),
             )
             .w_full()
+            .px(LANE)
             .mb(10.0)
             .child(head)
             .child(content_bar(t, e.text().unwrap_or_default()));
         if row_words.unknown {
-            let mut words = row().center_y().gap(6.0).ml(14.0).mt(4.0).child(
+            let mut words = row().center_y().gap(6.0).mt(4.0).child(
                 text(row_words.state.clone())
                     .font(t.ty.ui_small)
                     .color(t.c.fg.alt),
@@ -920,11 +996,12 @@ fn stack(t: Theme, app: &App, s: &Shown, model: &str, composing: bool) -> El {
     c.child(composer(t, app, s, model, composing))
 }
 
-/// Content on the 2 px content bar, in `prose.small`, two lines at most.
+/// Content on the 2 px content bar, in `prose.small`, two lines at most. The bar hangs left of
+/// the axis, inside the boxes' [`LANE`], so the text keeps the axis.
 fn content_bar(t: Theme, src: &str) -> El {
     row()
-        .w_full()
-        .pl(12.0)
+        .ml(-BAR)
+        .pl(BAR)
         .border_sides([0.0, 0.0, 0.0, 2.0], t.c.border.strong)
         .max_h(2.0 * t.ty.prose_small.line_height)
         .clip_rounded(0.0)
@@ -980,7 +1057,7 @@ fn composer(t: Theme, app: &App, s: &Shown, model: &str, composing: bool) -> El 
         .w_full()
         .min_h(68.0)
         .pt(11.0)
-        .px(14.0)
+        .px(INSIDE)
         .pb(10.0)
         .fill(t.c.surface.raised)
         .border(

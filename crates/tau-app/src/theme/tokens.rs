@@ -260,6 +260,9 @@ pub struct Float {
     pub padding_x: f32,
     pub row: f32,
     pub kv_label: f32,
+    pub readback_left: f32,
+    pub readback_label: f32,
+    pub readback_right_padding_left: f32,
     pub keygrid_column: f32,
     pub keygrid_row: f32,
     pub foot_min_height: f32,
@@ -454,7 +457,6 @@ struct RawClientMs {
 
 #[derive(Deserialize)]
 struct RawMotion {
-    float_fade: f32,
     panel: f32,
     page: f32,
 }
@@ -588,7 +590,6 @@ pub(super) fn parse(json: &str) -> Result<Tokens, TokenError> {
         key_return: icon.key_return,
     };
     Ok(Tokens {
-        float_fade_ms: raw.motion_ms.float_fade,
         panel_ms: raw.motion_ms.panel,
         page_ms: raw.motion_ms.page,
         motion_bounce: raw.motion_curve.bounce,

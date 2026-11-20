@@ -109,6 +109,7 @@ macro_rules! carbon {
 carbon! {
     ADD = "add",
     ARROW_DOWN = "arrow--down",
+    BOT = "bot",
     CARET_RIGHT = "caret--right",
     CHAT = "chat",
     CHECKBOX = "checkbox",
@@ -127,6 +128,7 @@ carbon! {
     SIDE_PANEL_OPEN = "side-panel--open",
     SUBTRACT = "subtract",
     TIME = "time",
+    USER = "user",
     WARNING_ALT = "warning--alt",
 }
 

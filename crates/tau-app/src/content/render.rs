@@ -27,6 +27,8 @@ pub(super) struct Render<'a> {
     pub marks: Vec<Mark>,
     pub peek: bool,
     pub streaming: bool,
+    /// How far a code block outside lists and quotes reaches past the column on each side.
+    pub hang: f32,
 }
 
 /// Where blocks sit: how many lists deep, whether in a quote, and whether the last of them
@@ -116,7 +118,7 @@ impl Render<'_> {
             }
             Node::Prose(cut) => self.prose(cut, &f, 0, flow),
             Node::Image { alt, host } => self.image(&f, alt, host),
-            Node::Code { lang, code } => self.code(&f, lang.as_deref(), code, flow.tail),
+            Node::Code { lang, code } => self.code(&f, lang.as_deref(), code, flow),
             Node::List { start, items } => self.list(&f, *start, items, flow),
             Node::Quote { alert, body } => self.quote(&f, *alert, body, flow),
         }
@@ -165,8 +167,11 @@ impl Render<'_> {
 
     /// Square, on `surface.code`, a gold rule at its left and the language at its top right;
     /// lines wrap inside the column. While streaming, the line still arriving
-    /// stays plain, so colour never moves under it.
-    fn code(&self, f: &Fonts, lang: Option<&str>, cut: &Cut, tail: bool) -> El {
+    /// stays plain, so colour never moves under it. A hung block reaches past the column, and its
+    /// code and label keep the column's edges.
+    fn code(&self, f: &Fonts, lang: Option<&str>, cut: &Cut, flow: Flow) -> El {
+        let tail = flow.tail;
+        let hang = if flow.inset == 0.0 { self.hang } else { 0.0 };
         let t = self.t;
         let m = &t.l.markdown;
         let (code, marks) = self.local(cut);
@@ -196,10 +201,12 @@ impl Render<'_> {
                 })
             })
             .collect::<Vec<_>>();
-        let (pad_y, pad_x) = if self.peek {
-            ([5.0, 5.0], 10.0)
+        let (pad_y, pad_x, label_x) = if self.peek {
+            ([5.0, 5.0], 10.0, 10.0)
+        } else if hang > 0.0 {
+            ([20.0, m.code_padding[0]], hang, hang)
         } else {
-            ([20.0, m.code_padding[0]], m.code_padding[1])
+            ([20.0, m.code_padding[0]], m.code_padding[1], 10.0)
         };
         let body = rich(code, spans)
             .font(f.code)
@@ -214,7 +221,7 @@ impl Render<'_> {
             .child(body);
         let mut frame = row()
             .role("code")
-            .w_full()
+            .mx(-hang)
             .fill(t.c.surface.code)
             .child(el().w(m.code_rule).h_full().fill(t.c.kind.code))
             .child(body.grow(1.0).shrink().min_w(0.0));
@@ -225,7 +232,7 @@ impl Render<'_> {
                 line(t, lang, t.ty.ui_small, t.c.kind.code)
                     .fill(t.c.surface.code)
                     .pl(6.0)
-                    .pin(None, Some(top), Some(10.0), None),
+                    .pin(None, Some(top), Some(label_x), None),
             );
         }
         frame

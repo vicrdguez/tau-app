@@ -50,7 +50,7 @@ use crate::app::scenes::Scene;
 use crate::app::{App, Handler, Invocation, Stage};
 use crate::editor::{EditMode, Reply};
 use crate::floats::Float;
-use crate::frame::{Crumb, Segment, SegmentKind};
+use crate::frame::{Crumb, Room, Segment, SegmentKind};
 use crate::keys::{Code, Ctx, Key, Mode};
 use crate::open::Item as OpenItem;
 use crate::theme::Theme;
@@ -238,14 +238,8 @@ impl Screen for Conversation {
         true
     }
 
-    fn reveal_target(&self, app: &App, tx: &mut Tx) {
-        if following(app) {
-            tx.scroll_to_bottom(view::TRANSCRIPT);
-        } else if let Some(s) = shown(app)
-            && let Some(stop) = current_stop(app, &s)
-        {
-            tx.scroll_into_view(stop.key());
-        }
+    fn room(&self, _: &App) -> Room {
+        Room::Shrink
     }
 
     fn shown(&self, app: &mut App) {
@@ -702,5 +696,7 @@ fn running_count(app: &App) -> Option<(String, Duration)> {
     Some((time::span(span), step))
 }
 
+#[cfg(test)]
+mod layout_tests;
 #[cfg(test)]
 mod tests;

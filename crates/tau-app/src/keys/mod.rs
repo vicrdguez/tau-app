@@ -9,7 +9,7 @@ mod keymap;
 mod rebind;
 
 pub use engine::{Keys, Outcome};
-pub use key::{Code, Key, Mods, SeqError, display, from_rune, parse_seq, written};
+pub use key::{Code, Key, Mods, SeqError, display, from_rune, parse_seq, spoken, written};
 pub use keymap::{
     Bound, Chip, Command, Ctx, Keymap, KeymapError, Kind, Lookup, Mode, Target, Tier, WhichEntry,
     WhichKey,

@@ -1,12 +1,12 @@
-//! which-key (`grammar.md` §5): 300 ms after a prefix, the keys that can follow it. It takes no
-//! keys and leaves every cursor as it is.
+//! which-key (`grammar.md` §5): 300 ms after a prefix's last key, and then until the sequence
+//! ends, the keys that can follow it. It takes no keys and leaves every cursor as it is.
 
 use rune::{El, col, el, icon, row, text};
 
 use crate::assets::marks;
-use crate::keys::{Ctx, Mode, WhichEntry, WhichKey, display};
+use crate::keys::{Ctx, Mode, WhichEntry, WhichKey};
 use crate::theme::Theme;
-use crate::ui::{Scope, Shell, float_hint, glyphs, shell};
+use crate::ui::{Scope, Shell, float_hint, printed_keys, shell};
 
 /// The `␣a` head's subtitle (`spec.md` §6).
 const ANSWER_SUBTITLE: &str = "every command reads back what it sends before y";
@@ -52,7 +52,7 @@ fn entry(t: Theme, e: &WhichEntry, ctx: Ctx, why: Why, width: f32) -> El {
             row()
                 .w(14.0)
                 .center()
-                .child(glyphs(&display(&[e.key]), key_style, key_color)),
+                .child(printed_keys(&[&[e.key]], key_style, key_color)),
         )
         .child(words(t, &e.desc, style, color));
     if let Some(reason) = reason {
@@ -113,8 +113,8 @@ pub fn view(t: Theme, wk: &WhichKey, ctx: Ctx, why: Why, width: f32) -> El {
         let key = if wk.prefix == [crate::keys::Key::char(' ')] {
             icon(&marks::KEY_SPACE, 12.0).color(t.c.kind.literal)
         } else {
-            glyphs(
-                &display(&wk.prefix),
+            printed_keys(
+                &[&wk.prefix],
                 rune::TextStyle {
                     size: 14.0,
                     line_height: 20.0,

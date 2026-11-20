@@ -69,7 +69,8 @@ pub enum Tag {
     Unknown,
 }
 
-/// One count tag; `title` is the 18 px tag on Home's title. A zero count draws no tag.
+/// One count tag; `title` is the 18 px tag on Home's title. A zero count draws no tag. It reads
+/// as what it counts (`3 open decisions`), not as its mark and number.
 pub fn count_tag(t: Theme, tag: Tag, n: u32, title: bool) -> Option<El> {
     if n == 0 {
         return None;
@@ -80,9 +81,15 @@ pub fn count_tag(t: Theme, tag: Tag, n: u32, title: bool) -> Option<El> {
         Tag::Failed => (t.c.state.blocked, &*marks::FAILED, 8.0),
         Tag::Unknown => (t.c.state.unknown, &*carbon::HELP, ct.mark),
     };
+    let (one, many) = match tag {
+        Tag::Needs => ("open decision", "open decisions"),
+        Tag::Failed => ("failure", "failures"),
+        Tag::Unknown => ("write without a reply", "writes without a reply"),
+    };
     let knock = t.c.surface.read;
     Some(
         row()
+            .label(format!("{n} {}", if n == 1 { one } else { many }))
             .center()
             .gap(4.0)
             .h(if title { ct.title_height } else { ct.height })
@@ -91,7 +98,12 @@ pub fn count_tag(t: Theme, tag: Tag, n: u32, title: bool) -> Option<El> {
             .radius(t.l.radius.pill)
             .fill(fill)
             .child(icon(glyph, size).color(knock))
-            .child(text(n.to_string()).font(t.ty.key).color(knock)),
+            .child(
+                text(n.to_string())
+                    .font(t.ty.key)
+                    .color(knock)
+                    .a11y_hidden(),
+            ),
     )
 }
 

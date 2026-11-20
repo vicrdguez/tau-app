@@ -22,7 +22,9 @@ use crate::keys::{Command, Ctx, Key, Keymap, Mode};
 use crate::screens::ScreenFloat;
 use crate::settings::Settings;
 use crate::theme::Theme;
-use crate::ui::{Badge, Scope, Shell, float_hint, float_row, glyphs, shell, title};
+use crate::ui::{
+    Badge, Scope, Shell, float_hint, float_hint_if, float_row, printed_keys, shell, title,
+};
 
 /// What a picker lists.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -89,11 +91,12 @@ impl Float {
         })
     }
 
-    pub fn messages() -> Float {
+    /// `:messages`, on the newest of `count`.
+    pub fn messages(count: usize) -> Float {
         Float::Picker(Picker {
             kind: PickerKind::Messages,
             query: focused_edit(),
-            cursor: 0,
+            cursor: count.saturating_sub(1),
         })
     }
 
@@ -235,14 +238,34 @@ pub fn message_rows<'a>(history: &'a [String], query: &str) -> Vec<&'a String> {
     history.iter().filter(|m| matches(query, &[m])).collect()
 }
 
-/// The float's input: `float.input` with a coral caret. `on_edit` reaches the same field.
-fn input(t: Theme, edit: &TextEdit, prefix: Option<&str>, count: String) -> El {
-    let field = text_input(edit, t.ty.float_input)
+/// A float's input (`spec.md` §6).
+pub struct Input<'a> {
+    pub edit: &'a TextEdit,
+    /// What it filters, for a screen reader: `Filter projects`.
+    pub label: &'a str,
+    /// Shown while it is empty: `type to filter`, or `type to search` in Find.
+    pub placeholder: &'a str,
+    /// After it, muted: `3 projects`, `1 of 3 projects` ([`Noun::kept`]).
+    pub count: String,
+}
+
+/// A picker's input: `float.input` with a coral caret, then the count.
+pub fn input(t: Theme, i: Input) -> El {
+    prefixed(t, i, None)
+}
+
+/// The input with `prefix` typed before the caret, as the `:` line has it. `on_edit` reaches the
+/// top float's field.
+fn prefixed(t: Theme, i: Input, prefix: Option<&str>) -> El {
+    let field = text_input(i.edit, t.ty.float_input)
         .single_line()
         .caret(t.c.state.attn, t.c.surface.selection)
         .color(t.c.fg.default)
         .on_edit(|s: &mut crate::app::App| s.float_edit())
         .on_input_key(crate::app::input::on_field_key)
+        // What a query keeps changes the float's height: its edge glides there.
+        .animate_edit_layout()
+        .label(i.label)
         .key("float-input");
     let mut typed = row().center_y();
     if let Some(p) = prefix {
@@ -252,13 +275,70 @@ fn input(t: Theme, edit: &TextEdit, prefix: Option<&str>, count: String) -> El {
                 .color(t.c.fg.default),
         );
     }
+    typed = typed.child(field.min_w(2.0).shrink());
+    // Beside the field rather than its own placeholder: a field is as wide as its text, and
+    // the count must follow the words.
+    if i.edit.text.is_empty() && !i.placeholder.is_empty() {
+        typed = typed.child(
+            text(i.placeholder.to_string())
+                .font(t.ty.float_input)
+                .color(t.c.fg.muted)
+                .truncate(),
+        );
+    }
     row()
         .center_y()
         .gap(10.0)
-        .child(typed.child(field.min_w(2.0).shrink()).shrink().min_w(0.0))
-        .child(text(count).font(t.ty.ui_small).color(t.c.fg.muted))
+        .child(typed.shrink().min_w(0.0))
+        .child(text(i.count).font(t.ty.ui_small).color(t.c.fg.muted))
         .child(rune::spacer())
 }
+
+/// A noun as a count says it: `1 project`, `3 projects`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Noun {
+    pub one: &'static str,
+    pub many: &'static str,
+}
+
+impl Noun {
+    pub const fn new(one: &'static str, many: &'static str) -> Noun {
+        Noun { one, many }
+    }
+
+    pub fn count(self, n: usize) -> String {
+        plural(n, self.one, self.many)
+    }
+
+    /// What a picker's foot says of its rows: all of them, `3 projects`, until a query is typed;
+    /// then how many it keeps, `1 of 3 projects`.
+    pub fn kept(self, query: &str, kept: usize, total: usize) -> String {
+        if query.trim().is_empty() {
+            self.count(total)
+        } else {
+            format!("{kept} of {}", self.count(total))
+        }
+    }
+
+    /// `No project matches "zzzz"`.
+    pub fn none(self, query: &str) -> String {
+        format!("No {} matches \"{query}\"", self.one)
+    }
+}
+
+/// The one line a picker's body shows when its query keeps no row.
+pub fn no_match(t: Theme, words: String) -> El {
+    float_row(
+        t,
+        false,
+        text(words).font(t.ty.ui).color(t.c.fg.alt).truncate(),
+    )
+}
+
+/// The placeholder of every picker but Find.
+pub const FILTER: &str = "type to filter";
+const COMMANDS: Noun = Noun::new("command", "commands");
+const MESSAGES: Noun = Noun::new("message", "messages");
 
 fn plural(n: usize, one: &str, many: &str) -> String {
     format!("{n} {}", if n == 1 { one } else { many })
@@ -273,12 +353,12 @@ pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String], settings: &Settin
         Float::Picker(p) if p.kind == PickerKind::Palette => {
             let rows = palette_rows(t.keymap, &p.query.text);
             let mut body = rune::col().w_full();
-            for (i, c) in rows.iter().enumerate().take(12) {
+            for (i, c) in rows.iter().enumerate() {
                 let here = unavailable(t.keymap, c, ctx).is_none();
                 let fg = if here { t.c.fg.default } else { t.c.fg.muted };
                 let mut keys = row().center_y().gap(8.0).w(120.0);
                 for k in t.keymap.keys_of(c, Mode::Normal) {
-                    keys = keys.child(glyphs(&k, t.ty.mono_small, t.c.fg.muted));
+                    keys = keys.child(printed_keys(&[k], t.ty.mono_small, t.c.fg.muted));
                 }
                 let content = row()
                     .center_y()
@@ -313,6 +393,9 @@ pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String], settings: &Settin
                     .child(keys);
                 body = body.child(float_row(t, i == p.cursor, content));
             }
+            if rows.is_empty() {
+                body = body.child(no_match(t, COMMANDS.none(&p.query.text)));
+            }
             shell(
                 t,
                 Shell {
@@ -323,18 +406,28 @@ pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String], settings: &Settin
                     body,
                     input: Some(input(
                         t,
-                        &p.query,
-                        None,
-                        plural(rows.len(), "command", "commands"),
+                        Input {
+                            edit: &p.query,
+                            label: "Filter commands",
+                            placeholder: FILTER,
+                            count: COMMANDS.kept(
+                                &p.query.text,
+                                rows.len(),
+                                palette_rows(t.keymap, "").len(),
+                            ),
+                        },
                     )),
-                    hints: vec![hint(&["<CR>"], "choose"), hint(&["<Esc>"], "back")],
+                    hints: vec![
+                        float_hint_if(t, scope, &["<CR>"], "choose", !rows.is_empty()),
+                        hint(&["<Esc>"], "back"),
+                    ],
                 },
             )
         }
         Float::Picker(p) => {
             let rows = message_rows(history, &p.query.text);
             let mut body = rune::col().w_full();
-            for (i, m) in rows.iter().enumerate().skip(rows.len().saturating_sub(12)) {
+            for (i, m) in rows.iter().enumerate() {
                 body = body.child(float_row(
                     t,
                     i == p.cursor,
@@ -343,6 +436,9 @@ pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String], settings: &Settin
                         .color(t.c.fg.default)
                         .truncate(),
                 ));
+            }
+            if rows.is_empty() && !history.is_empty() {
+                body = body.child(no_match(t, MESSAGES.none(&p.query.text)));
             }
             shell(
                 t,
@@ -354,9 +450,12 @@ pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String], settings: &Settin
                     body,
                     input: Some(input(
                         t,
-                        &p.query,
-                        None,
-                        plural(rows.len(), "message", "messages"),
+                        Input {
+                            edit: &p.query,
+                            label: "Filter messages",
+                            placeholder: FILTER,
+                            count: MESSAGES.kept(&p.query.text, rows.len(), history.len()),
+                        },
                     )),
                     hints: vec![hint(&["<Esc>"], "back")],
                 },
@@ -365,7 +464,7 @@ pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String], settings: &Settin
         Float::CmdLine(c) => {
             let rows = completions(t.keymap, &c.line.text);
             let mut body = rune::col().w_full();
-            for (i, cmd) in rows.iter().enumerate().take(8) {
+            for (i, cmd) in rows.iter().enumerate() {
                 let content = row()
                     .center_y()
                     .gap(12.0)
@@ -393,7 +492,16 @@ pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String], settings: &Settin
                     subtitle: None,
                     meta: None,
                     body,
-                    input: Some(input(t, &c.line, Some(":"), String::new())),
+                    input: Some(prefixed(
+                        t,
+                        Input {
+                            edit: &c.line,
+                            label: "Command line",
+                            placeholder: "",
+                            count: String::new(),
+                        },
+                        Some(":"),
+                    )),
                     hints: vec![
                         hint(&["<Tab>"], "complete"),
                         hint(&["<CR>"], "run"),

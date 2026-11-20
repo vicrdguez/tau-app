@@ -41,6 +41,7 @@ let
   icons = [
     "add"
     "arrow--down"
+    "bot"
     "caret--right"
     "chat"
     "checkbox"
@@ -59,6 +60,7 @@ let
     "side-panel--open"
     "subtract"
     "time"
+    "user"
     "warning--alt"
   ];
   copyFaces = pkgs.lib.concatMapStrings (

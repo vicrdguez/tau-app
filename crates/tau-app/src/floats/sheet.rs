@@ -1,24 +1,35 @@
 //! A picker over rows made when it opened: `:jumps` and the keys cheat sheet (`␣hk`). Typing
 //! filters the rows; `C-j C-k` move, `⏎` chooses (the jumps go there), `Esc` closes.
 
-use rune::{El, TextEdit, col, row, text, text_input};
+use rune::{El, TextEdit, col, row, text};
 
+use super::{FILTER, Input, Noun, input, no_match};
 use crate::app::App;
-use crate::keys::{Ctx, Keymap, Mode, Target, display};
+use crate::keys::{Ctx, Key, Keymap, Mode, Target, display};
 use crate::theme::Theme;
-use crate::ui::{self, Scope, Shell, glyphs};
+use crate::ui::{self, Scope, Shell};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SheetRow {
-    /// Printed keys (`␣hk`), or empty.
-    pub keys: String,
+    /// The keys of the row's command as this device types them; none for a jump.
+    pub keys: Vec<&'static [Key]>,
     pub text: String,
     /// Muted, at the right.
     pub meta: String,
 }
 
+impl SheetRow {
+    /// The keys as the row prints them, alternatives apart: `␣; ⌘K`.
+    pub fn printed(&self) -> String {
+        let printed: Vec<String> = self.keys.iter().map(|k| display(k)).collect();
+        printed.join(" ")
+    }
+}
+
 pub struct Sheet {
     pub title: &'static str,
+    /// What a row is, for the count: `162 keys`.
+    pub noun: Noun,
     pub subtitle: String,
     pub rows: Vec<SheetRow>,
     pub query: TextEdit,
@@ -29,11 +40,12 @@ pub struct Sheet {
 }
 
 impl Sheet {
-    pub fn new(title: &'static str, subtitle: String, rows: Vec<SheetRow>) -> Sheet {
+    pub fn new(title: &'static str, noun: Noun, subtitle: String, rows: Vec<SheetRow>) -> Sheet {
         let mut query = TextEdit::new("");
         query.focused = true;
         Sheet {
             title,
+            noun,
             subtitle,
             rows,
             query,
@@ -44,7 +56,12 @@ impl Sheet {
 
     /// `␣hk`: the keys cheat sheet, at the keys this device types.
     pub fn keys(km: Keymap) -> Sheet {
-        Sheet::new("Keys", "every key in keymap.toml".into(), keys_rows(km))
+        Sheet::new(
+            "Keys",
+            Noun::new("key", "keys"),
+            "every key in keymap.toml".into(),
+            keys_rows(km),
+        )
     }
 
     /// The indices of the rows the query keeps, in order.
@@ -54,7 +71,7 @@ impl Sheet {
             .filter(|&i| {
                 let r = &self.rows[i];
                 q.is_empty()
-                    || [&r.keys, &r.text, &r.meta]
+                    || [&r.printed(), &r.text, &r.meta]
                         .iter()
                         .any(|s| s.to_lowercase().contains(&q))
             })
@@ -68,20 +85,19 @@ pub fn keys_rows(km: Keymap) -> Vec<SheetRow> {
     let mut rows = Vec::new();
     for ctx in Ctx::ALL {
         for (i, c) in km.commands().iter().enumerate() {
-            let mut modes: Vec<(Mode, Vec<String>)> = Vec::new();
+            let mut modes: Vec<(Mode, Vec<&'static [Key]>)> = Vec::new();
             for b in km
                 .bindings()
                 .filter(|b| b.ctx == ctx && b.target == Target::Command(i))
             {
-                let shown = display(b.seq);
                 match modes.iter_mut().find(|(m, _)| *m == b.mode) {
-                    Some((_, keys)) if !keys.contains(&shown) => keys.push(shown),
+                    Some((_, keys)) if !keys.contains(&b.seq) => keys.push(b.seq),
                     Some(_) => {}
-                    None => modes.push((b.mode, vec![shown])),
+                    None => modes.push((b.mode, vec![b.seq])),
                 }
             }
             // One row per set of keys, naming its modes unless it is Normal's alone.
-            let mut merged: Vec<(Vec<Mode>, Vec<String>)> = Vec::new();
+            let mut merged: Vec<(Vec<Mode>, Vec<&'static [Key]>)> = Vec::new();
             for (mode, keys) in modes {
                 match merged.iter_mut().find(|(_, k)| *k == keys) {
                     Some((ms, _)) => ms.push(mode),
@@ -96,7 +112,7 @@ pub fn keys_rows(km: Keymap) -> Vec<SheetRow> {
                     format!("{} · {}", ctx.name(), words.join(", "))
                 };
                 rows.push(SheetRow {
-                    keys: keys.join(" "),
+                    keys,
                     text: c.desc.clone(),
                     meta,
                 });
@@ -120,22 +136,15 @@ fn mode_word(mode: Mode) -> &'static str {
     }
 }
 
-/// How many rows the body shows around the cursor.
-const WINDOW: usize = 10;
-
 pub fn view(t: Theme, scope: Scope, s: &Sheet) -> El {
     let shown = s.shown();
-    let start = s
-        .cursor
-        .saturating_sub(WINDOW / 2)
-        .min(shown.len().saturating_sub(WINDOW));
     let mut body = col().w_full();
-    for (at, &i) in shown.iter().enumerate().skip(start).take(WINDOW) {
+    for (at, &i) in shown.iter().enumerate() {
         let r = &s.rows[i];
         let mut content = row().center_y().gap(12.0);
         if !s.rows.iter().all(|r| r.keys.is_empty()) {
             content = content.child(
-                glyphs(&r.keys, t.ty.mono_small, t.c.kind.literal)
+                ui::printed_keys(&r.keys, t.ty.mono_small, t.c.kind.literal)
                     .w(120.0)
                     .min_w(120.0),
             );
@@ -158,29 +167,28 @@ pub fn view(t: Theme, scope: Scope, s: &Sheet) -> El {
             );
         body = body.child(ui::float_row(t, at == s.cursor, content));
     }
-    let input = row()
-        .center_y()
-        .gap(10.0)
-        .child(
-            text_input(&s.query, t.ty.float_input)
-                .single_line()
-                .caret(t.c.state.attn, t.c.surface.selection)
-                .color(t.c.fg.default)
-                .on_edit(|a: &mut App| a.float_edit())
-                .on_input_key(crate::app::input::on_field_key)
-                .label(format!("{} query", s.title))
-                .key("sheet-input")
-                .min_w(2.0)
-                .shrink(),
-        )
-        .child(
-            text(format!("{} of {}", shown.len(), s.rows.len()))
-                .font(t.ty.ui_small)
-                .color(t.c.fg.muted),
-        );
+    if shown.is_empty() && !s.rows.is_empty() {
+        body = body.child(no_match(t, s.noun.none(&s.query.text)));
+    }
+    let label = format!("Filter {}", s.noun.many);
+    let input = input(
+        t,
+        Input {
+            edit: &s.query,
+            label: &label,
+            placeholder: FILTER,
+            count: s.noun.kept(&s.query.text, shown.len(), s.rows.len()),
+        },
+    );
     let mut hints = vec![ui::float_hint(t, scope, &["<C-j>", "<C-k>"], "move")];
     if s.choose.is_some() {
-        hints.push(ui::float_hint(t, scope, &["<CR>"], "goes there"));
+        hints.push(ui::float_hint_if(
+            t,
+            scope,
+            &["<CR>"],
+            "goes there",
+            !shown.is_empty(),
+        ));
     }
     hints.push(ui::float_hint(t, scope, &["<Esc>"], "back"));
     ui::shell(

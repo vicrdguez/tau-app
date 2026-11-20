@@ -5,8 +5,9 @@
 #[cfg(test)]
 mod motion_tests;
 
-use rune::{KeyEvent, Tx};
+use rune::{KeyEvent, Spring, Tx};
 
+use super::bottom::Closed;
 use super::commands::{self, Invocation};
 use super::{App, Focus, Stage};
 use crate::floats::Float;
@@ -16,7 +17,8 @@ use crate::screens;
 
 #[derive(Clone, PartialEq)]
 struct Moving {
-    floats: usize,
+    /// A float or which-key shows.
+    float: bool,
     sidebar: Option<SidebarPlace>,
     details: bool,
     stage: Stage,
@@ -26,7 +28,7 @@ struct Moving {
 impl Moving {
     fn of(app: &App) -> Self {
         Self {
-            floats: app.floats.len(),
+            float: !app.floats.is_empty() || app.which_key(),
             sidebar: app.sidebar_place().filter(|_| screens::page(app).framed()),
             details: app.details_visible && screens::page(app).has_details(app),
             stage: app.stage.clone(),
@@ -34,10 +36,12 @@ impl Moving {
         }
     }
 
+    /// Whether a key's change moves: the float's edge whenever a float shows before or after it,
+    /// since any key may change its height, and the frame's panels. A page change lands whole.
     fn moved_since(&self, before: &Self) -> bool {
         self.stage == before.stage
-            && self.floats >= before.floats
-            && (self.floats > before.floats
+            && (self.float
+                || before.float
                 || self.sidebar != before.sidebar
                 || self.details != before.details
                 || self.page != before.page)
@@ -47,16 +51,50 @@ impl Moving {
 /// Keys animate only the user-driven changes listed in visual-language.md §7.
 pub fn on_key(app: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
     let before = Moving::of(app);
+    let which_key = app
+        .which_key()
+        .then(|| (app.keys.pending().to_vec(), app.scope()));
     let handled = match from_rune(ev, tx.key_base()) {
         Some(key) => press(app, key, tx.key_repeat(), tx),
         None => false,
     };
-    if app.theme().motion.on && Moving::of(app).moved_since(&before) {
+    if let Some((keys, scope)) = which_key
+        && !app.which_key()
+        && app.floats.is_empty()
+    {
+        app.leave(Closed::WhichKey(keys, scope), before.stage.clone());
+    }
+    // Each float moves its cursor in its own handler, and every one of them runs from here.
+    if !app.floats.is_empty() {
+        reveal_float_cursor(tx);
+    }
+    let after = Moving::of(app);
+    if app.theme().motion.on && after.moved_since(&before) {
         tx.animated();
-    } else {
+        if before.float || after.float {
+            float_moves(app.theme(), tx);
+        }
+    } else if app.keys.is_idle() {
+        // Not for a key that leaves its sequence pending: it moves nothing, and must not snap the
+        // key it shares a frame with (`␣;` typed at once still raises the palette).
         tx.instant();
     }
     handled
+}
+
+/// The float's edge, and what rides it, move together on the `panel` spring; the float's own
+/// rows, cursor and colours land at once.
+pub(super) fn float_moves(t: crate::theme::Theme, tx: &mut Tx) {
+    tx.animated();
+    tx.motion(t.motion.panel);
+    tx.color_motion(Spring::NONE);
+    tx.follow_edge();
+}
+
+/// Scrolls the top float's body just far enough to show its whole selected row, once the
+/// commit this change causes is laid out.
+pub fn reveal_float_cursor(tx: &mut Tx) {
+    tx.scroll_into_view(crate::ui::FLOAT_CURSOR);
 }
 
 /// A focused field's `on_input_key`: the same keys, before the field types them.

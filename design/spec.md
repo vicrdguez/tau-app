@@ -2,7 +2,7 @@
 
 The desktop client of a tau server: what it shows, how it flows, and what each screen asks of the server. Visual rules are in `reference/visual-language.md`, keyboard rules in `reference/grammar.md` and `keymap.toml`, and connection behaviour in `client.md`. Test data shaped like the protocol is `fixture.json`.
 
-**Words.** *The server* is a running `tau`: the host layer and the store layer of `docs/core`. *A call* is one `POST /v1/<name>`. *A stream* is a call answered by server-sent events (`open`, `inbox`, `timeline`). *Extension text* is text an extension's code wrote: a decision title, an event's `text`, a fault's `error`. *Agent text* is what a model wrote. *A place* is one of Home, Conversations, Timeline, Projects and Faults. *An open item* is a conversation, decision or project you opened; the sidebar lists them. The name is written `tau`; `τau` is the logo only. Keys: `␣` is Space (the leader), `⏎` Enter, `C-x` Ctrl, `M-x` Option, `⌘` Cmd.
+**Words.** *The server* is a running `tau`: the host layer and the store layer of `docs/core`. *A call* is one `POST /v1/<name>`. *A stream* is a call answered by server-sent events (`open`, `inbox`, `timeline`). *Extension text* is text an extension's code wrote: a decision title, an event's `text`, a fault's `error`. *Agent text* is what a model wrote. *A place* is one of Home, Conversations, Timeline, Projects and Faults. *An open item* is a conversation, decision or project you opened; the sidebar lists them. The name is written `tau`; `τau` is the logo only. Keys: `␣` is Space (the leader), `⏎` Enter, `C-x` Ctrl, `M-x` Option, `⌘` Cmd. On screen the app prints an Option chord as it prints a Cmd one, `⌥P` beside `⌘K`; `M-x` is only the keymap's notation.
 
 ---
 
@@ -101,9 +101,9 @@ Window 1512 × 982 logical px (a 14″ MacBook Pro, maximised), with the sidebar
 | Bottom float | 260 to 1500, foot at y 946, up to 40 % of the window tall | `surface.raised`, the float shell (§6) | which-key, palette, `:` line, settings, find, pickers, filter, bind, confirm, readback, outbox, Server, the peek float |
 | Bottom bar | 0, 956, 1512, 26 | `surface.bar` | mode badge · pending keys · echo · save state of option drafts; at its right end, while the sidebar is hidden, the count tags and any abnormal server state (§4.3) |
 
-With the sidebar hidden, the stage and its header start at x 0; the window controls sit at the header's left and its content starts at x 88. A float covers the stage only, never the sidebar or the bottom bar; the page is clipped at the float's top edge, and the insets beside and under the float show `surface.read`.
+With the sidebar hidden, the stage and its header start at x 0; the window controls sit at the header's left and its content starts at x 88. A float covers the stage only, never the sidebar or the bottom bar; the page is clipped at the float's top edge on every frame of its motion, and the insets beside and under the float show `surface.read`.
 
-**Every bottom float keeps what you act on in view.** When a float opens, the page scrolls so the cursor's row or target sits fully above it; in a conversation the queue, the unsent rows and the composer lift above it too.
+**Every bottom float keeps what you act on in view.** A page keeps its layout under a float. What you act on that the float would cover (a list's cursor row, the reader's cursor line, a form's focused field, the start page's composer and start line) rides the float's top edge: it stays still until the edge comes within 12 px of it, or within the room it had under it if that is less, then moves up with the edge at that distance, and comes back down with it when the float closes. In a conversation the page stands above the float, so the queue, the unsent rows and the composer ride its edge and the transcript shortens with them; following, its newest lines ride their top, and a cursor on an earlier line rides it once it gets there. Nothing the float doesn't reach moves (`reference/visual-language.md` §7).
 
 ### 4.1 The sidebar
 
@@ -140,7 +140,7 @@ With the sidebar hidden, the stage and its header start at x 0; the window contr
 - Any command that changes what the stage shows (`␣oh`, `]b`, `␣cn`, a float's choice) gives the stage the keys. The badge stays `NORMAL` in the sidebar.
 - A sidebar that is not drawn (hidden by its stored choice, or under a 1000 px window) is drawn while it, or a float opened from it, has the keys: over the stage's left 248 px, with a hairline at its right, and nothing reflows. It goes when the keys go back to the stage.
 
-**Hiding.** The sidebar slides on a 200 ms spring when a key or press shows or hides it. Beside the stage, both move together. Over the stage, the sidebar stays opaque during exit. Motion off and Reduce Motion make this instant (`reference/visual-language.md` §7). `␣tb` (or the toggle in the stage header) shows and hides the sidebar; the choice kept on this device is its only state. Under a 1000 px window the sidebar is not drawn whatever the choice, and `␣tb` does what `C-h` does (§4.7). While it is not drawn, the count tags and any abnormal server state sit at the right end of the bottom bar (§4.3), so nothing that needs you and nothing wrong with the link is out of sight.
+**Hiding.** The sidebar slides on a 200 ms spring when a key or press shows or hides it. Beside the stage, both move together. Over the stage, the sidebar stays opaque during exit. Motion off and Reduce Motion make this instant (`reference/visual-language.md` §7). `␣tb` (or the toggle in the stage header) shows and hides the sidebar; the choice kept on this device is its only state. Under a 1000 px window the sidebar is not drawn whatever the choice, and `␣tb` does what `C-h` does (§4.7). While it is not drawn, the count tags and any abnormal server state sit at the right end of the bottom bar (§4.3), so nothing that needs you and nothing wrong with the link is out of sight. A sidebar that is not drawn is not in the accessibility tree either.
 
 **Server line.** Calm, `fg.muted`: `laptop → tau.tail4e2f.ts.net ⌄`; the host is cut at its end with `…` when it doesn't fit. Before pairing: `not connected`. Not calm, `fg` with its mark: `○ connecting` (from launch until the first `inbox` frame, §4.8), `○ reconnecting in 4 s`, `○ offline 6 m`, `◷ server stopped · retrying`, `× refused by the server`, `× revoked`, `× server speaks protocol 2`. The Server float has the detail (each stream and its state).
 
@@ -151,7 +151,7 @@ With the sidebar hidden, the stage and its header start at x 0; the window contr
 **Left:** the sidebar toggle (16 px `side-panel--close` while the sidebar shows, `side-panel--open` while hidden, `fg.muted`), then the **breadcrumb** (`ui`, separators `›` in `fg.muted`). The breadcrumb lives only here. Connect draws neither.
 - Start page: `New conversation`.
 - Home: the group and the cursor's place in it (`Home › Needs you › 1 of 3`). Home has no filter, and the breadcrumb never claims one.
-- A place: its filter (`Timeline › all projects`, `Conversations › render-core · failed`, `Projects`).
+- A place: its filter (`Timeline › all projects`, `Conversations › render-core · failed`, `Projects`). While the filter is not the default, a quiet pressable `show all` (`ui.small`, `fg.muted`) stands 12 px after it and resets that place's filter, and no other place's; `␣pf`, whose first row is `all projects`, does the same from the keys.
 - A view: its object (`notes-cli › #4`, `render-core › w1:3:design#2`, `Projects › render-core`). The project is sage, `#4` and the decision ID orange mono.
 
 **Right:** the view's action segments, 16 px apart: quiet `ui` in `fg.alt` with a key chip.
@@ -159,7 +159,7 @@ With the sidebar hidden, the stage and its header start at x 0; the window contr
 - Decision: open `◆ ␣ad Answer`: solid coral (`radius.pill`, 26 px tall, text knocked out in `surface.read`) only when `␣ad` would open the readback (§4.6); otherwise a muted outline (`border.hairline`, `fg.muted` text and chip). `␣ar send again` (quiet) when it is live (§5.7).
 - Every other page: none.
 
-A disabled segment reads `<verb> · off` with a dashed `border.hairline` edge and no chip; a write segment is also off while the view's stream is down (§4.9). A segment that is on but whose key doesn't resolve where the keys are is muted (§4.6).
+A click on a segment does what its key does, only while the segment is lit, and on the coral Answer only while it is solid; that click opens the readback and never sends (§5.7). A disabled segment reads `<verb> · off` with a dashed `border.hairline` edge and no chip; a write segment is also off while the view's stream is down (§4.9). A segment that is on but whose key doesn't resolve where the keys are is muted (§4.6).
 
 ### 4.3 The bottom bar
 
@@ -177,11 +177,13 @@ One 26 px bar on `surface.bar` across the window. From the left:
 - **`× 4` rose:** exactly the count in Home's Failed head: failed runs and faulted tasks, minus those hidden on this device. Click: Home at Failed, whose head it equals; Faults is one step on.
 - **`? 1` mauve:** outbox entries with an unknown outcome. Click: the outbox.
 
+A tag reads to assistive technology as what it counts, plural by count: `3 open decisions`, `4 failures`, `1 write without a reply`.
+
 ### 4.5 The peek and the details panel
 
 **The peek** is the right column of Home and the places while the stage is at least 1000 px wide: 440 px, a hairline at its left and none inside, 28 px padding. It has no cursor and never takes the keys. Narrower, `K` opens it as a float (§5.4); wider, `K` on a list row does nothing.
 
-**The details panel** is a view's secondary facts, at the stage's right edge: 240 px, a hairline at its left, 24 px padding, groups under `group` heads; each label (`ui.small` steel) sits over its value (`ui.small`), so a model ID never breaks. `␣td` or `details ›` in the title block shows and hides it; it is hidden at first, and the choice is kept on this device for every view. With it open, the view's column centres in the stage left of it.
+**The details panel** is a view's secondary facts, at the stage's right edge: 240 px, a hairline at its left, 24 px padding, groups under `group` heads; each label (`ui.small` steel) sits over its value (`ui.small`), so a model ID never breaks. `␣td` or `details ›` in the title block shows and hides it; it is hidden at first, and the choice is kept on this device for every view. With it open, the view's column keeps the place it has with the panel closed while its right edge clears the panel's hairline by at least 24 px, so on a wide window nothing moves; otherwise it moves left only by the shortfall, down to its 16 px margin, and only then narrows, by its own width rule applied to the stage left of the panel (§4.7). With the sidebar, the conversation's 896 px column stays put from a 1672 px window up; at 1512 it moves 80 px left, from x 432 to 352. In a decision, where the notes margin folds and unfolds with it, the cursor's line keeps its height on screen through the open and the close. The slide is the `panel` spring (`reference/visual-language.md` §7).
 - **Conversation:** **Settings**: the model in full (`anthropic/claude-sonnet-4-5 · Claude Sonnet 4.5`), the thinking level (`model default` when `pi.agent` sets none), tools worded from `pi.agent.extensions` (absent `project default`; `{add:["w1"]}` `project default + w1`; a list `only coding-tools, w1`), `cwd` as `…/leaf`, and, when the selection names a workflow, `w1 may set the model again when it next sends work here`. **Decisions**: open decisions whose `conversation` is this one (from the inbox), `◆ title #n`. **Events**: the newest 5 that name it, time and text, cut with `…`.
 - **Decision:** **About**: `extension w1`, `conversation #3`, `basis entry 34 · 2,203 characters`, `then w1.design_answer`.
 
@@ -210,9 +212,9 @@ One region has the keys: the stage, the sidebar, or the top float. Two rules fol
 - **The sidebar** is drawn when its stored choice says so and the window is at least 1000 px wide. Otherwise it is drawn only while it, or a float opened from it, has the keys, over the stage (§4.1); `␣tb` under 1000 px does what `C-h` does. The stored choice is the only state: no width ever changes it.
 - **The peek** is a column while the stage is at least 1000 px wide (a 1248 px window with the sidebar, 1000 px without); narrower, it is the `K` float.
 - **Home and the places:** the list column runs from 40 px inside the stage's left edge to 40 px before the peek's hairline (at 1512 with the sidebar: window x 288 to 1032). The cursor band runs 12 px beyond the column on each side.
-- **Row slots** (§5.3) are laid out per group. When a row's label would get less than 200 px, the group drops slots whole, in this order: time, model, extension, reason. At 1300 px with the sidebar, Failed keeps project, `#id` and reason, and Running keeps project, `#id` and extension. In a faulted task's label, `after <decision ID>` shows whole or not at all, and the kind is cut first.
-- **Conversation:** an 880 px column, `min(880, stage − 32)`, centred left of the details panel; prose in it wraps at 840 px.
-- **Decision:** the 840 px text column, a 48 px gap and the 320 px notes margin centre together (1208 px). When the stage left of the details panel is under 1256 px, the margin folds: its head, the note on the whole and the Earlier lines sit under the facts line, in that order, and each passage's note sits under its paragraph; the text column is `min(840, stage − 32)`.
+- **Row slots** (§5.3) are laid out once for Home's Failed and Running together, so they stay aligned at every width. When a row's label would get less than 200 px, the slots drop whole, in this order: time, model, extension, reason. The model and the reason share one column, so while Failed shows, that column stands until the reason drops. At 1300 px with the sidebar, both groups keep project, `#id` and the reason / model column; Running alone keeps project, `#id` and extension. In a faulted task's label, `after <decision ID>` shows whole or not at all, and the kind is cut first.
+- **Conversation:** a column of the reading width plus 56 px, `min(reading width + 56, stage − 32)` (896 px by default), centred in the stage: a 24 px gutter for the speaker marks, then the boxes, 16 px wider than the text on each side (§5.5). With the details panel open it stands where §4.5 puts it, at most `min(reading width + 56, stage − 32)` of the stage left of the panel. Prose in it wraps at the reading width; when the column is narrower, the text narrows, and the gutter and the 16 px keep their size.
+- **Decision:** the 840 px text column, a 48 px gap and the 320 px notes margin centre together (1208 px) in the stage; with the details panel open they stand where §4.5 puts them. When the stage left of the details panel is under 1256 px, the margin folds: its head, the note on the whole and the Earlier lines sit under the facts line, in that order, and each passage's note sits under its paragraph; the text column is `min(840, stage − 32)`.
 - **Project view:** a 600 px column, `min(600, stage − 32)`.
 - **Start page:** the composer is 640 px, `min(640, stage − 32)`.
 
@@ -244,9 +246,10 @@ Each screen: the question it answers, what it shows, the calls and streams behin
 - Field **Server**, prefilled `http://127.0.0.1:6283`. Field **Pairing code**, `XXXX-XXXX`. Both are text fields (`reference/visual-language.md` §1.1).
 - One paragraph (`prose`, `fg.alt`): "On the server's machine, run `tau device pair <name>`, with a new name for this device such as `laptop`; a name is never used twice. It prints a code that works once, for 10 minutes. The token it gives this device is kept in the macOS Keychain."
 - The form's footer segment `⏎ connect` (neutral; a form footer prints its own keys, as a composer's does).
-- **Plain HTTP to another machine:** an `http://` URL whose host is not `127.0.0.1`, `localhost` or `[::1]` shows the warning of `client.md` §7 under the field. `⏎` then opens the Confirm float, `Pair over plain HTTP? Anyone on the network path can read this device's token.`, hints `y pairs · n cancels`; `y` there pairs. The form never prints `y`, so a `y` typed in a field is a letter.
+- **Plain HTTP to another machine:** an `http://` URL whose host is not `127.0.0.1`, `localhost` or `[::1]` shows the warning of `client.md` §7 under the field. `⏎` then opens the Confirm float, `Pair over plain HTTP? Anyone on the network path can read this device's token.`, hints `y pairs · n cancels`; `y` there pairs. The form never prints `y`, so a `y` typed in a field is a letter. `n` or `Esc` there gives the caret back to the field that had it, in Insert, with both values kept.
 - **Calls:** `pair {code}`; then `POST /v1/` (expects `unknown_call` and `Tau-Protocol: 1`); then `projects`; then Home, with the sidebar.
-- **States** (copy in `client.md` §6–§7): wrong or expired code; Host not allowed; no server at the URL; a lost `pair` reply; another protocol.
+- **States** (copy in `client.md` §6–§7): wrong or expired code; Host not allowed; no server at the URL; a lost `pair` reply; another protocol. An error about the address (no server, Host not allowed, another protocol) shows under Server, after the plain-HTTP warning, while Server holds the address that was tried; one about the code shows under Pairing code while it holds the code that was tried; any other error shows under both fields and stays until the next attempt. Each is a line under its field: a rose `×` and the words.
+- **A short window:** the column scrolls when it does not fit (800 × 600 with the warning and an error), so the field with the caret and the footer are always reachable.
 - **Keys:** Insert on open; `Tab` / `S-Tab` between fields; `⏎` connects.
 
 ### 5.2 The start page (`␣cn`)
@@ -257,8 +260,8 @@ A page in the stage, not a float. The app opens on it (D11). Breadcrumb `New con
 
 **Layout.** Only three things, centred in the stage:
 - the wordmark (`tau-wordmark-on-dark-coral.svg`, `-on-light-coral` in Ember Light), 44 px tall, 36 px above the composer;
-- **the composer**, the container style, 640 px wide and at least 112 px tall, growing to 12 lines and then scrolling; its top edge at 0.325 of the stage's height below the header (296 px at 982). Placeholder `What do you want to work on?` in `fg.muted`. In Insert its edge is coral and `⌘⏎ start` sits inside at the bottom right (`hint`);
-- **the start line**, 12 px under the composer (`ui.small`): a `folder` icon, the project (sage) and its hint `M-p`, `·`, then the workflow, `w1` (`mono`, `fg`) and `workflow` (`fg.alt`), and its hint `M-w`: `render-core M-p · w1 workflow M-w`. For the bare agent the line names the model: `notes-cli M-p · bare agent · claude-sonnet-4-5 M-w`. The two hints are lit in Insert and in Normal: both keys work in both modes (**Keys**, below).
+- **the composer**, the container style, 640 px wide and at least 112 px tall, growing to 12 lines and then scrolling; its top edge at 0.325 of the stage's height below the header (296 px at 982). A float takes none of that height: the composer moves only when a float would cover it or the start line (at 800 × 600 the palette does), and then rides the float's edge (§4). Placeholder `What do you want to work on?` in `fg.muted`. In Insert its edge is coral and `⌘⏎ start` sits inside at the bottom right (`hint`); a press on that hint does what `⌘⏎` does, in each of its wordings;
+- **the start line**, 12 px under the composer (`ui.small`): a `folder` icon, the project (sage) and its hint `M-p`, `·`, then the workflow, `w1` (`mono`, `fg`) and `workflow` (`fg.alt`), and its hint `M-w`: `render-core M-p · w1 workflow M-w`. For the bare agent the line names the model: `notes-cli M-p · bare agent · claude-sonnet-4-5 M-w`. The two hints are lit in Insert and in Normal: both keys work in both modes (**Keys**, below). The project part (icon, name, hint) and the workflow part (its words and hint) are each one control: a press runs `start.project` or `start.workflow` as its key does, only while that key is lit, and the text and its caret stay as they were through the picker.
 
 **What it starts.** A start page with no draft takes:
 - **the project:** the one the current view names (a Project view, a conversation, a decision, or the sidebar item under the cursor when the sidebar has the keys), else the last project used on this device, else the only project. `␣pa` and `␣po` take their project by the same rule. With none of these, the line reads `choose a project M-p`, and `⌘⏎` opens the project picker and keeps the text.
@@ -269,11 +272,11 @@ The page keeps its project, workflow and text as one draft on this device until 
 **Before you type, the line says what can't start:**
 - a workflow whose options have errors (§3.2): `scratch M-p · w1 workflow · needs options: designer, implementer, reviewer M-w`, or `· options don't fit: reviewer` (the last part in rose). The composer's hint reads `⌘⏎ set its options`; `⌘⏎` opens the Project view at the first field with an error and keeps the text.
 - a workflow the server lacks: `extensions` lists only what the server has, and `projects` gives a project's `missing` as bare names, so the workflow picker never lists a missing extension. The line reads `· missing on the server` (rose) only when the remembered workflow (`lastWorkflow`) is in the project's `missing`; `⌘⏎` then echoes `the server has no code for w1`.
-- no projects at all: the line reads `No projects yet · ⌘⏎ binds one`, and `⌘⏎` opens the bind float.
+- no projects at all: the line reads `No projects yet`, the composer's hint reads `⌘⏎ bind a project`, and `⌘⏎` opens the bind float.
 
 **Sending.** `⌘⏎` sends what the drawn line names (keys act on the drawn frame):
 1. Empty or white-space text: nothing happens. Text over 1 MiB: echo `Over 1 MiB · nothing was sent`; nothing is sent.
-2. `create {project, workflow}`, or `create {project, model}` for the bare agent. From the press until `create` replies or times out, the composer's hint reads `starting…`, the text is read-only, and `⌘⏎`, `M-p` and `M-w` are off; auto-repeat never fires `⌘⏎`.
+2. `create {project, workflow}`, or `create {project, model}` for the bare agent. From the press until `create` replies or times out, the composer's hint reads `starting…`, the text is read-only, and `⌘⏎`, `M-p` and `M-w` are off, with the start line's two controls; auto-repeat never fires `⌘⏎`.
 3. On its `result`, the page becomes that conversation in place: the breadcrumb reads `render-core › #9`, your text moves to the top as the unsent row `sending…`, the composer drops to the column's foot, empty, and `#9` joins the sidebar under its project, current. The mode is Normal, the cursor is on the unsent row, and follow is on. Until the label is known, the title is the first line of the text being sent.
 4. `input {project, conversation, text, requestId}`, with the outbox's rules (`client.md` §2).
 
@@ -307,12 +310,12 @@ The draft clears when `create` succeeds. This device then remembers the project 
 
 | Group | Rows | Order | Row form |
 |---|---|---|---|
-| **Needs you** (under the title) | every open decision (`inbox`) | oldest `requestedAt` first | a 26 px head and a 22 px byline, 6 px between entries. Head (`move`): the coral diamond, the title, `#n` (orange `mono.small`), the age at the right (`mono.small` `fg.alt`). Byline (`ui.small`, 22 px in): project (sage) · subject (`mono.small` `fg.alt`, `w1:3:design`) |
+| **Needs you** (under the title) | every open decision (`inbox`) | oldest `requestedAt` first | a 26 px head and a 22 px byline, 6 px between entries. Head (`move`): the coral diamond, the title, `#n` (orange `mono.small`), the age at the right (`mono.small` `fg.alt`, right-aligned in 84 px), ending 10 px before the `⏎` chip's slot, which every head keeps whether the chip shows or not. Byline (`ui.small`, 22 px in): project (sage) · subject (`mono.small` `fg.alt`, `w1:3:design`) |
 | **Failed N** | failed runs and faulted tasks, minus those hidden on this device | faults that name a decision; then failed runs (project order, newest ID first); then other faults, newest first. At most 8 rows; then one line per kind that overflows: `2 more failed runs · in Conversations` (opens Conversations filtered to failed) and `1 more faulted task · in Faults` (opens Faults) | one 28 px line: the rose `×`, the label, then fixed slots at the right: project (sage, 96), `#id` (orange, 26), extension (`mono.small` `fg.muted`, 30), reason (`run failed` / `task faulted`, `fg.alt`, 132), time (`mono.small` `fg.muted`, 84, right-aligned; faulted tasks only). A faulted task's label is its kind (`mono` orange) and, when it names one, `after w1:6:design#1` (`mono.small` `fg.alt`); that part shows whole or not at all, and the kind is cut first |
-| **Running N** | running conversations | project order, newest ID first | one 28 px line: the steel triangle, the label, then project, `#id`, extension, and the model (`fg.alt`, in the 132 px column) when known. No time slot: the core gives no time |
-| **Activity** | events of every project | newest `at` first; at most 12, then `N older in the timeline` | one 28 px line: time (`mono.small` `fg.muted`, 44 px), text (`ui`), project (sage), `#id` (orange) when the event names a conversation |
+| **Running N** | running conversations | project order, newest ID first | one 28 px line: the steel triangle, the label, then project, `#id`, extension, and the model (`fg.alt`, in the 132 px column Failed's reason uses) when known. The core gives no time; while Failed shows, Running keeps Failed's time slot empty so both groups stand on one grid |
+| **Activity** | events of every project | newest `at` first; at most 12, then `N older in the timeline` | one 28 px line: time as the Timeline writes it (`15:02` today, `Nov 14 19:02` on another day; `mono.small` `fg.muted`) in a column as wide as the widest time in the group, so every text starts on one line; text (`ui`), project (sage), `#id` (orange) when the event names a conversation. The text alone takes the cut, with `…`; the time, the project and `#id` show whole, here and in the Timeline |
 
-Slots are fixed columns 12 px apart, so each kind of value lines up down its group; the label takes the rest and is cut with `…`. A row with a short reason leaves a gap before the time, on purpose. Slots drop by the rule of §4.7. The mark, the label, the project and `#id` never drop. Rows have no rules between them.
+Slots are fixed columns 12 px apart; the label takes the rest and is cut with `…`. Failed and Running share one grid: project, `#id`, extension and the reason / model column stand on the same lines in both groups. A row with a short reason leaves a gap before the time, on purpose. Slots drop by the rule of §4.7. The mark, the label, the project and `#id` never drop. An overflow line starts where the text of the rows above it starts: `2 more failed runs · in Conversations` on Failed's label column, `N older in the timeline` on Activity's text column. Rows have no rules between them.
 
 - **Rows are plain text.** Extension and agent text in a row (titles, labels, event text, fault errors) is one `ui` line: no Markdown, no bold, control characters escaped, cut at the end with `…`. Paired backticks of an inline code span are dropped, so `` `notes.json` `` reads `notes.json`. The client's mark and `#id` sit in fixed slots, so text can't pose as a head or a tag.
 - **The cursor:** on a Needs you entry, while the stage has the keys, its head is a solid coral band, text and diamond knocked out in `surface.read`, with the `⏎` chip at the right, and its byline sits on `surface.cursor.read`. On other rows: `surface.cursor.read` with the 2 px coral bar. Without the keys: the band alone (§4.6).
@@ -354,9 +357,13 @@ Offline, the peek's state facts end with `as of 16:41`; ages keep counting (`cli
 
 The project and `#4` are in the breadcrumb, and the rest of the settings in the details panel (§4.5). The transcript starts 24 px below.
 
-**The cursor.** Inside message text (your message, agent text, a record's body) the cursor is a line: a full-width band with the 2 px coral bar, as in any reader, so `v`, `V`, the motions and the yanks work on text. On a tool row, a fold, a thinking fold or a header line it is the whole row. Band and bar are as `reference/visual-language.md` §1 says, and the bar is drawn inside the column, never in its outset. `]m [m ]t [t` move it by entry and by tool call.
+**The cursor.** Inside message text (your message, agent text, a record's body) the cursor is a line: a full-width band with the 2 px coral bar, as in any reader, so `v`, `V`, the motions and the yanks work on text. On a tool row, a fold, a thinking fold or a header line it is the whole row. Band and bar are as `reference/visual-language.md` §1 says: the band spans the box edge and the bar sits on its left edge, drawn over a code block that reaches it. `]m [m ]t [t` move it by entry and by tool call.
 
-**Transcript** (the 880 px column; prose wraps at 840):
+**One axis, one box edge, a gutter.** Every line of text starts on one x, X0, and prose wraps at X1, X0 plus the reading width. On X0: the title and its facts line (its mark's slot on X0, its words after), the `input` and `agent` headers, your message's text, agent prose, record headers and bodies, chrome lines, each tool row's mark (its name follows 24 px on), opened output, code in a code block, the run-failure lines, the queued and unsent rows' words and text, and the composer's caption and text. Prose and the last thing in a row end on X1 (`details ›`, a tool row's chevron). Every box spans X0 − 16 to X1 + 16: your message's container, a tool row's band (its tint, the cursor's band), opened output, a code block in bare prose, the run-failure head, a record's header band and the composer. So every box is one width, and text in a box is on the axis. The 2 px content bar of a queued or unsent row hangs at X0 − 12, its text on X0. A code block in your message can't reach past the container: it keeps X0 to X1, its code inset. Tables, quote bars and list markers are content inside the text column (`reference/visual-language.md` §3).
+
+Left of the box edge, a 24 px gutter holds one **speaker mark** per message, 14 px, centred in a 16 px slot 8 px clear of the box and on its header's line, all on one vertical line: Carbon `user` in steel by a `pi.user` entry's `input`, Carbon `bot` in `fg.muted` by each `agent` header, the live message's included. Records, tool rows, chrome lines and queued or unsent rows have none. The mark comes from the entry's kind, never from its text, and has no name of its own: the header word names the speaker (`reference/visual-language.md` §6, §8.4).
+
+**Transcript:**
 
 | Entry | Renders as |
 |---|---|
@@ -386,7 +393,7 @@ The project and `#4` are in the breadcrumb, and the rest of the settings in the 
 
 **Unsent rows,** between the queue and the composer: `sending…`; on an unknown outcome the mauve `?`, the mode word, the text on the content bar, and `no reply · resends when connected` (or `not sent automatically · ␣rt retries`, `client.md` §2.2).
 
-**Composer,** pinned 16 px above the stage's foot, the column's width: the container style, with a caption inside at the top (`ui.small` steel, the mode word 600) that says what `⌘⏎` does, from the drawn state:
+**Composer,** pinned 16 px above the stage's foot, as wide as every box: the container style, with a caption inside at the top (`ui.small` steel, the mode word 600) that says what `⌘⏎` does, from the drawn state:
 - idle: `send · starts a run on claude-sonnet-4-5`;
 - running: `steer · joins this run after the current tool round`;
 - failed: `send · starts a new run · the last run failed`.
@@ -468,21 +475,21 @@ The one authority dialect: two commands, both under `␣a`, both only in the Dec
 
 ```
 ◆ ANSWER   Review the design #2 · render-core                                open · requested 13:55
-  1  approve         │  notes   3 sent with the answer · 2 on passages, 1 on the whole   K reads them
+  1  approve         │  notes   3 sent with the answer · 2 on passages · 1 on the whole   K reads them
 ▌ 2  revise          │  basis   entry 34 · 2,203 characters · shown to the end
   3  abort           │  then    w1.design_answer runs in #3
   j k or 1–3         │  from    this device, laptop
 ─────────────────────────────────────────────────────────────────────────────────────────────────────
-                                                                              y confirm   n Esc q cancel
+                                                                     y send this answer   n Esc q cancel
 ```
 
 - **Left column** (300 px): the choices as 30 px picker rows, `1 approve` (number `mono.small` `fg.alt`, choice `ui`), the pick with the selection (fill, 2 px coral bar, 600), and the hint `j k or 1–3` under them. Up to nine carry their number and `1`–`9` pick; past nine they carry none, and only `j k` move the pick; when they don't fit the float's height the column scrolls.
 - **A 1 px hairline** between the columns.
-- **Right column:** a 72 px steel label column and the values, on 30 px rows: `notes`, `basis`, `then`, `from`, with `K reads them` after the notes' value. Its first row sits on the left column's first baseline.
+- **Right column:** a 72 px steel label column and the values, on 30 px rows: `notes`, `basis`, `then`, `from`, with `K reads them` after the notes' value. Its first row sits on the left column's first baseline. No value is cut with `…`: one that doesn't fit wraps, its row grows, and the rows below move down, the float growing within its cap as its top edge glides up. When the notes' value doesn't fit its row, it breaks after `3 sent with the answer`, `K reads them` stays at the right of that line, and the scopes (`2 on passages · 1 on the whole`) continue on the line under it, aligned to the values.
 - Its echoes (`read it first`, `pick a choice first`) show in the bottom bar.
 - **Choice:** preselected when the page cursor was on a choice row; otherwise none, and `y` echoes `pick a choice first`. Each pick redraws the float.
 - **Basis line:** how much of the basis this view has drawn: `shown to the end`, or `not shown to the end · 62 % shown`. It informs; it never blocks.
-- **`y` counts only after the readback has been on screen for 400 ms** (`tokens.json` `tau.client_ms.readback_arm`), and confirms what the float last drew. An earlier `y` is discarded and echoes `read it first`. A burst such as `␣ad2y` at typing speed therefore never sends. Auto-repeat and `⏎` never confirm; a click on `y` echoes `press y to confirm`.
+- **`y` counts only after the readback has been on screen for 400 ms** (`tokens.json` `tau.client_ms.readback_arm`), and confirms what the float last drew. An earlier `y` is discarded and echoes `read it first`. A burst such as `␣ad2y` at typing speed therefore never sends. Auto-repeat, `⏎` and a click never confirm. The foot hint `y send this answer` (`y send it again` in send-again) is an instruction, read as `Press Y to send this answer` and never as a button; a click on it echoes `press y to send this answer`.
 - **A host event can only turn `y` off:** if the inbox says the request is no longer open, the float becomes the not-open reply.
 - **On `y`:** `sending…`, then `answer {project, decision, basis, choice, annotations}` with the drafts in order:
 
@@ -504,7 +511,7 @@ its work   w1.design_answer faulted · git rev-parse main failed: fatal: Unable 
 sends      the same answer: approve, 0 notes, basis entry 17
 then       a new w1.design_answer starts in #6
 from       this device, laptop
-                                                                              y confirm   n Esc q cancel
+                                                                        y send it again   n Esc q cancel
 ```
 
 - **The `then` task ended `faulted`:** `y` sends `answer` with the record's own `basis`, `choice` and `annotations`. Expected: `repeated: true` and a new `continuation`; echo `Sent again · w1.design_answer runs again in #6`; the old fault is hidden on this device.
@@ -515,10 +522,10 @@ The same 400 ms rule applies.
 
 ### 5.8 The places
 
-Each place is one page with one filter and one cursor. It keeps both on this device when you leave it, and across launches. Filters: Conversations, a project and a state; Timeline and Faults, a project; Home and Projects, none. `␣pf` opens the filter float; the breadcrumb shows the filter. Each place has its page title (`Conversations`, `Timeline`, `Faults`, `Projects`), rows of 28 px under `group` heads, and the peek (§5.4).
+Each place is one page with one filter and one cursor. It keeps both on this device when you leave it, and across launches. Filters: Conversations, a project and a state; Timeline and Faults, a project; Home and Projects, none. `␣pf` opens the filter float; the breadcrumb shows the filter and, while it isn't the default, `show all` to reset it (§4.2). Each place has its page title (`Conversations`, `Timeline`, `Faults`, `Projects`), rows of 28 px under `group` heads, and the peek (§5.4).
 
 **Conversations** (`␣oc`, its sidebar row). **Answers:** every conversation, to continue or join one.
-- Grouped by project; the group head is the project (sage) and `1 running · 1 failed · 7 in all`; rows newest ID first.
+- Grouped by project; the group head is the project (sage) and `1 running · 1 failed · 7 in all`; with a state filter, the rows shown come first, `1 running shown · 7 in all`. Rows newest ID first.
 - Row: the small mark (running triangle, failed `×`, stopped and idle none), label, then the slots: extension when known, model when known (`fg.alt`), `#id` (orange).
 - Opening Conversations from the Project view sets its project; Home's `more failed runs` line sets `failed`.
 - `/` searches labels. `x` hides a failed run on this device; `␣th` shows hidden ones.
@@ -531,14 +538,19 @@ Each place is one page with one filter and one cursor. It keeps both on this dev
 
 **Faults** (`␣of`; Home's `more faulted task` line; no sidebar row). **Answers:** which tasks died, and which one I can restart.
 - Under the title, once: `A faulted task never runs again by itself. If it names a decision, open it and send the answer again. Hiding a fault is local to this device.`
-- Rows: rose `×` · kind (`mono` orange) · error (one line) · project · `#id` · `after w1:6:design#1` when named · `endedAt`.
+- Rows: rose `×` and kind (`mono` orange) lead; the error (`ui` `fg.alt`) takes the rest and is cut with `…`; then fixed slots at the right, 12 px apart: project (sage, 96), `#id` (orange, 26), `after w1:6:design#1` when named (`mono.small` `fg.alt`, as wide as the widest drawn), `endedAt` (`mono.small` `fg.muted`, 84, right-aligned). When the error would get less than 200 px, the time drops, then the `after` slot; each drops whole for every row.
 - Hidden faults are left out; `␣th` shows them with a `subtract` mark and `hidden on this device`.
 - `⏎`: its decision when named, else its conversation. `x` hides; `x` on a shown hidden one unhides it.
 - **Calls:** `faults` per project, following `next`.
 
 **Projects** (`␣op`, its sidebar row): project (sage) · workdir (`mono` `fg.alt`, `…/leaf`) · extensions (`mono.small`) · `◆ 1` when it has open decisions · `1 missing` (rose) when the server lacks an extension. `⏎` opens the Project view; `␣pb` binds one.
 
-**Empty:** each place's sentence is owed (`open-questions.md` §2).
+**Empty:** one line where the first row would be (`ui`, `fg.alt`), saying which of three cases it is.
+- **The server has none:** `No faulted tasks.` · `No conversations yet.` · `No events yet. Bare conversations write none.` · `No projects yet · ␣pb binds one`.
+- **The filter keeps none:** it names the filter, `No faulted tasks in notes-cli.` · `No failed conversations in render-core.` · `No events in notes-cli yet.`, then a quiet pressable `show all projects` (`ui.small`, `fg.muted`; `show all` in Conversations with a state) that resets this place's filter and no other place's.
+- **The filter keeps some, all hidden on this device:** the count for the filter, `2 faulted tasks hidden on this device` or `1 failed run hidden on this device`, then the `␣th` chip and `show hidden`; a click on either runs `␣th`.
+
+A search that matches nothing reads `No matching rows.`
 
 ### 5.9 Project view
 
@@ -560,7 +572,7 @@ Each place is one page with one filter and one cursor. It keeps both on this dev
 | anything else | the value as JSON | `K` shows the schema; not editable in v1 |
 
   A missing option (§3.2) reads `not set` with `required` in rose under it. Other errors from `options` show in rose under the field their `path` names (`expected format model`). Opened from the start page or after `options_invalid`, the view's cursor starts on the first field with an error.
-- **Saving:** edits are drafts (sage `edit` mark per field; bottom bar `✎ 2 not saved :w`). `dd` or `␣mr` resets a field to its default as a draft. `:w` or `␣ms` sends one `setOptions {project, extension, patch}` per extension with changed keys (a reset is `null`). `bad_options`: each error under its field by `path` (`expected format model`), drafts kept, echo `The options of w1 do not fit.` Success: drafts clear; the values are the reply's `value`.
+- **Saving:** edits are drafts: each drafted field carries the sage `edit` mark at its row, on the cursor row and off it. An Options group with drafts carries `✎ 1 not saved :w save` right-aligned on its head (`ui.small` `fg.alt`, counting that group's drafts, no fill or box), which saves as `:w` does when pressed; the bottom bar keeps `✎ 2 not saved :w` for the whole project, the one sign when the options are out of view. `dd` or `␣mr` resets a field to its default as a draft. `:w` or `␣ms` sends one `setOptions {project, extension, patch}` per extension with changed keys (a reset is `null`). `bad_options`: each error under its field by `path` (`expected format model`), drafts kept, echo `The options of w1 do not fit.` Success: drafts clear; the values are the reply's `value`.
 - `␣cn`, `␣pa` and `␣po` here take this project.
 - **Calls:** `projects`, `options`, `setOptions`, `models`, `extensions`, `addExtensions`; the polled `conversations` and `faults`, and the `inbox`, for the Work counts.
 
@@ -569,29 +581,31 @@ Each place is one page with one filter and one cursor. It keeps both on this dev
 ## 6. Floats
 
 **One shell for every bottom float.**
-- **Frame:** spans the stage, inset 12 px at the sides and 10 px at the foot; `surface.raised`, a 1 px `border.hairline`, a 2 px coral top rule, `radius.surface`, the upward shadow; up to 40 % of the window tall; 12 px padding above, 10 below. The page is clipped at the float's top edge, so the insets beside and under it show `surface.read`, never a line of the page.
+- **Frame:** spans the stage, inset 12 px at the sides and 10 px at the foot; `surface.raised`, a 1 px `border.hairline`, a 2 px coral top rule, `radius.surface`, the upward shadow; up to 40 % of the window tall; 12 px padding above, 10 below. It rises from the stage's foot when it opens, goes back down when it closes, and its top edge glides to every new height (`reference/visual-language.md` §7). The page is clipped at the float's top edge, so the insets beside and under it show `surface.read`, never a line of the page.
 - **Head,** one line, 24 px in: an optional **tag** (the solid coral verb tag, or the neutral outline `◇ NOT RECORDED`), the **title** (`float.title`; it may carry an `#id` in orange mono, a project in sage, or a key glyph), a **subtitle** (`ui.small` `fg.muted`), and **meta** right-aligned (`ui.small` `fg.muted`).
-- **Body,** one of: **rows** (30 px, 24 px in, the selection a `surface.cursor.side` fill with the 2 px coral bar); a **key-value grid** (96 px steel labels, `fg` values, muted hints at the right); a **key grid** (which-key: 200 px columns of 26 px entries); or the readback's two columns (§5.7). Results freeze once you move.
-- **Foot,** above a hairline, 24 px in: an optional **input** at the left (`float.input`, Iosevka 14/20, a coral block caret, then a muted count such as `3 projects`), and **hints** at the right (key chips on `surface.cursor.side`, each followed by a muted word, 16 px apart).
+- **Body,** one of: **rows** (30 px, 24 px in, the selection a `surface.cursor.side` fill with the 2 px coral bar); a **key-value grid** (96 px steel labels, `fg` values, muted hints at the right); a **key grid** (which-key: 200 px columns of 26 px entries); or the readback's two columns (§5.7). Results freeze once you move. The head and the foot stay put and the body scrolls between them: when the float opens, when the selection moves either way, when typing changes the rows and when the window resizes, it moves just far enough to show the whole selected row (or the bind float's field with the caret).
+- **Foot,** above a hairline, 24 px in: an optional **input** at the left (`float.input`, Iosevka 14/20, a coral block caret; while it is empty, `type to filter` after the caret in `fg.muted`, `type to search` in Find; then a muted count of every row, `3 projects`, which reads `1 of 3 projects` once a query is typed), and **hints** at the right (key chips on `surface.cursor.side`, each followed by a muted word, 16 px apart). The input's accessible name says what it filters: `Filter projects`, `Filter commands`; Find's is `Search projects, conversations, decisions and events`.
+- **No match:** when the query keeps no row, the body is one line where the rows were, `ui` in `fg.alt` on a 30 px row, 24 px in, with the query as typed: `No project matches "zzzz"`, `No command matches "zzzz"`; Find's reads `Nothing matches "zzzz"`. `⏎ choose` stays in its place, muted and inert (§4.6). Clearing the query brings the rows and the cursor back.
 - **While a float holds the keys:** only its own keys act, with `Esc` (and `q` where it has no input) to close it; nothing of `global` does, so no leader, `:`, `⌘K` or `K` reaches the page under it (`reference/grammar.md` §3). Chips, hints and segments outside it draw `fg.muted` and are inert, the coral Answer turns to its outline, the stage's and the sidebar's cursors turn neutral, and the mode badge names the float's own mode, never `NORMAL` (§4.6).
 
 `q` or `Esc` closes any float that is in Normal mode.
 
 | Float | Opens with | Head | Body | Calls |
 |---|---|---|---|---|
-| which-key | 300 ms after a prefix | `␣ leader` alone; for `␣a`: `answer` · `every command reads back what it sends before y` | key grid: group entries first in `fg` 600, a hairline, single commands in `fg.alt` 400 (`reference/grammar.md` §5); hints `Esc closes`; display only | none |
+| which-key | 300 ms after a prefix's last key; once up, it stays until the sequence ends | `␣ leader` alone; for `␣a`: `answer` · `every command reads back what it sends before y` | key grid: group entries first in `fg` 600, a hairline, single commands in `fg.alt` 400 (`reference/grammar.md` §5); hints `Esc closes`; display only | none |
 | Palette | `␣;`, `⌘K` | `Commands` | rows: desc, `:ex`, keys; unavailable ones listed with the reason; input | none |
 | `:` line | `:` | `Command line` | completions as rows; input with `:`; history on Up/Down | the command's |
-| Find | `␣.`, the sidebar's `Find` | `Find` · `projects, conversations, decisions, events` | rows; prefixes `p: c: d: e:` in the input | held data |
+| Find | `␣.`, the sidebar's `Find` | `Find` · `projects, conversations, decisions, events` | rows: the kind's icon as the sidebar draws it (`folder`, `chat`, outline diamond, `time`; 14 px, `fg.muted`), the label (`ui`, cut with `…`), then the project in sage in a 160 px slot at the right, so the projects line up; a project's row is its `folder` and its name in sage. Prefixes `p: c: d: e:` in the input; input `36 results` | held data |
 | Project | `M-p` or `:project` on the start page; `␣pa`, `␣po` when no view names a project and none was used on this device | `Project` · `for the new conversation` (or `to add extensions`, `to set options`) | rows: `folder`, name (sage), its extensions (`w1 · websearch`, or `bare agent only`), workdir (`mono.small` `fg.muted`), `last used` at the right; cursor on the current one; input `3 projects`; hints `⏎ choose · Esc back` | `projects` |
 | Workflow | `M-w` or `:workflow` on the start page | `Workflow` · `for the new conversation in render-core` | one flat list: the project's workflows, each `w1 · workflow`, with no icon, and in rose `needs options: designer, implementer, reviewer` or `options don't fit: reviewer` when its options have errors; then one row per model, `bare agent · Claude Sonnet 4.5`. Typing filters both, so `son ⏎` picks a bare agent on Sonnet. An extension the server lacks is never listed | `extensions`, `options`, `models` |
 | Model, thinking | `␣cm`, `␣ct`, a model field | `Model` · `for #5`; meta `w1 may set the model again when it next sends work here` when the selection names a workflow | rows: `models` with the current one marked `current`; the seven thinking levels | `models`, `setModel` |
 | Filter | `␣pf` in a place | `Filter` · the place | rows: `all projects` and each one; in Conversations, a second group of states (`failed`, `running`, `idle`) | none |
-| Bind | `␣pb`, `:bind`, `⌘⏎` on a start page with no projects | `Bind a project` | key-value grid: `name` (`^[a-z0-9][a-z0-9-]{0,62}$`) and `working directory` (an absolute path on the server, with the note `a path on the server`), both text fields; `extensions` (a checklist from `extensions`, with kind words; none is valid). The hints follow the focused part: in a field, `INSERT`, `Tab next · Esc Esc cancel` (the fields have no Normal mode: the first `Esc` goes to the checklist); in the checklist, `COMMAND`, `Tab toggle · ⏎ bind · Esc cancel` | `extensions`, then `bind` |
-| Add extensions | `␣pa` | `Add extensions` · `to render-core` | a checklist of the server's extensions not in the project, in `COMMAND`; hints `Tab toggle · ⏎ add · Esc cancel` | `addExtensions` |
+| Bind | `␣pb`, `:bind`, `⌘⏎` on a start page with no projects | `Bind a project` | key-value grid: `name` (`^[a-z0-9][a-z0-9-]{0,62}$`) and `working directory` (an absolute path on the server, with the note `a path on the server`), both text fields; `extensions` (a checklist from `extensions`, with kind words; none is valid). `Tab` goes to the next of name, working directory and extensions, `S-Tab` to the previous, wrapping; `Tab` never ticks. In the checklist `j k`, `C-j C-k` and Down Up move, `␣` ticks or unticks the row under the cursor. The hints follow the focused part: in a field, `INSERT`, `Tab next · Esc Esc cancel` (the fields have no Normal mode: the first `Esc` goes to the checklist); in the checklist, `COMMAND`, `␣ toggle · ⏎ bind · Esc cancel`. `⏎` with a name or a working directory that does not fit puts the caret in that field and the reason under it, a rose `×` and the words, as on Connect (§5.1) | `extensions`, then `bind` |
+| Add extensions | `␣pa` | `Add extensions` · `to render-core` | a checklist of the server's extensions not in the project, in `COMMAND`, with Bind's checklist keys (`Tab` does nothing here); hints `␣ toggle · ⏎ add · Esc cancel` | `addExtensions` |
+| Settings | `␣hs`, `:settings`, `⌘,` | `Settings`; meta `settings.toml` | two groups, each under a `group` head with the count of its rows the query keeps: `Preferences 3` (theme, reading width, motion; `C-h C-l` or `⏎` change one) and `Keys 159` (a row per key of each command, its contexts and modes, `:name` and key; `⏎` takes a new key, `C-x` puts back the design's). A head sits 12 px below the rows above it, with no rule; it isn't selectable and the cursor skips it. Typing filters both groups, and a group with no match goes with its head. Input `3 preferences · 159 keys`, or `1 of 162 settings` with a query | none |
 | Confirm | before `bind` and `addExtensions`, and before pairing over plain HTTP to another machine | `Confirm` | pairing: `Pair over plain HTTP? Anyone on the network path can read this device's token.`, hints `y pairs · n cancels`; binding with extensions: `Bind scratch with w1? A project can't be unbound and an extension can't be removed.`; with none: `Bind scratch with no extensions? Its conversations get the coding tools only. A project can't be unbound; extensions can be added later but never removed.`; hints `y binds · n cancels` | none |
 | Readback | `␣ad`, `␣ar` | §5.7 | §5.7 | `answer` |
-| Outbox | `␣ru`, the `?` tag (badge `OUTBOX`) | `Outbox` · `every write, kept until done`; meta `1 without a reply` | rows: mark, call, project and `#id`, the text, state, time; an answer entry reads `open the decision to send it again` and a create entry `try again from the start page`, and neither has `␣rt`; hints `␣rt retry · x forget · Esc closes` | the entry's call |
+| Outbox | `␣ru`, the `?` tag (badge `OUTBOX`) | `Outbox` · `every write, kept until done`; meta `1 without a reply` | rows: mark, then `call · project #id · subject`, state, time. The project is sage and `#id` orange. The subject is the text, or for an answer its decision's title and `#n` (`answer · render-core · Review the design #2`), or the stored decision ID (`w1:3:design#2`, orange mono, never cut) when the title is not held. A part that is absent is left out with its separator. An answer entry reads `open the decision to send it again` and a create entry `try again from the start page`, and neither has `␣rt`. `⏎` opens what the row names and closes the float: an answer its decision, an input its conversation, a create the start page; it never sends, and sending an answer again happens only in the decision's readback. Empty: `No writes in the outbox.`, 24 px in like a row. Hints `⏎ open` (lit while the row names an object) · `␣rt retry · x forget · Esc closes` | the entry's call |
 | Server | `␣os`, the sidebar's server line or `Server` row (badge `SERVER`) | `Server` · the URL | key-value grid: this device's name; `protocol 1`; connected since; each stream and its state; then `Devices are listed and revoked on the server: tau device list, tau device revoke <name>.` and `:forget-server`, typed after closing the float | none |
 | Peek | `K` on a list row under a 1000 px stage, or on an open item in the sidebar | the row's title | §5.4 | as §5.4 |
 
@@ -604,7 +618,7 @@ Each place is one page with one filter and one cursor. It keeps both on this dev
 | Flow | Keys |
 |---|---|
 | First run | launch · `Tab` (URL prefilled) · type the code · `⏎` (over plain HTTP to another machine: then `y` in the Confirm float) |
-| Bind a W1 project and set its options | `␣pb` · name `Tab` path `Tab` · `C-j` to w1 · `Tab` (toggles it) · `⏎` · `y` → Project view: `j` to designer, `⏎`, `opus`, `⏎`; the same for implementer and reviewer; `:w⏎` |
+| Bind a W1 project and set its options | `␣pb` · name `Tab` path `Tab` · `C-j` to w1 · `␣` (ticks it) · `⏎` · `y` → Project view: `j` to designer, `⏎`, `opus`, `⏎`; the same for implementer and reviewer; `:w⏎` |
 | Bind a bare-agent project | `␣pb` · name `Tab` path `Tab` · `⏎` (no extension ticked) · `y` |
 | Start work where you last started | launch, or `␣cn` · type · `⌘⏎` |
 | Start in another project | `␣cn` · `M-p` · `notes` · `⏎` · type · `⌘⏎` |
@@ -637,7 +651,7 @@ Each place is one page with one filter and one cursor. It keeps both on this dev
 - **Two failure words:** a conversation's run `run failed`; a task `task faulted`. The group and the tag that hold both are **Failed** and `×`.
 - **Page titles** are a place's name, `Home`, `Needs you` or `Nothing needs you`, or the object's own label or title as one plain line (while a new conversation's first input is sending, its first line). A title is never a sentence the client wrote about the object.
 - **Server and extension text is shown as sent,** never rewritten, except that rows and titles drop the backticks of inline code (§5.3). When the client's copy quotes a server sentence, it adds no full stop after it. Agent text is content.
-- **Ages and times:** ages (`2 h 45 m`) count on the local clock; clock times (`13:55`) are local time; a time that hasn't happened isn't printed. A running count: one decimal under 10 s (`4.2 s`), whole seconds under a minute (`12 s`), `17 m` under an hour, `1 h 5 m` after.
+- **Ages and times:** ages (`2 h 45 m`) count on the local clock; clock times (`13:55`) are local time; a time that hasn't happened isn't printed. Ages and running counts are written one way: one decimal under 10 s (`4.2 s`), whole seconds under a minute (`12 s`), `17 m` under an hour, `1 h 5 m` under a day, days and hours under a week (`4 d 15 h`; a day exactly is `1 d 0 h`), days alone after (`12 d`). A clock time from another day carries its date (`Nov 14 13:55`), the form the Timeline uses, also where an age stands beside it (`requested Nov 14 13:55 · 4 d 15 h ago`).
 - **Disabled actions** read `<verb> · off` with a dashed edge, and say why on `K`.
 - **An action names the act,** never the choice: `◆ ␣ad Answer`, `␣ar send again`, `␣rt retry`, `␣cc continue`. The readback names the choice.
 - **Keys in copy** are chips, or muted hints inside a container, and only where `reference/grammar.md` §9 allows; the echo prints none. Server text never names a client key.

@@ -44,6 +44,23 @@ pub const SCENES: &[Scene] = &[
         link::settle(a);
     }),
     ("unknown-outcome", unknown),
+    ("outbox-answers", |a| {
+        prepare(a, false);
+        scenes::on_fixture(a, Stage::Place(crate::frame::Place::Home));
+        crate::screens::home::prepare_scene(a);
+        for id in ["w2:2:pi-durable-2#1", "w2:2:rune-release#2"] {
+            a.link
+                .write(Write::Answer {
+                    decision: DecisionRef::new("forecasts", id),
+                    basis: EntryId(1),
+                    choice: "yes".into(),
+                    annotations: Vec::new(),
+                })
+                .unwrap();
+        }
+        link::settle(a);
+        crate::screens::places::floats::outbox(a);
+    }),
     ("model-picker", |a| named(a, "start-workflow-picker")),
 ];
 

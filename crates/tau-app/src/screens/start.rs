@@ -14,7 +14,7 @@ use crate::floats::{
     Float,
     project_picker::{self, Choice, Picker},
 };
-use crate::frame::{Crumb, Row};
+use crate::frame::{Crumb, Room, Row};
 use crate::keys::{Code, Ctx, Key, Mode};
 use crate::open::Item;
 use crate::theme::Theme;
@@ -79,6 +79,9 @@ impl Screen for Start {
     }
     fn view(&self, t: Theme, a: &App) -> El {
         view::view(t, a)
+    }
+    fn room(&self, _: &App) -> Room {
+        Room::Lift(Some(view::BLOCK.into()))
     }
     fn globals(&self) -> Vec<(&'static str, Handler)> {
         vec![("conv.new", new)]
@@ -475,7 +478,7 @@ pub(crate) fn project_picker(a: &mut App, purpose: ProjectPurpose) {
         owner,
         "Project",
         sub.into(),
-        "projects",
+        crate::floats::Noun::new("project", "projects"),
         rows,
         current,
         Box::new(move |a, p| match purpose {
@@ -538,7 +541,7 @@ fn workflow_picker(a: &mut App) {
         ScreenId::Start,
         "Workflow",
         format!("for the new conversation in {p}"),
-        "choices",
+        crate::floats::Noun::new("choice", "choices"),
         rows,
         selected,
         Box::new(|a, v| {

@@ -45,12 +45,12 @@ Every write call (tier `write` or `decide` in `keymap.toml`) is written to the *
 | `input`, `continue` | resends the same body on the schedule of §2.2 | same request ID: the server returns the first submission (`docs/core/host.md:55`) |
 | `setModel`, `setOptions` | resends the same body on the schedule of §2.2, but never after a restart of the client: a restored entry reads `may not have been applied · set it again` and `␣rt` is off for it | the same value comes back (`host.md` table, "A resend"); after a restart another device or the workflow may have set a newer value |
 | `bind`, `addExtensions` | resends the same body on the schedule of §2.2 | `bind` returns `repeated: true` (`projects.ts:211-214`); the same names change nothing |
-| `answer` | **never by the outbox.** The entry reads `? answer · no reply · open the decision to send it again`, and `␣rt` is off for it. §2.3 | an equal resend after a fault starts the `then` task again (`docs/core/primitives.md:138`), so only the human sends it, through the readback (`spec.md` §5.7) |
+| `answer` | **never by the outbox.** The entry reads `? answer · render-core · Review the design #2 · no reply · open the decision to send it again` (the stored decision ID, `w1:3:design#2`, when the title is not held), and `␣rt` is off for it; `⏎` on it opens that decision. §2.3 | an equal resend after a fault starts the `then` task again (`docs/core/primitives.md:138`), so only the human sends it, through the readback (`spec.md` §5.7) |
 | `create` | **never automatically**, and its `input` is not sent (§2.4). `␣rt` is off for it: the start page keeps the text, and `⌘⏎` there tries again. Entry: `No reply · a conversation may have been created · try again from the start page` | a retried `create` makes a second conversation, an accepted limit (`docs/core/README.md`, "Accepted limits") |
 | `stop` | **never**. Entry: `No reply · the run may have stopped` | a second `stop` ends whatever runs then (`host.md:56`) |
 | `pair` | never; §7 | a code works once, and a landed `pair` has used the name |
 
-`x` on an outbox entry forgets it on this device; nothing is sent. Forgetting an `answer` entry also turns `␣ad` back on for that decision (§2.3): if the lost answer did land, a different one is refused with `conflict`.
+`x` on an outbox entry forgets it on this device; nothing is sent. `⏎` opens what the entry names and closes the outbox: an answer's decision, an input's conversation, the start page for a `create`; it never sends. Forgetting an `answer` entry also turns `␣ad` back on for that decision (§2.3): if the lost answer did land, a different one is refused with `conflict`.
 
 ### 2.2 The resend schedule
 

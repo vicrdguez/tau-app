@@ -8,6 +8,23 @@ use crate::{
 };
 use rune::{El, col, icon, row, text, text_input};
 
+/// One of the page's controls (`spec.md` §5.2): `seq` printed in it, and a press that does what
+/// that key does, while it is lit.
+fn control(t: Theme, scope: ui::Scope, seq: &'static str, id: &str, name: &str, body: El) -> El {
+    let key = t.keymap.chip(seq, scope.mode, scope.ctx);
+    ui::control(
+        body,
+        ui::with_keys(name, &[&key]),
+        key.lit,
+        move |a: &mut App, tx| crate::app::commands::press_key(a, seq, tx),
+    )
+    .key(id)
+}
+
+/// The wordmark, the composer and the start line, which ride a float's edge if it would cover
+/// them.
+pub(super) const BLOCK: &str = "start-block";
+
 pub(super) fn view(t: Theme, a: &App) -> El {
     let s = &a.screens.start;
     let active = a.focus == Focus::Stage && a.floats.is_empty() && s.pending.is_none();
@@ -41,16 +58,21 @@ pub(super) fn view(t: Theme, a: &App) -> El {
     } else if !a.floats.is_empty() {
         rune::el().h(16.0)
     } else {
-        let word = if matches!(block, Blocker::Options(_)) {
-            "set its options"
-        } else {
-            "start"
+        let word = match block {
+            Blocker::Options(_) => "set its options",
+            Blocker::NoProjects => "bind a project",
+            _ => "start",
         };
-        let mut r = row()
+        let hint = row()
             .center_y()
             .gap(6.0)
             .child(ui::hint(t, scope, "<D-CR>"))
             .child(text(word).font(t.ty.ui_small).color(t.c.fg.muted));
+        let mut r =
+            row()
+                .center_y()
+                .gap(6.0)
+                .child(control(t, scope, "<D-CR>", "start-send", word, hint));
         if super::editor_mode(&s.editor) == crate::keys::Mode::Normal {
             r = r.child(text("· i writes").font(t.ty.hint).color(t.c.fg.muted));
         }
@@ -75,64 +97,70 @@ pub(super) fn view(t: Theme, a: &App) -> El {
         .radius(t.l.radius.surface)
         .child(input)
         .child(row().child(rune::spacer()).child(footer));
-    let mut startline = row().center_y().gap(8.0).mt(12.0).px(4.0);
+    let part = || row().center_y().gap(8.0);
+    let project = |name: &str, body: El| {
+        control(
+            t,
+            scope,
+            "<M-p>",
+            "start-project",
+            name,
+            body.child(ui::hint(t, scope, "<M-p>")),
+        )
+    };
+    let mut startline = part().mt(12.0).px(4.0);
     match block {
         Blocker::NoProjects => {
-            startline = startline
-                .child(
-                    text("No projects yet ·")
-                        .font(t.ty.ui_small)
-                        .color(t.c.fg.alt),
-                )
-                .child(ui::hint(t, scope, "<D-CR>"))
-                .child(text("binds one").font(t.ty.ui_small).color(t.c.fg.alt))
+            startline = startline.child(
+                text("No projects yet")
+                    .font(t.ty.ui_small)
+                    .color(t.c.fg.alt),
+            )
         }
         Blocker::ChooseProject => {
-            startline = startline
-                .child(
+            startline = startline.child(project(
+                "Choose a project",
+                part().child(
                     text("choose a project")
                         .font(t.ty.ui_small)
                         .color(t.c.fg.alt),
-                )
-                .child(ui::hint(t, scope, "<M-p>"))
+                ),
+            ))
         }
         _ => {
+            let p = s.project.as_deref().unwrap_or("");
             startline = startline
-                .child(icon(&carbon::FOLDER, 13.0).color(t.c.fg.muted))
-                .child(line(
-                    t,
-                    s.project.as_deref().unwrap_or(""),
-                    t.ty.ui_small,
-                    t.c.kind.worker,
+                .child(project(
+                    &format!("Project: {p}"),
+                    part()
+                        .child(icon(&carbon::FOLDER, 13.0).color(t.c.fg.muted))
+                        .child(line(t, p, t.ty.ui_small, t.c.kind.worker)),
                 ))
-                .child(ui::hint(t, scope, "<M-p>"))
                 .child(text("·").font(t.ty.ui_small).color(t.c.fg.muted));
+            let mut workflow = part();
+            let mut name = "Workflow: ".to_string();
             match &s.with {
                 Some(StartWith::Workflow(w)) => {
-                    startline = startline
+                    name.push_str(&format!("{w} workflow"));
+                    workflow = workflow
                         .child(line(t, w, t.ty.mono_small, t.c.fg.default))
                         .child(text("workflow").font(t.ty.ui_small).color(t.c.fg.alt));
                 }
                 Some(StartWith::Model(m)) if block != Blocker::NoModels => {
-                    startline = startline
+                    let model = m.rsplit('/').next().unwrap_or(m);
+                    name.push_str(&format!("bare agent, {model}"));
+                    workflow = workflow
                         .child(text("bare agent ·").font(t.ty.ui_small).color(t.c.fg.alt))
-                        .child(line(
-                            t,
-                            m.rsplit('/').next().unwrap_or(m),
-                            t.ty.mono_small,
-                            t.c.fg.default,
-                        ));
+                        .child(line(t, model, t.ty.mono_small, t.c.fg.default));
                 }
                 _ => {
-                    startline = startline.child(
-                        text(if block == Blocker::Loading {
-                            super::super::NOTHING_RECEIVED
-                        } else {
-                            "bare agent · no models on the server"
-                        })
-                        .font(t.ty.ui_small)
-                        .color(t.c.fg.alt),
-                    );
+                    let words = if block == Blocker::Loading {
+                        super::super::NOTHING_RECEIVED
+                    } else {
+                        "bare agent · no models on the server"
+                    };
+                    name.push_str(&words.replace(" · ", ", "));
+                    workflow = workflow.child(text(words).font(t.ty.ui_small).color(t.c.fg.alt));
                 }
             }
             let error = match &block {
@@ -141,14 +169,23 @@ pub(super) fn view(t: Theme, a: &App) -> El {
                 _ => None,
             };
             if let Some(error) = error {
-                startline = startline
+                name.push_str(&format!(", {error}"));
+                workflow = workflow
                     .child(text("·").font(t.ty.ui_small).color(t.c.fg.muted))
                     .child(line(t, error, t.ty.ui_small, t.c.text.failed));
             }
-            startline = startline.child(ui::hint(t, scope, "<M-w>"));
+            startline = startline.child(control(
+                t,
+                scope,
+                "<M-w>",
+                "start-workflow",
+                &name,
+                workflow.child(ui::hint(t, scope, "<M-w>")),
+            ));
         }
     }
     let mut content = col()
+        .key(BLOCK)
         .w(640.0)
         .max_w((a.window[0] - 32.0).max(0.0))
         .mt(-80.0)
@@ -175,7 +212,7 @@ pub(super) fn view(t: Theme, a: &App) -> El {
                 ),
         );
     }
-    // 32.5% of the page's available height, including when a float takes room below it.
+    // 32.5 % of the stage's height: a float never takes room from it (`Room::Lift`).
     col()
         .w_full()
         .h_full()

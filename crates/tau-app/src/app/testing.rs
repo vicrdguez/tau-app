@@ -154,3 +154,66 @@ impl Setup {
         self.clock.now().wall
     }
 }
+
+/// The app in a headless window `size` points large, laid out once.
+pub(crate) fn window_at(app: crate::app::App, size: [f32; 2]) -> rune::Runtime<crate::app::App> {
+    let fonts =
+        rune::text::TextSystem::new(crate::assets::fonts().unwrap(), crate::theme::FAMILIES);
+    let mut rt = rune::Runtime::with_text(
+        app,
+        crate::app::view,
+        (size[0], size[1]),
+        rune::Env::new(true, 1.0),
+        fonts,
+    );
+    rt.frame(1.0);
+    rt
+}
+
+/// The app in a 1512 × 982 headless window.
+pub(crate) fn window(app: crate::app::App) -> rune::Runtime<crate::app::App> {
+    window_at(app, [1512.0, 982.0])
+}
+
+/// A click at the centre of the element keyed `key`, and the frames that run its handler.
+pub(crate) fn click(rt: &mut rune::Runtime<crate::app::App>, key: &str) {
+    let e = rt
+        .elements()
+        .into_iter()
+        .find(|e| e.key.as_deref() == Some(key))
+        .unwrap_or_else(|| panic!("no {key} on screen"));
+    let (x, y) = (e.rect[0] + e.rect[2] / 2.0, e.rect[1] + e.rect[3] / 2.0);
+    rt.pointer_move(x, y);
+    rt.pointer_down(x, y);
+    rt.pointer_up(x, y);
+    rt.frame(0.02);
+    rt.frame(0.02);
+}
+
+/// One node of the accessibility tree: its key, role, the name a reader says, and its bounds.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Spoken {
+    pub key: String,
+    pub role: String,
+    pub name: String,
+    pub bounds: [f64; 4],
+}
+
+/// The accessibility tree, depth first, as the OS gets it.
+pub(crate) fn spoken(rt: &rune::Runtime<crate::app::App>) -> Vec<Spoken> {
+    fn walk(v: &serde_json::Value, out: &mut Vec<Spoken>) {
+        let s = |k: &str| v[k].as_str().unwrap_or_default().to_string();
+        out.push(Spoken {
+            key: s("key"),
+            role: s("role"),
+            name: s("name"),
+            bounds: std::array::from_fn(|i| v["bounds"][i].as_f64().unwrap_or_default()),
+        });
+        for c in v["children"].as_array().into_iter().flatten() {
+            walk(c, out);
+        }
+    }
+    let mut out = Vec::new();
+    walk(&rt.accessibility_json(), &mut out);
+    out
+}

@@ -14,6 +14,9 @@
 //! - builtin keys (`gg`) don't take part in prefix resolution;
 //! - two command bindings live in one mode and context where one is a prefix of the other;
 //! - which-key lists the wrong entries, labels or order, or shows before its delay;
+//! - which-key counts its delay from the sequence's first key, so it flashes up between keys typed
+//!   faster than the delay (`␣tb`), or counts a pause after a count as a pause in the prefix;
+//! - which-key, once up, waits again for the next prefix key;
 //! - a printed chip is lit where its key doesn't run (Insert, under a float, a command that
 //!   doesn't apply);
 //! - `:` names, completions and the palette miss or duplicate commands;
@@ -224,11 +227,34 @@ fn sequences_print_as_the_design_prints_them() {
     assert_eq!(display(&k("<leader>.")), "␣.");
     assert_eq!(display(&k("<D-k>")), "⌘K");
     assert_eq!(display(&k("<D-CR>")), "⌘⏎");
-    assert_eq!(display(&k("<M-CR>")), "M-⏎");
+    assert_eq!(display(&k("<M-CR>")), "⌥⏎");
+    assert_eq!(display(&k("<M-p>")), "⌥P", "Option prints as ⌘ does");
+    assert_eq!(display(&k("<D-M-k>")), "⌥⌘K");
+    assert_eq!(
+        written(&k("<M-p>")),
+        "<M-p>",
+        "the file keeps the keymap's notation"
+    );
     assert_eq!(display(&k("<C-h>")), "C-h");
     assert_eq!(display(&k("<CR>")), "⏎");
     assert_eq!(display(&k("<Esc>")), "Esc");
     assert_eq!(display(&k("<S-Tab>")), "S-Tab");
+}
+
+#[test]
+fn sequences_are_spoken_in_words_with_every_modifier_and_the_leader() {
+    assert_eq!(spoken(&k("<leader>cn")), "Space c n");
+    assert_eq!(spoken(&k("<leader>.")), "Space Period");
+    assert_eq!(spoken(&k("<D-CR>")), "Command-Return");
+    assert_eq!(spoken(&k("<M-p>")), "Option-P");
+    assert_eq!(spoken(&k("<M-CR>")), "Option-Return");
+    assert_eq!(spoken(&k("<C-h>")), "Control-H");
+    assert_eq!(spoken(&k("<D-M-k>")), "Option-Command-K");
+    assert_eq!(spoken(&k("<Esc>")), "Escape");
+    assert_eq!(spoken(&k("<S-Tab>")), "Shift-Tab");
+    assert_eq!(spoken(&k("]b")), "Right bracket b");
+    assert_eq!(spoken(&k(":w")), "Colon w");
+    assert_eq!(spoken(&k("K")), "Shift-K");
 }
 
 fn ev(key: rune::Key, mods: rune::Mods) -> rune::KeyEvent {
@@ -719,19 +745,47 @@ fn which_key_lists_a_groups_leaves_from_every_view_greying_those_that_cannot_run
 }
 
 #[test]
-fn which_key_waits_its_delay_after_the_last_key() {
+fn which_key_waits_for_a_pause_and_stays_for_the_sequence() {
     let mut keys = Keys::default();
-    keys.press(km(), Mode::Normal, Ctx::List, Key::char(' '), false, 10.0);
-    assert!(!keys.which_key_due(10.29, 300.0));
-    assert!(keys.which_key_due(10.3, 300.0));
-    keys.press(km(), Mode::Normal, Ctx::List, Key::char('o'), false, 10.5);
+    let mut press = |c: char, at: f64| {
+        keys.press(km(), Mode::Normal, Ctx::List, Key::char(c), false, at);
+        keys.clone()
+    };
+
+    press(' ', 10.0);
+    let t = press('t', 10.2);
+    assert!(!t.which_key_due(10.449, 300.0), "␣t typed without a pause");
+    assert!(!press('b', 10.45).which_key_due(10.75, 300.0));
+
+    let leader = press(' ', 20.0);
+    assert!(!leader.which_key_due(20.299, 300.0));
+    assert!(leader.which_key_due(20.3, 300.0));
+    let o = press('o', 20.4);
     assert!(
-        !keys.which_key_due(10.6, 300.0),
-        "a new prefix key restarts the wait"
+        o.which_key_due(20.4, 300.0),
+        "the next prefix key keeps it up"
     );
-    assert_eq!(keys.shown(), "␣o");
-    keys.press(km(), Mode::Normal, Ctx::List, Key::char('h'), false, 10.7);
-    assert!(!keys.which_key_due(20.0, 300.0), "nothing pending");
+    assert_eq!(o.shown(), "␣o");
+    assert!(
+        !press('h', 20.5).which_key_due(30.0, 300.0),
+        "nothing pending"
+    );
+
+    press(' ', 30.0);
+    let o = press('o', 30.2);
+    assert!(
+        !o.which_key_due(30.499, 300.0),
+        "a prefix key before it shows starts the wait again"
+    );
+    assert!(o.which_key_due(30.5, 300.0));
+
+    press('2', 40.0);
+    let leader = press(' ', 40.4);
+    assert!(
+        !leader.which_key_due(40.699, 300.0),
+        "a pause after a count is not a pause in a prefix"
+    );
+    assert!(leader.which_key_due(40.7, 300.0));
 }
 
 #[test]
@@ -934,7 +988,10 @@ fn the_palette_lists_every_named_command_once_with_its_keys() {
     assert!(ids.contains(&"palette") && ids.contains(&"app.quit") && !ids.contains(&"picker.keys"));
     let palette = km.command("palette").expect("palette");
     assert_eq!(
-        km.keys_of(palette, Mode::Normal),
+        km.keys_of(palette, Mode::Normal)
+            .into_iter()
+            .map(display)
+            .collect::<Vec<_>>(),
         vec!["␣;".to_string(), "⌘K".to_string()]
     );
     let quit = km.command("app.quit").expect("quit");

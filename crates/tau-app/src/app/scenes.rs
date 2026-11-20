@@ -154,7 +154,6 @@ fn pending(a: &mut App, seq: &str) {
         a.keys
             .press(a.settings.keymap, scope.mode, scope.ctx, key, false, -1.0);
     }
-    a.which_key_shown = true;
 }
 
 fn review_the_design() -> Item {

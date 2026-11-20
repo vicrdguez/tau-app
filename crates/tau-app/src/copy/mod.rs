@@ -28,7 +28,7 @@ mod project;
 mod refusals;
 pub use project::project_not_sent;
 
-pub use connect::{no_server, pair_failure};
+pub use connect::{host_refused, no_server, pair_failure};
 pub use events::event_echo;
 pub use outbox::{KeyHint, OutboxRow, outbox_row, start_unknown};
 pub use refusals::{AnswerAction, RefusalCopy, device_refused, refusal};

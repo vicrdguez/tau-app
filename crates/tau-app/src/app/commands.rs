@@ -68,7 +68,9 @@ fn frame() -> HashMap<&'static str, Handler> {
     // The floats.
     t.insert("palette", |a, _, _| a.open_float(Float::palette()));
     t.insert("cmdline.open", |a, _, _| a.open_float(Float::cmdline()));
-    t.insert("open.messages", |a, _, _| a.open_float(Float::messages()));
+    t.insert("open.messages", |a, _, _| {
+        a.open_float(Float::messages(a.messages.len()))
+    });
     t.insert("help.keys", |a, _, _| {
         a.open_float(Float::Sheet(Sheet::keys(a.settings.keymap)))
     });
@@ -236,6 +238,24 @@ pub fn run_id(a: &mut App, id: &str, tx: &mut Tx) {
     }
 }
 
+/// A press on a printed key (`seq` as keymap.toml writes it): runs what that key runs where the
+/// keys are, and nothing while its chip is muted (`spec.md` §4.6).
+pub fn press_key(a: &mut App, seq: &str, tx: &mut Tx) {
+    let scope = a.scope();
+    if let Some(command) = a.settings.keymap.runs(seq, scope.mode, scope.ctx) {
+        run(
+            a,
+            &Invocation {
+                command,
+                count: None,
+                applies: true,
+                keys: Vec::new(),
+            },
+            tx,
+        );
+    }
+}
+
 /// `]g [g` in the sidebar: the next or previous section.
 fn group_next(a: &mut App, inv: &Invocation, _: &mut Tx) {
     if a.focus != Focus::Sidebar {
@@ -301,13 +321,22 @@ fn picker_keys(a: &mut App, inv: &Invocation, tx: &mut Tx) {
         }
         return;
     }
-    if key != Key::plain(Code::Enter) {
+    let nothing_to_choose = match a.floats.last() {
+        Some((Float::Picker(p), _)) if p.kind == PickerKind::Palette => {
+            floats::palette_rows(a.settings.keymap, &p.query.text).is_empty()
+        }
+        Some((Float::Sheet(s), _)) => s.choose.is_some() && s.shown().is_empty(),
+        _ => false,
+    };
+    if key != Key::plain(Code::Enter) || nothing_to_choose {
         return;
     }
+    let keymap = a.settings.keymap;
     match a.close_float() {
         Some(Float::Picker(p)) if p.kind == PickerKind::Palette => {
-            if let Some(command) =
-                floats::palette_rows(a.settings.keymap, &p.query.text).get(p.cursor)
+            if let Some(command) = floats::palette_rows(keymap, &p.query.text)
+                .get(p.cursor)
+                .copied()
             {
                 let applies = a.settings.keymap.applies(command, a.scope().ctx);
                 run(
@@ -322,7 +351,10 @@ fn picker_keys(a: &mut App, inv: &Invocation, tx: &mut Tx) {
                 );
             }
         }
-        Some(Float::CmdLine(c)) => run_ex(a, c.line.text.trim(), tx),
+        Some(Float::CmdLine(c)) => {
+            let line = c.line.text.trim().to_string();
+            run_ex(a, &line, tx)
+        }
         Some(Float::Sheet(s)) => {
             if let (Some(choose), Some(&i)) = (s.choose, s.shown().get(s.cursor)) {
                 choose(a, i);
@@ -362,10 +394,12 @@ fn run_ex(a: &mut App, line: &str, tx: &mut Tx) {
 /// Confirm's keys: `y` runs its step, `n Esc q` cancel.
 fn confirm_keys(a: &mut App, inv: &Invocation, tx: &mut Tx) {
     let yes = inv.keys.first() == Some(&Key::char('y'));
-    if let Some(Float::Confirm(c)) = a.close_float()
-        && yes
-        && let Some(step) = c.on_yes
-    {
+    let step = match a.floats.last_mut() {
+        Some((Float::Confirm(c), _)) if yes => c.on_yes.take(),
+        _ => None,
+    };
+    a.close_float();
+    if let Some(step) = step {
         step(a, tx);
     }
 }

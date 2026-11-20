@@ -4,8 +4,9 @@
 
 use rune::{El, TextEdit, row, text};
 
+use super::{FILTER, Input, Noun, input, no_match};
 use crate::theme::Theme;
-use crate::ui::{Scope, Shell, float_hint, float_row, shell, title};
+use crate::ui::{Scope, Shell, float_hint, float_hint_if, float_row, shell, title};
 
 /// One row.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -26,8 +27,10 @@ pub struct Choices<'a> {
     pub rows: &'a [Choice],
     pub cursor: usize,
     pub query: &'a TextEdit,
-    /// The input's count word: `5 models`.
-    pub count: String,
+    /// What a row is: `5 models`.
+    pub noun: Noun,
+    /// The rows before the query: `1 of 5 models`.
+    pub total: usize,
     /// Stands in for the rows while there are none (`Nothing received from the server yet`).
     pub empty: Option<&'a str>,
 }
@@ -44,14 +47,16 @@ pub fn view(t: Theme, scope: Scope, c: Choices) -> El {
         );
     }
     let mut body = rune::col().w_full();
-    if c.rows.is_empty()
-        && let Some(words) = c.empty
-    {
-        body = body.child(float_row(
-            t,
-            false,
-            text(words).font(t.ty.ui).color(t.c.fg.alt),
-        ));
+    if c.rows.is_empty() {
+        if let Some(words) = c.empty {
+            body = body.child(float_row(
+                t,
+                false,
+                text(words).font(t.ty.ui).color(t.c.fg.alt),
+            ));
+        } else if !c.query.text.trim().is_empty() {
+            body = body.child(no_match(t, c.noun.none(&c.query.text)));
+        }
     }
     for (i, choice) in c.rows.iter().enumerate() {
         let mut content = row().center_y().gap(12.0).child(
@@ -86,9 +91,17 @@ pub fn view(t: Theme, scope: Scope, c: Choices) -> El {
             subtitle: None,
             meta: c.meta,
             body,
-            input: Some(super::input(t, c.query, None, c.count)),
+            input: Some(input(
+                t,
+                Input {
+                    edit: c.query,
+                    label: &format!("Filter {}", c.noun.many),
+                    placeholder: FILTER,
+                    count: c.noun.kept(&c.query.text, c.rows.len(), c.total),
+                },
+            )),
             hints: vec![
-                float_hint(t, scope, &["<CR>"], "choose"),
+                float_hint_if(t, scope, &["<CR>"], "choose", !c.rows.is_empty()),
                 float_hint(t, scope, &["<Esc>"], "back"),
             ],
         },

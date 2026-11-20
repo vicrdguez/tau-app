@@ -7,7 +7,7 @@ use std::sync::LazyLock;
 
 use serde::Deserialize;
 
-use super::key::{Code, Key, display, parse_seq};
+use super::key::{Code, Key, display, parse_seq, spoken};
 
 /// Where the keys act (`grammar.md` §3). A float that takes the keys is a root of its own.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -205,11 +205,12 @@ pub struct Bound {
     pub target: Target,
 }
 
-/// A printed key: what this device types for a key the design writes, and whether it runs where
-/// the keys are.
+/// A printed key: what this device types for a key the design writes, the same in words, and
+/// whether it runs where the keys are.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Chip {
     pub printed: String,
+    pub spoken: String,
     pub lit: bool,
 }
 
@@ -367,8 +368,8 @@ impl Keymap {
         self.commands().iter().filter(|c| c.has_ex())
     }
 
-    /// The printed forms of a command's keys in `mode`, deduplicated (`␣;`, `⌘K`).
-    pub fn keys_of(&self, command: &Command, mode: Mode) -> Vec<String> {
+    /// A command's keys in `mode`, as this device types them, deduplicated.
+    pub fn keys_of(&self, command: &Command, mode: Mode) -> Vec<&'static [Key]> {
         let Some(c) = self
             .commands()
             .iter()
@@ -376,14 +377,13 @@ impl Keymap {
         else {
             return Vec::new();
         };
-        let mut out: Vec<String> = Vec::new();
+        let mut out: Vec<&'static [Key]> = Vec::new();
         for b in self
             .bindings()
             .filter(|b| b.mode == mode && b.target == Target::Command(c))
         {
-            let shown = display(b.seq);
-            if !out.contains(&shown) {
-                out.push(shown);
+            if !out.contains(&b.seq) {
+                out.push(b.seq);
             }
         }
         out
@@ -442,9 +442,32 @@ impl Keymap {
         let Ok(design) = parse_seq(seq) else {
             return Chip {
                 printed: seq.to_string(),
+                spoken: seq.to_string(),
                 lit: false,
             };
         };
+        let (typed, runs) = self.printed(&design, mode, ctx);
+        Chip {
+            printed: display(typed),
+            spoken: spoken(typed),
+            lit: runs.is_some(),
+        }
+    }
+
+    /// What a press on the printed key `seq` runs: the command its key runs where the keys are,
+    /// while its chip is lit.
+    pub fn runs(&self, seq: &str, mode: Mode, ctx: Ctx) -> Option<&'static Command> {
+        let design = parse_seq(seq).ok()?;
+        self.printed(&design, mode, ctx).1
+    }
+
+    /// The keys this device types for the design's `design`, and the command they run here.
+    fn printed<'a>(
+        &self,
+        design: &'a [Key],
+        mode: Mode,
+        ctx: Ctx,
+    ) -> (&'a [Key], Option<&'static Command>) {
         let b = &self.design.bindings;
         let live = self.active(mode, ctx);
         let rank = self.rank(ctx);
@@ -453,7 +476,7 @@ impl Keymap {
             .copied()
             .filter(|&i| b[i].seq == design)
             .min_by_key(|&i| rank(i));
-        let typed = match here {
+        let typed: &'a [Key] = match here {
             Some(i) => self.seq(i),
             None => {
                 let mut all = (0..b.len())
@@ -461,19 +484,18 @@ impl Keymap {
                     .map(|i| self.seq(i));
                 match all.next() {
                     Some(first) if all.all(|s| s == first) => first,
-                    _ => &design,
+                    _ => design,
                 }
             }
         };
         let look = self.lookup_in(&live, ctx, typed);
-        let lit = match look.exact {
-            Some(Target::Command(i)) if !look.longer => self.applies(&self.commands()[i], ctx),
-            _ => false,
+        let runs = match look.exact {
+            Some(Target::Command(i)) if !look.longer => {
+                Some(&self.commands()[i]).filter(|c| self.applies(c, ctx))
+            }
+            _ => None,
         };
-        Chip {
-            printed: display(typed),
-            lit,
-        }
+        (typed, runs)
     }
 
     /// The which-key float for a pending prefix, or `None` when it isn't a proper prefix.

@@ -10,7 +10,7 @@ use super::state::shown;
 use crate::app::{App, Invocation};
 use crate::floats::choices::{self, Choice, Choices};
 use crate::floats::detail::{self, Detail};
-use crate::floats::{Float, cursor_step};
+use crate::floats::{Float, Noun, cursor_step};
 use crate::keys::{Code, Ctx, Key, Mode};
 use crate::screens::{NOTHING_RECEIVED, ScreenFloat, ScreenId, top_float};
 use crate::theme::Theme;
@@ -71,6 +71,19 @@ impl Picker {
 
     /// The rows the query keeps, in the server's order.
     pub fn rows(&self, app: &App) -> Vec<Row> {
+        let q = self.query.text.trim().to_lowercase();
+        self.all(app)
+            .into_iter()
+            .filter(|r| {
+                q.is_empty()
+                    || r.label.to_lowercase().contains(&q)
+                    || r.value.to_lowercase().contains(&q)
+            })
+            .collect()
+    }
+
+    /// Every row, before the query.
+    fn all(&self, app: &App) -> Vec<Row> {
         let agent = app
             .link
             .server()
@@ -80,7 +93,7 @@ impl Picker {
             .map(|d| &d.agent);
         let model = agent.and_then(|a| a.model.clone());
         let level = agent.and_then(|a| a.thinking_level.clone());
-        let all: Vec<Row> = match self.pick {
+        match self.pick {
             Pick::Model => app
                 .link
                 .server()
@@ -104,15 +117,7 @@ impl Picker {
                     current: level.as_deref() == Some(word),
                 })
                 .collect(),
-        };
-        let q = self.query.text.trim().to_lowercase();
-        all.into_iter()
-            .filter(|r| {
-                q.is_empty()
-                    || r.label.to_lowercase().contains(&q)
-                    || r.value.to_lowercase().contains(&q)
-            })
-            .collect()
+        }
     }
 }
 
@@ -143,8 +148,8 @@ impl ScreenFloat for Picker {
             })
             .collect();
         let (title, noun) = match self.pick {
-            Pick::Model => ("Model", "model"),
-            Pick::Thinking => ("Thinking", "level"),
+            Pick::Model => ("Model", Noun::new("model", "models")),
+            Pick::Thinking => ("Thinking", Noun::new("level", "levels")),
         };
         let received = self.pick == Pick::Thinking || app.link.server().models.value().is_some();
         choices::view(
@@ -157,11 +162,8 @@ impl ScreenFloat for Picker {
                 rows: &choices,
                 cursor: self.cursor,
                 query: &self.query,
-                count: format!(
-                    "{} {noun}{}",
-                    rows.len(),
-                    if rows.len() == 1 { "" } else { "s" }
-                ),
+                noun,
+                total: self.all(app).len(),
                 empty: (!received).then_some(NOTHING_RECEIVED),
             },
         )

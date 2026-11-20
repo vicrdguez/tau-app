@@ -10,6 +10,7 @@
 //! - `Esc` in capture closes the float or loses the filter and the row; a second `Esc` doesn't
 //!   close it;
 //! - `C-x` leaves the key moved, or its line in the file;
+//! - a command's second key is missing, or rebinding and resetting it loses the query or the row;
 //! - the width steps past its bounds, or the page behind doesn't follow;
 //! - the motion row doesn't flip motion;
 //! - a fixed row takes a capture.
@@ -97,7 +98,7 @@ fn typing_narrows_the_rows_to_the_values_and_keys_it_names() {
     match &shown(&a)[0] {
         Row::Key(r) => assert_eq!(
             (r.command.id.as_str(), display(&r.design)),
-            ("start.workflow", "M-w".to_string())
+            ("start.workflow", "⌥W".to_string())
         ),
         other => panic!("{other:?}"),
     }
@@ -105,7 +106,8 @@ fn typing_narrows_the_rows_to_the_values_and_keys_it_names() {
     assert!(
         shown(&a)
             .iter()
-            .all(|r| matches!(r, Row::Key(k) if display(&k.now).contains("M-w")))
+            .all(|r| matches!(r, Row::Key(k) if display(&k.now) == "⌥W")),
+        "the keymap's notation still finds the key it prints as ⌥W"
     );
     a.float_edit().replace_text("composer");
     assert!(shown(&a).iter().all(
@@ -125,7 +127,7 @@ fn a_new_workflow_key_runs_in_both_modes_prints_on_the_start_line_and_is_saved()
     assert_eq!(float(&a).and_then(|f| f.capture.clone()), None);
     assert_eq!(
         a.echo.as_deref(),
-        Some("start page: workflow or model is now M-m")
+        Some("start page: workflow or model is now ⌥M")
     );
     assert!(
         on_disk(&dir).contains("[keys.\"start.workflow\"]\n\"<M-w>\" = \"<M-m>\"\n"),
@@ -154,7 +156,7 @@ fn a_new_workflow_key_runs_in_both_modes_prints_on_the_start_line_and_is_saved()
             .keymap
             .chip("<M-w>", Mode::Insert, crate::keys::Ctx::Start)
             .printed,
-        "M-m"
+        "⌥M"
     );
 }
 
@@ -241,7 +243,7 @@ fn ctrl_x_puts_the_design_key_back_and_removes_the_line() {
     );
     assert_eq!(
         a.echo.as_deref(),
-        Some("start page: workflow or model is M-w again")
+        Some("start page: workflow or model is ⌥W again")
     );
 }
 
@@ -303,4 +305,27 @@ fn a_fixed_row_says_why_and_takes_no_capture() {
     );
     key(&mut a, "<C-x>");
     assert_eq!(a.settings.keymap, Keymap::design());
+}
+
+#[test]
+fn both_keys_of_commands_show_and_one_rebound_puts_back_keeping_the_query() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut a = start(&dir);
+    open(&mut a, "commands");
+    let keys: Vec<String> = shown(&a)
+        .iter()
+        .filter_map(|r| match r {
+            Row::Key(k) if k.command.id == "palette" => Some(display(&k.now)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(keys.len(), 2, "{keys:?}");
+    key(&mut a, "<C-j><CR><M-y><CR>");
+    assert_ne!(a.settings.keymap, Keymap::design());
+    let f = float(&a).expect("open");
+    assert_eq!((f.query.text.as_str(), f.cursor), ("commands", 1));
+    key(&mut a, "<C-x>");
+    assert_eq!(a.settings.keymap, Keymap::design());
+    let f = float(&a).expect("open");
+    assert_eq!((f.query.text.as_str(), f.cursor), ("commands", 1));
 }
