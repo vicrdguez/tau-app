@@ -1,19 +1,25 @@
+//! How a key's change could pick the wrong motion (`visual-language.md` §7):
+//! - closing a float lands at once instead of lowering its edge;
+//! - a key under a float lands the float's new height instead of gliding its edge there;
+//! - a page change, with or without a float closing, glides;
+//! - a cursor or theme change with no float animates.
 use super::*;
 use crate::app::Stage;
 use crate::frame::{Place, SidebarPlace};
 
 #[test]
-fn moving_only_tracks_the_users_layout_changes() {
+fn moving_tracks_the_float_and_the_users_layout_changes() {
     let before = Moving::of(&App::default());
     assert!(
         !before.moved_since(&before),
         "cursor and theme are not moving state"
     );
+    let shown = Moving {
+        float: true,
+        ..before.clone()
+    };
     for after in [
-        Moving {
-            floats: before.floats + 1,
-            ..before.clone()
-        },
+        shown.clone(),
         Moving {
             sidebar: None,
             ..before.clone()
@@ -33,17 +39,24 @@ fn moving_only_tracks_the_users_layout_changes() {
     ] {
         assert!(after.moved_since(&before));
     }
-    let opened = Moving {
-        floats: before.floats + 1,
-        ..before.clone()
-    };
-    assert!(!before.moved_since(&opened), "closing a float lands");
+    assert!(
+        before.moved_since(&shown),
+        "closing a float lowers its edge"
+    );
+    assert!(
+        shown.moved_since(&shown),
+        "any key under a float may change its height"
+    );
     let new_page = Moving {
         stage: Stage::Place(Place::Conversations),
         page: before.page + 1,
         ..before.clone()
     };
     assert!(!new_page.moved_since(&before), "a new page lands");
+    assert!(
+        !new_page.moved_since(&shown),
+        "a float closing with a page change lands"
+    );
     let changed_frame = Moving {
         details: !before.details,
         sidebar: None,
@@ -52,14 +65,6 @@ fn moving_only_tracks_the_users_layout_changes() {
     assert!(
         !changed_frame.moved_since(&before),
         "a page change lands its panels too"
-    );
-    let closed_with_change = Moving {
-        page: before.page + 1,
-        ..before.clone()
-    };
-    assert!(
-        !closed_with_change.moved_since(&opened),
-        "closing a float lands the page change"
     );
 }
 

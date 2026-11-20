@@ -6,7 +6,7 @@ mod tests;
 use super::home::list::{self, Cursor, ListRow, RowId};
 use super::{NOTHING_RECEIVED, Screen, home};
 use crate::app::{App, Handler, Stage};
-use crate::frame::{Crumb, Place};
+use crate::frame::{Crumb, Place, Room};
 use crate::keys::{Ctx, Key};
 use crate::theme::Theme;
 use crate::ui::Mark;
@@ -82,14 +82,28 @@ pub fn rows(app: &App) -> Vec<ListRow> {
 
 pub fn matching_rows(app: &App, query: &str) -> Vec<ListRow> {
     let settings = settings(app);
-    let rs = match place(app) {
+    filtered_rows(app)
+        .into_iter()
+        .filter(|r| !r.hidden || settings.show_hidden)
+        .filter(|r| r.label.to_lowercase().contains(&query.to_lowercase()))
+        .collect()
+}
+
+/// Every row of the place, hidden ones included.
+fn all_rows(app: &App) -> Vec<ListRow> {
+    match place(app) {
         Place::Timeline => list::events(app),
         Place::Faults => list::faults(app),
         _ => list::conversations(app),
-    };
-    rs.into_iter()
+    }
+}
+
+/// The rows the place's filter keeps, hidden ones included.
+fn filtered_rows(app: &App) -> Vec<ListRow> {
+    let settings = settings(app);
+    all_rows(app)
+        .into_iter()
         .filter(|r| settings.project.as_ref().is_none_or(|p| *p == r.project))
-        .filter(|r| !r.hidden || settings.show_hidden)
         .filter(|r| {
             place(app) != Place::Conversations
                 || settings.state.as_deref().is_none_or(|s| match s {
@@ -99,8 +113,113 @@ pub fn matching_rows(app: &App, query: &str) -> Vec<ListRow> {
                     _ => true,
                 })
         })
-        .filter(|r| r.label.to_lowercase().contains(&query.to_lowercase()))
         .collect()
+}
+
+/// Why a place draws no rows.
+enum Empty {
+    /// The server has none.
+    Nothing,
+    /// The filter keeps none.
+    Filtered,
+    /// The filter keeps this many, all hidden on this device.
+    Hidden(usize),
+    /// The search matches none.
+    Searched,
+}
+
+fn empty(app: &App) -> Empty {
+    let kept = filtered_rows(app);
+    if all_rows(app).is_empty() {
+        Empty::Nothing
+    } else if kept.is_empty() {
+        Empty::Filtered
+    } else if !settings(app).show_hidden && kept.iter().all(|r| r.hidden) {
+        Empty::Hidden(kept.len())
+    } else {
+        Empty::Searched
+    }
+}
+
+/// One line where the first row would be, saying why there are none.
+fn empty_view(t: Theme, app: &App) -> El {
+    let p = place(app);
+    let s = settings(app);
+    let say = |s: &str| list::line(t, s, t.c.fg.alt);
+    let quiet = |s: &str| text(s.to_string()).font(t.ty.ui_small).color(t.c.fg.muted);
+    let line = row().center_y().h(28.0).gap(12.0);
+    match empty(app) {
+        Empty::Nothing => line.child(say(match p {
+            Place::Faults => "No faulted tasks.",
+            Place::Timeline => "No events yet. Bare conversations write none.",
+            _ => "No conversations yet.",
+        })),
+        Empty::Filtered => {
+            let project = s.project.as_deref().unwrap_or_default();
+            let sentence = match p {
+                Place::Faults => format!("No faulted tasks in {project}."),
+                Place::Timeline => format!("No events in {project} yet."),
+                _ => format!(
+                    "No {}conversations{}.",
+                    s.state.as_ref().map_or(String::new(), |s| format!("{s} ")),
+                    s.project
+                        .as_ref()
+                        .map_or(String::new(), |p| format!(" in {p}")),
+                ),
+            };
+            let control = if s.state.is_some() {
+                "show all"
+            } else {
+                "show all projects"
+            };
+            line.child(say(&sentence))
+                .child(quiet(control).on_press(|a: &mut App| {
+                    if a.floats.is_empty() {
+                        show_all(a);
+                    }
+                }))
+        }
+        Empty::Hidden(n) => {
+            let what = match (p, n) {
+                (Place::Faults, 1) => "faulted task",
+                (Place::Faults, _) => "faulted tasks",
+                (_, 1) => "failed run",
+                _ => "failed runs",
+            };
+            line.gap(8.0)
+                .child(say(&format!("{n} {what} hidden on this device")))
+                .child(
+                    row()
+                        .center_y()
+                        .gap(8.0)
+                        .child(crate::ui::chip(t, app.scope(), "<leader>th", false))
+                        .child(say("show hidden"))
+                        .on_press(|a: &mut App| {
+                            if a.floats.is_empty() {
+                                toggle_hidden(a);
+                            }
+                        }),
+                )
+        }
+        Empty::Searched => line.child(say("No matching rows.")),
+    }
+}
+
+/// Resets this place's filter to every project and, in Conversations, every state.
+pub fn show_all(app: &mut App) {
+    let s = settings_mut(app);
+    s.project = None;
+    s.state = None;
+    s.cursor = Cursor::default();
+    save(app);
+    reconcile(app);
+}
+
+fn toggle_hidden(app: &mut App) {
+    let s = settings_mut(app);
+    s.show_hidden = !s.show_hidden;
+    reconcile(app);
+    save(app);
 }
 pub fn selected(app: &App) -> Option<ListRow> {
     let rs = rows(app);
@@ -175,7 +294,11 @@ impl Screen for Places {
         {
             filter.push_str(&format!(" · {state}"));
         }
-        vec![Crumb::Text(place(app).name().into()), Crumb::Text(filter)]
+        let mut crumbs = vec![Crumb::Text(place(app).name().into()), Crumb::Text(filter)];
+        if s.project.is_some() || s.state.is_some() {
+            crumbs.push(Crumb::ShowAll(show_all));
+        }
+        crumbs
     }
     fn has_peek(&self, _: &App) -> bool {
         true
@@ -204,6 +327,7 @@ impl Screen for Places {
             );
         }
         body = body.child(rune::el().h(if p == Place::Conversations { 0.0 } else { 18.0 }));
+        let grid = list::Grid::place(app, &rs);
         let mut group = "";
         for r in &rs {
             if p == Place::Conversations && r.group != group {
@@ -213,10 +337,15 @@ impl Screen for Places {
                     .filter(|r| r.group == group)
                     .collect::<Vec<_>>();
                 let mut counts = Vec::new();
-                for (mark, word) in [(Mark::Running, "running"), (Mark::Failed, "failed")] {
-                    let n = all.iter().filter(|r| r.mark == Some(mark)).count();
-                    if n > 0 {
-                        counts.push(format!("{n} {word}"));
+                if let Some(state) = &settings(app).state {
+                    let shown = rs.iter().filter(|r| r.group == group).count();
+                    counts.push(format!("{shown} {state} shown"));
+                } else {
+                    for (mark, word) in [(Mark::Running, "running"), (Mark::Failed, "failed")] {
+                        let n = all.iter().filter(|r| r.mark == Some(mark)).count();
+                        if n > 0 {
+                            counts.push(format!("{n} {word}"));
+                        }
                     }
                 }
                 counts.push(format!("{} in all", all.len()));
@@ -239,24 +368,17 @@ impl Screen for Places {
                         ),
                 );
             }
-            body = body.child(list::row_view(t, app, r, id.as_ref() == Some(&r.id), false));
+            body = body.child(list::row_view(t, app, r, id.as_ref() == Some(&r.id), &grid));
             if r.hidden {
-                body = body.child(list::line(t, "hidden on this device", t.c.fg.muted).pl(36.0));
+                body = body.child(row().pl(list::label_inset()).child(list::line(
+                    t,
+                    "hidden on this device",
+                    t.c.fg.muted,
+                )));
             }
         }
         if rs.is_empty() {
-            body = body.child(
-                list::line(
-                    t,
-                    if p == Place::Timeline {
-                        "No events yet. Bare conversations write none."
-                    } else {
-                        "No matching rows."
-                    },
-                    t.c.fg.alt,
-                )
-                .mx(12.0),
-            );
+            body = body.child(empty_view(t, app).mx(12.0));
         }
         if p == Place::Timeline {
             body = body.child(rune::el().h(1.0).on_layout(|a: &mut App, rect| {
@@ -293,12 +415,7 @@ impl Screen for Places {
                     reconcile(a);
                 }
             }),
-            ("toggle.hidden", |a, _, _| {
-                let s = settings_mut(a);
-                s.show_hidden = !s.show_hidden;
-                reconcile(a);
-                save(a);
-            }),
+            ("toggle.hidden", |a, _, _| toggle_hidden(a)),
             ("list.filter_project", |a, _, _| floats::filter(a)),
             ("picker.keys", floats::picker_keys),
             ("outbox.keys", floats::outbox_keys),
@@ -333,10 +450,14 @@ impl Screen for Places {
         }
         home::motion(app, keys, count)
     }
-    fn reveal_target(&self, app: &App, tx: &mut Tx) {
-        if let Some(id) = &settings(app).cursor.id {
-            tx.scroll_into_view(format!("list-{id:?}"));
-        }
+    fn room(&self, app: &App) -> Room {
+        Room::Lift(
+            settings(app)
+                .cursor
+                .id
+                .as_ref()
+                .map(|id| format!("list-{id:?}")),
+        )
     }
     fn shown(&self, app: &mut App) {
         load(app);
@@ -375,6 +496,27 @@ impl Screen for Places {
                 super::peek::settle_scene(a);
             }),
             ("faults", |a| scene(a, Place::Faults)),
+            ("faults-hidden", |a| {
+                scene(a, Place::Faults);
+                for r in list::faults(a) {
+                    if let RowId::Fault(p, task) = r.id {
+                        a.hidden.faults.insert((p, task));
+                    }
+                }
+                crate::app::link::refresh(a);
+                reconcile(a);
+            }),
+            ("conversations-running", |a| {
+                scene(a, Place::Conversations);
+                a.screens.places.conversations.state = Some("running".into());
+                reconcile(a);
+                super::peek::settle_scene(a);
+            }),
+            ("timeline-filtered", |a| {
+                scene(a, Place::Timeline);
+                filter_project(a, Place::Timeline, Some("notes-cli".into()));
+                reconcile(a);
+            }),
             ("filter", |a| {
                 scene(a, Place::Conversations);
                 floats::filter(a)

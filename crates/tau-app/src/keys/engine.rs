@@ -34,8 +34,11 @@ pub enum Outcome<'k> {
 pub struct Keys {
     pending: Vec<Key>,
     count: Option<u32>,
-    /// When the last pending key arrived, in seconds.
+    /// When the last key arrived, in seconds.
     last_at: f64,
+    /// The longest wait, in seconds, with a prefix of this sequence pending: once it reaches the
+    /// delay, which-key has shown, and it stays for the sequence.
+    held: f64,
 }
 
 impl Keys {
@@ -53,6 +56,11 @@ impl Keys {
             self.reset();
             return Outcome::Cancelled;
         }
+        self.held = if self.pending.is_empty() {
+            0.0
+        } else {
+            self.held.max(now - self.last_at)
+        };
         self.last_at = now;
         if matches!(mode, Mode::Normal | Mode::Visual)
             && self.pending.is_empty()
@@ -111,9 +119,10 @@ impl Keys {
         count + &display(&self.pending)
     }
 
-    /// Whether which-key should show: a prefix has waited `delay_ms` since its last key.
+    /// Whether which-key shows: a prefix has waited `delay_ms` since its last key, now or earlier
+    /// in the sequence, so it stays until the sequence ends.
     pub fn which_key_due(&self, now: f64, delay_ms: f64) -> bool {
-        !self.pending.is_empty() && (now - self.last_at) * 1000.0 >= delay_ms - 1e-6
+        !self.pending.is_empty() && self.held.max(now - self.last_at) * 1000.0 >= delay_ms - 1e-6
     }
 
     pub fn reset(&mut self) {

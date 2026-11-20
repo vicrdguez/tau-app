@@ -1,24 +1,31 @@
-//! The settings float (`␣hs`, `:settings`, `⌘,`): the theme, the reading width and motion, a
-//! hairline, then one row per key of each command. Typing filters the rows. On a value row `C-h`
-//! `C-l` (or Left Right) and `⏎` change it; on a key row `⏎` takes a new key and `C-x` puts back
-//! the design's. Every change applies at once and is saved through `settings::change`.
+//! The settings float (`␣hs`, `:settings`, `⌘,`): the theme, the reading width and motion under
+//! `Preferences`, then one row per key of each command under `Keys`. Typing filters the rows. On a
+//! value row `C-h` `C-l` (or Left Right) and `⏎` change it; on a key row `⏎` takes a new key and
+//! `C-x` puts back the design's. Every change applies at once and is saved through
+//! `settings::change`.
 //!
 //! While a key row takes a new key, every key comes here before the keymap (`capture`): `⏎`
 //! keeps the keys, `Esc` and `C-c` cancel, Backspace takes the last one back, auto-repeats and a
 //! fifth key are ignored. A key the keymap refuses keeps the capture open with the reason on the
 //! row and in the echo.
 
-use rune::{El, TextEdit, Tx, col, el, row, text};
+use rune::{El, TextEdit, Tx, col, row, text};
 
-use super::{Float, input, matches, plural};
+use super::{FILTER, Float, Input, Noun, input, matches, no_match};
 use crate::app::{App, Invocation};
 use crate::keys::{Code, Ctx, Key, KeyRow, Keymap, Mode, Refusal, display, written};
 use crate::settings::{self, Edit, FILE, Field, Settings};
 use crate::theme::Theme;
-use crate::ui::{Scope, Shell, float_hint, float_row, glyphs, shell, title};
+use crate::ui::{
+    FLOAT_CURSOR, Scope, Shell, float_hint, float_hint_if, float_row, glyphs, group_head,
+    printed_keys, shell, title,
+};
 
 /// A new key is at most this many keys long.
 const MOST: usize = 4;
+const SETTINGS: Noun = Noun::new("setting", "settings");
+const PREFERENCES: Noun = Noun::new("preference", "preferences");
+const KEYS: Noun = Noun::new("key", "keys");
 
 pub struct SettingsFloat {
     pub query: TextEdit,
@@ -299,16 +306,20 @@ pub fn view(t: Theme, f: &SettingsFloat, s: &Settings) -> El {
         ctx: Ctx::Settings,
     };
     let rows = rows(s.keymap, &f.query.text);
-    let start = f.cursor.saturating_sub(5);
+    let preferences = rows.iter().filter(|r| matches!(r, Row::Field(_))).count();
+    let keys = rows.len() - preferences;
     let mut body = col().w_full();
-    for (i, r) in rows.iter().enumerate().skip(start).take(12) {
-        if i > start && matches!(r, Row::Key(_)) && matches!(rows[i - 1], Row::Field(_)) {
-            body = body.child(
-                el().h(1.0)
-                    .mx(t.l.float.padding_x)
-                    .fill(t.c.border.hairline),
-            );
+    for (i, r) in rows.iter().enumerate() {
+        let head = match r {
+            Row::Field(_) if i == 0 => Some(("Preferences", preferences)),
+            Row::Key(_) if i == preferences => Some(("Keys", keys)),
+            _ => None,
         }
+        .map(|(name, n)| {
+            group_head(t, name, Some(n as u32))
+                .px(t.l.float.padding_x)
+                .mt(if i == 0 { 0.0 } else { t.l.space[4] })
+        });
         let here = i == f.cursor;
         let content = match r {
             Row::Field(field) => line(
@@ -350,8 +361,8 @@ pub fn view(t: Theme, f: &SettingsFloat, s: &Settings) -> El {
                     Some(typed) if typed.is_empty() => {
                         text("press a key…").font(t.ty.ui_small).color(t.c.fg.muted)
                     }
-                    Some(typed) => glyphs(&display(typed), t.ty.mono_small, t.c.fg.default),
-                    None => glyphs(&display(&k.now), t.ty.mono_small, t.c.fg.muted),
+                    Some(typed) => printed_keys(&[typed], t.ty.mono_small, t.c.fg.default),
+                    None => printed_keys(&[&k.now], t.ty.mono_small, t.c.fg.muted),
                 };
                 let ex = if k.command.has_ex() {
                     format!(":{}", k.command.ex)
@@ -361,12 +372,22 @@ pub fn view(t: Theme, f: &SettingsFloat, s: &Settings) -> El {
                 line(t, &k.command.desc, about, ex, key)
             }
         };
-        body = body.child(
-            float_row(t, here, content).on_press_tx(move |a: &mut App, tx| {
-                choose(a, i);
-                tx.instant();
-            }),
-        );
+        let item = float_row(t, here, content).on_press_tx(move |a: &mut App, tx| {
+            choose(a, i);
+            tx.instant();
+        });
+        body = match head {
+            // The reveal keeps a group's head in view with its first row.
+            Some(head) if here => body.child(
+                col()
+                    .w_full()
+                    .key(FLOAT_CURSOR)
+                    .child(head)
+                    .child(item.key("settings-row")),
+            ),
+            Some(head) => body.child(head).child(item),
+            None => body.child(item),
+        };
     }
     let hint = |seqs: &[&str], word: &str| float_hint(t, scope, seqs, word);
     let mut hints = match (f.capture.as_ref(), rows.get(f.cursor)) {
@@ -377,12 +398,15 @@ pub fn view(t: Theme, f: &SettingsFloat, s: &Settings) -> El {
                 hint(&["<Esc>"], "back"),
             ]
         }
-        (None, _) => vec![
-            hint(&["<CR>"], "new key"),
-            hint(&["<C-x>"], "default"),
+        (None, selected) => vec![
+            float_hint_if(t, scope, &["<CR>"], "new key", selected.is_some()),
+            float_hint_if(t, scope, &["<C-x>"], "default", selected.is_some()),
             hint(&["<Esc>"], "back"),
         ],
     };
+    if rows.is_empty() {
+        body = body.child(no_match(t, SETTINGS.none(&f.query.text)));
+    }
     if f.capture.as_ref().is_some_and(|k| k.len() == MOST) {
         hints.insert(
             0,
@@ -404,9 +428,16 @@ pub fn view(t: Theme, f: &SettingsFloat, s: &Settings) -> El {
             body,
             input: Some(input(
                 t,
-                &query,
-                None,
-                plural(rows.len(), "setting", "settings"),
+                Input {
+                    edit: &query,
+                    label: "Filter settings",
+                    placeholder: FILTER,
+                    count: if f.query.text.trim().is_empty() {
+                        format!("{} · {}", PREFERENCES.count(preferences), KEYS.count(keys))
+                    } else {
+                        SETTINGS.kept(&f.query.text, rows.len(), self::rows(s.keymap, "").len())
+                    },
+                },
             )),
             hints,
         },

@@ -13,7 +13,12 @@
 //! - `␣mn`, Visual and `c` put a note on another range than the reader chose, or a selection
 //!   across markup stays exact without saying so (FA7);
 //! - `dd` and `u` lose a draft for good; drafts don't survive a relaunch, or leak between
-//!   decisions; `]n` skips a passage.
+//!   decisions; `]n` skips a passage;
+//! - a click on the solid Answer opens nothing, or a click on its outline opens the readback;
+//! - a click on the readback's foot hint, Return or an early `y` after a click-opened readback
+//!   sends; the hint reads as a button or not as the instruction it is;
+//! - the readback's grid cuts a value with `…`: the note scope at 800 px above all, or the scope
+//!   moves anywhere but under the count, aligned to the values, with `K reads them` left above.
 
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, LazyLock};
@@ -27,7 +32,7 @@ use tau_client::{DecisionRef, OutboxEntry, WriteCall};
 use super::readback::{Kind, Phase, Readback};
 use super::state::Cursor;
 use super::*;
-use crate::app::testing::{Wire, paired};
+use crate::app::testing::{Wire, click, paired, spoken, window};
 use crate::app::{input, link};
 use crate::frame::SegmentKind;
 use crate::keys::parse_seq;
@@ -550,4 +555,223 @@ fn the_cursor_moves_by_block_into_the_choices() {
         Some(1),
         "preselected from the cursor"
     );
+}
+
+fn clicked_answer() -> (rune::Runtime<App>, crate::app::testing::Setup) {
+    let T { app, _setup, .. } = review_with_drafts();
+    let mut rt = window(app);
+    click(&mut rt, "segment-answer");
+    (rt, _setup)
+}
+
+fn tick(rt: &mut rune::Runtime<App>, seconds: f64) {
+    rt.state.now = seconds;
+    crate::app::poll(&mut rt.state, seconds, &mut Tx::default());
+    rt.frame(0.02);
+}
+
+fn press(rt: &mut rune::Runtime<App>, seq: &str) {
+    for key in parse_seq(seq).unwrap() {
+        input::press(&mut rt.state, key, false, &mut Tx::default());
+    }
+    rt.frame(0.02);
+}
+
+fn sent(a: &App) -> usize {
+    a.link
+        .outbox()
+        .entries()
+        .iter()
+        .filter(|e| e.call == WriteCall::Answer)
+        .count()
+}
+
+#[test]
+fn a_click_on_the_solid_answer_opens_the_readback_and_esc_keeps_the_drafts() {
+    let (mut rt, _setup) = clicked_answer();
+    assert!(
+        top_float::<Readback>(&mut rt.state).is_some(),
+        "the click opens it"
+    );
+    assert_eq!(sent(&rt.state), 0, "a click only opens");
+    press(&mut rt, "<Esc>");
+    assert!(top_float::<Readback>(&mut rt.state).is_none());
+    assert_eq!(rt.state.screens.decision.notes.of(&review()).len(), 3);
+}
+
+#[test]
+fn the_answer_outline_takes_no_click() {
+    let T {
+        mut app, _setup, ..
+    } = review_with_drafts();
+    app.focus = crate::app::Focus::Sidebar;
+    app.sidebar_cursor = app.current_row();
+    let mut rt = window(app);
+    click(&mut rt, "segment-answer");
+    assert!(top_float::<Readback>(&mut rt.state).is_none());
+}
+
+#[test]
+fn after_a_click_neither_the_foot_hint_return_nor_an_early_y_sends() {
+    let (mut rt, _setup) = clicked_answer();
+    tick(&mut rt, 10.0);
+    press(&mut rt, "y");
+    assert_eq!(rt.state.echo.as_deref(), Some("read it first"));
+    press(&mut rt, "2");
+    tick(&mut rt, 10.5);
+    tick(&mut rt, 10.6);
+    press(&mut rt, "<CR>");
+    click(&mut rt, "readback-confirm");
+    assert_eq!(sent(&rt.state), 0);
+    assert_eq!(
+        rt.state.echo.as_deref(),
+        Some("press y to send this answer")
+    );
+    assert!(top_float::<Readback>(&mut rt.state).is_some());
+    press(&mut rt, "y");
+    assert_eq!(sent(&rt.state), 1, "y itself still sends");
+}
+
+#[test]
+fn the_foot_hint_reads_as_the_instruction_it_is() {
+    for (scene, words, name) in [
+        (
+            "readback-answer",
+            "send this answer",
+            "Press Y to send this answer",
+        ),
+        (
+            "readback-send-again",
+            "send it again",
+            "Press Y to send it again",
+        ),
+    ] {
+        let mut a = App::default();
+        crate::app::scenes::all()
+            .iter()
+            .find(|(n, _)| *n == scene)
+            .unwrap()
+            .1(&mut a);
+        let rt = window(a);
+        assert!(
+            rt.elements()
+                .iter()
+                .any(|e| e.text.as_deref() == Some(words)),
+            "{scene}"
+        );
+        let hint = spoken(&rt)
+            .into_iter()
+            .find(|n| n.key == "readback-confirm")
+            .expect("the foot hint");
+        assert_eq!((hint.role.as_str(), hint.name.as_str()), ("label", name));
+    }
+}
+
+/// The `readback-answer` scene at `width`, with the review's drafts cut to `keep` of them.
+fn readback_with(width: f32, keep: &[usize]) -> rune::Runtime<App> {
+    let mut a = App::default();
+    crate::app::scenes::all()
+        .iter()
+        .find(|(n, _)| *n == "readback-answer")
+        .unwrap()
+        .1(&mut a);
+    let drafts: Vec<super::notes::Draft> =
+        serde_json::from_value(FIXTURE["local"]["noteDrafts"]["render-core/w1:3:design#2"].clone())
+            .unwrap();
+    let kept = keep.iter().map(|&i| drafts[i].clone()).collect();
+    a.screens.decision.notes.seed(&review(), kept);
+    let height = if width < 1000.0 { 600.0 } else { 982.0 };
+    a.window = [width, height];
+    crate::app::testing::window_at(a, [width, height])
+}
+
+/// A text of the readback, drawn whole: as wide as it sets on one line in `ui` (or `ui.small`),
+/// or wrapped onto more.
+fn whole(rt: &rune::Runtime<App>, words: &str) -> rune::ElementInfo {
+    let elements = rt.elements();
+    let float = elements
+        .iter()
+        .find(|e| e.key.as_deref() == Some("decision-readback"))
+        .expect("the readback")
+        .rect;
+    let e = elements
+        .into_iter()
+        .find(|e| e.text.as_deref() == Some(words) && e.rect[1] >= float[1])
+        .unwrap_or_else(|| panic!("{words:?} is not in the readback"));
+    let ty = rt.state.theme().ty;
+    let style = if e.rect[3] < ty.ui.line_height {
+        ty.ui_small
+    } else {
+        ty.ui
+    };
+    let natural = rune::text::measure(words, &[], style, None).0;
+    assert!(
+        e.rect[2] >= natural - 1.0 || e.rect[3] > style.line_height + 1.0,
+        "{words:?} is cut: {:?}, natural width {natural}",
+        e.rect
+    );
+    assert!(
+        e.visible[3] >= e.rect[3] - 1.0,
+        "{words:?} is clipped: {:?} {:?}",
+        e.rect,
+        e.visible
+    );
+    e
+}
+
+#[test]
+fn at_800_the_note_scope_continues_under_the_count_and_is_never_cut() {
+    let rt = readback_with(800.0, &[0, 1, 2]);
+    let count = whole(&rt, "3 sent with the answer");
+    let scopes = whole(&rt, "2 on passages · 1 on the whole");
+    assert!(
+        scopes.rect[1] >= count.rect[1] + count.rect[3] - 1.0,
+        "on the next line"
+    );
+    assert!(
+        (scopes.rect[0] - count.rect[0]).abs() <= 1.0,
+        "aligned to the values"
+    );
+    let k = whole(&rt, "reads them");
+    let mid = |e: &rune::ElementInfo| e.rect[1] + e.rect[3] / 2.0;
+    assert!(
+        (mid(&k) - mid(&count)).abs() <= 2.0,
+        "K stays on the first line"
+    );
+    assert!(k.rect[0] > count.rect[0] + count.rect[2]);
+    let basis = whole(&rt, "basis");
+    assert!(
+        basis.rect[1] >= scopes.rect[1] + scopes.rect[3] - 1.0,
+        "the rows below move down"
+    );
+    whole(&rt, "from");
+}
+
+#[test]
+fn the_notes_row_is_whole_with_one_note_with_none_and_on_a_wide_window() {
+    let rt = readback_with(1512.0, &[0, 1, 2]);
+    whole(
+        &rt,
+        "3 sent with the answer · 2 on passages · 1 on the whole",
+    );
+    for width in [800.0, 1512.0] {
+        let rt = readback_with(width, &[0]);
+        let words: Vec<String> = rt.elements().into_iter().filter_map(|e| e.text).collect();
+        let one = words
+            .iter()
+            .find(|w| w.starts_with("1 sent with the answer"))
+            .unwrap_or_else(|| panic!("{words:?}"))
+            .clone();
+        whole(&rt, &one);
+        if one == "1 sent with the answer" {
+            whole(&rt, "1 on a passage");
+        }
+        let rt = readback_with(width, &[]);
+        whole(&rt, "none");
+        assert!(
+            !rt.elements()
+                .iter()
+                .any(|e| e.text.as_deref() == Some("reads them"))
+        );
+    }
 }

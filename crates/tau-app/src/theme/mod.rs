@@ -75,7 +75,6 @@ pub struct Palette {
 /// Everything `tokens.json` holds that the app reads.
 #[derive(Debug)]
 pub struct Tokens {
-    float_fade_ms: f32,
     panel_ms: f32,
     page_ms: f32,
     motion_bounce: f32,
@@ -195,7 +194,6 @@ impl Reading {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Motion {
-    pub float: Spring,
     pub panel: Spring,
     pub page: Spring,
     pub on: bool,
@@ -212,7 +210,6 @@ impl Motion {
             }
         };
         Self {
-            float: spring(t.float_fade_ms),
             panel: spring(t.panel_ms),
             page: spring(t.page_ms),
             on,

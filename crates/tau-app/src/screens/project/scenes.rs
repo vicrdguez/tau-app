@@ -11,9 +11,39 @@ fn project(a: &mut App) {
         key: "reviewer".into(),
     }));
 }
+fn bind_float(a: &mut App) {
+    base(a);
+    a.open = Default::default();
+    a.server.counts = Default::default();
+    a.show(Stage::Place(Place::Home));
+    bind(a);
+    let f = super::super::top_float::<crate::floats::project_bind::Bind>(a).unwrap();
+    f.name.edit.replace_text("scratch");
+    f.directory.edit.replace_text("/home/vrod/src/scratch");
+    f.part = crate::floats::project_bind::Part::Extensions;
+    f.cursor = f
+        .extensions
+        .iter()
+        .position(|e| e.name == "w1")
+        .unwrap_or(0);
+    if let Some(e) = f.extensions.get_mut(f.cursor) {
+        e.checked = true;
+    }
+}
 pub(super) fn all() -> Vec<Scene> {
     vec![
         ("project", project),
+        ("project-draft", |a| {
+            project(a);
+            a.screens.project.drafts.insert(
+                FieldKey {
+                    project: "render-core".into(),
+                    extension: "w1".into(),
+                    key: "base".into(),
+                },
+                Value::String("release".into()),
+            );
+        }),
         ("project-saved", |a| {
             project(a);
             a.screens.project.drafts.insert(
@@ -31,6 +61,10 @@ pub(super) fn all() -> Vec<Scene> {
         }),
         ("projects", |a| {
             base(a);
+            a.show(Stage::Place(Place::Projects));
+        }),
+        ("projects-none", |a| {
+            crate::screens::start::scenes::no_projects(a);
             a.show(Stage::Place(Place::Projects));
         }),
         ("project-options-unset", |a| {
@@ -67,24 +101,12 @@ pub(super) fn all() -> Vec<Scene> {
                 .insert(("scratch".into(), "w1".into()), errors);
             a.say("The options of w1 do not fit.");
         }),
-        ("bind-float", |a| {
-            base(a);
-            a.open = Default::default();
-            a.server.counts = Default::default();
-            a.show(Stage::Place(Place::Home));
-            bind(a);
+        ("bind-float", bind_float),
+        ("bind-error", |a| {
+            bind_float(a);
             let f = super::super::top_float::<crate::floats::project_bind::Bind>(a).unwrap();
-            f.name.edit.replace_text("scratch");
-            f.directory.edit.replace_text("/home/vrod/src/scratch");
-            f.part = crate::floats::project_bind::Part::Extensions;
-            f.cursor = f
-                .extensions
-                .iter()
-                .position(|e| e.name == "w1")
-                .unwrap_or(0);
-            if let Some(e) = f.extensions.get_mut(f.cursor) {
-                e.checked = true;
-            }
+            f.directory.edit.replace_text("src/scratch");
+            actions::checklist_key(a, crate::keys::Key::plain(crate::keys::Code::Enter));
         }),
         ("add-extensions", |a| {
             project(a);

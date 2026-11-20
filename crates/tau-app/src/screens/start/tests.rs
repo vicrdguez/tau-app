@@ -4,10 +4,16 @@
 //!   literal handler behind the keymap's back);
 //! - the start line prints the design's key after a move, or mutes a hint whose key runs in
 //!   Insert;
-//! - a picker opens while a create is pending.
+//! - a picker opens while a create is pending;
+//! - a click on the start line's project or workflow, or on the composer's hint, does nothing, or
+//!   does something while its key is off (pending, a float up, the sidebar holding the keys);
+//! - a picker chosen by clicks loses the draft or moves its caret;
+//! - a control reads as loose words and keys instead of one name;
+//! - with no projects, `⌘⏎` is printed twice with two meanings.
 
 use super::*;
-use crate::app::{commands, input, link, testing};
+use crate::app::testing::{self, Spoken, click, spoken, window};
+use crate::app::{commands, input, link};
 use crate::keys::parse_seq;
 use std::sync::atomic::Ordering;
 use tau_client::outbox::{WriteCall, WriteState};
@@ -261,9 +267,9 @@ fn the_start_line_prints_the_key_this_device_types_lit_in_insert() {
             .find(|e| e.text.as_deref() == Some(key))
             .map(|e| e.text_color)
     };
-    assert_eq!(printed("M-m"), Some(Some(lit)), "the moved key, lit");
-    assert_eq!(printed("M-p"), Some(Some(lit)), "the project's key, lit");
-    assert_eq!(printed("M-w"), None, "the key it replaced");
+    assert_eq!(printed("⌥M"), Some(Some(lit)), "the moved key, lit");
+    assert_eq!(printed("⌥P"), Some(Some(lit)), "the project's key, lit");
+    assert_eq!(printed("⌥W"), None, "the key it replaced");
 }
 
 #[test]
@@ -326,6 +332,171 @@ fn start_blockers_distinguish_missing_and_invalid_options() {
             .iter()
             .all(|e| !matches!(e.state, WriteState::Sending) || e.call != WriteCall::Create)
     );
+}
+
+fn named<'a>(nodes: &'a [Spoken], key: &str) -> &'a Spoken {
+    nodes
+        .iter()
+        .find(|n| n.key == key)
+        .unwrap_or_else(|| panic!("{key} is not in the accessibility tree"))
+}
+
+fn draft(a: &App) -> (String, usize, usize) {
+    let e = &a.screens.start.editor.edit;
+    (e.text.clone(), e.anchor, e.focus)
+}
+
+#[test]
+fn clicks_alone_choose_a_project_and_a_workflow_and_start_keeping_the_draft() {
+    let mut a = ready();
+    scenes::choose_project(&mut a);
+    a.screens
+        .start
+        .editor
+        .edit
+        .replace_text("Port the config loader");
+    a.screens.start.editor.edit.anchor = 4;
+    a.screens.start.editor.edit.focus = 4;
+    let kept = draft(&a);
+    let mut rt = window(a);
+    click(&mut rt, "start-project");
+    assert_eq!(picker(&mut rt.state).as_deref(), Some("Project"));
+    click(&mut rt, "pick-notes-cli");
+    assert!(rt.state.floats.is_empty(), "a click on a row chooses it");
+    assert_eq!(rt.state.screens.start.project.as_deref(), Some("notes-cli"));
+    assert_eq!(draft(&rt.state), kept);
+    click(&mut rt, "start-workflow");
+    assert_eq!(picker(&mut rt.state).as_deref(), Some("Workflow"));
+    click(&mut rt, "pick-m:anthropic/claude-opus-4-5");
+    assert!(rt.state.floats.is_empty());
+    assert_eq!(
+        rt.state.screens.start.with,
+        Some(StartWith::Model("anthropic/claude-opus-4-5".into()))
+    );
+    assert_eq!(draft(&rt.state), kept);
+    click(&mut rt, "start-send");
+    let id = rt.state.screens.start.pending.expect("a click starts it");
+    let entry = rt.state.link.outbox().get(id).unwrap();
+    assert_eq!(entry.body["project"], "notes-cli");
+    assert_eq!(entry.body["model"], "anthropic/claude-opus-4-5");
+    assert_eq!(draft(&rt.state).0, kept.0);
+}
+
+#[test]
+fn a_click_on_the_hint_does_what_its_key_does_in_each_state() {
+    let mut rt = window({
+        let mut a = ready();
+        scenes::scratch(&mut a);
+        a
+    });
+    click(&mut rt, "start-send");
+    assert_eq!(
+        rt.state.stage,
+        Stage::Item(Item::Project("scratch".into())),
+        "set its options"
+    );
+    let mut rt = window({
+        let mut a = ready();
+        scenes::no_projects(&mut a);
+        a
+    });
+    click(&mut rt, "start-send");
+    assert!(
+        matches!(
+            rt.state.floats.last(),
+            Some((crate::floats::Float::Screen(_), _))
+        ),
+        "bind a project"
+    );
+}
+
+#[test]
+fn the_start_controls_take_no_click_while_their_keys_are_off() {
+    let pending = |a: &mut App| {
+        a.screens.start.editor.edit.replace_text("task");
+        run(a, "start.send");
+    };
+    let sidebar = |a: &mut App| {
+        a.focus = crate::app::Focus::Sidebar;
+        a.sidebar_cursor = a.current_row();
+    };
+    let float = |a: &mut App| a.open_float(crate::floats::Float::palette());
+    for (why, off) in [
+        ("pending", pending as fn(&mut App)),
+        ("sidebar", sidebar),
+        ("float", float),
+    ] {
+        let mut a = ready();
+        off(&mut a);
+        let (with, floats, outbox) = (
+            a.screens.start.with.clone(),
+            a.floats.len(),
+            a.link.outbox().entries().len(),
+        );
+        let mut rt = window(a);
+        click(&mut rt, "start-project");
+        click(&mut rt, "start-workflow");
+        if why == "sidebar" {
+            click(&mut rt, "start-send");
+        }
+        assert_eq!(rt.state.floats.len(), floats, "{why}: no picker");
+        assert_eq!(rt.state.screens.start.with, with, "{why}");
+        assert_eq!(
+            rt.state.link.outbox().entries().len(),
+            outbox,
+            "{why}: nothing sent"
+        );
+    }
+}
+
+#[test]
+fn each_start_control_has_one_name_with_its_key_in_words() {
+    let nodes = spoken(&window(ready()));
+    let name = |key: &str| named(&nodes, key).name.clone();
+    assert_eq!(named(&nodes, "start-project").role, "button");
+    assert_eq!(name("start-project"), "Project: render-core, Option-P");
+    assert_eq!(name("start-workflow"), "Workflow: w1 workflow, Option-W");
+    assert_eq!(name("start-send"), "start, Command-Return");
+    assert!(
+        nodes
+            .iter()
+            .all(|n| !["w1", "workflow", "⌥P", "⌥W", "⌘"].contains(&n.name.as_str())),
+        "no loose words: {nodes:?}"
+    );
+    let mut a = ready();
+    scenes::choose_project(&mut a);
+    let nodes = spoken(&window(a));
+    assert_eq!(
+        named(&nodes, "start-project").name,
+        "Choose a project, Option-P"
+    );
+}
+
+#[test]
+fn a_moved_key_is_named_as_this_device_types_it() {
+    let mut a = ready();
+    workflow_on_m_m(&mut a);
+    let nodes = spoken(&window(a));
+    assert_eq!(
+        named(&nodes, "start-workflow").name,
+        "Workflow: w1 workflow, Option-M"
+    );
+}
+
+#[test]
+fn with_no_projects_the_key_is_printed_once_and_named_for_binding() {
+    let mut a = ready();
+    scenes::no_projects(&mut a);
+    let rt = window(a);
+    let texts: Vec<String> = rt.elements().into_iter().filter_map(|e| e.text).collect();
+    assert_eq!(
+        texts.iter().filter(|s| s.contains('⌘')).count(),
+        1,
+        "{texts:?}"
+    );
+    assert!(texts.iter().any(|s| s == "bind a project"), "{texts:?}");
+    assert!(texts.iter().any(|s| s == "No projects yet"), "{texts:?}");
+    assert!(!texts.iter().any(|s| s.contains("binds one")), "{texts:?}");
 }
 
 #[test]

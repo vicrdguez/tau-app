@@ -80,7 +80,6 @@ pub fn all() -> Vec<Scene> {
                 a.keys
                     .press(a.settings.keymap, scope.mode, scope.ctx, key, false, -1.0);
             }
-            a.which_key_shown = true;
         }),
         ("sidebar-focus-decision", |a| {
             long(a);

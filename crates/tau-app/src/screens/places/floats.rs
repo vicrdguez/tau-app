@@ -1,7 +1,8 @@
 //! Controllers for list floats. Renderers under `floats/` take only plain text and marks.
 use super::{RowId, home, list, place, reconcile, save, settings_mut};
 use crate::app::{App, Invocation};
-use crate::floats::{self as draw, Float};
+use crate::floats::list_picker::{Kind as Found, Line};
+use crate::floats::{self as draw, Float, Noun};
 use crate::keys::{Code, Ctx, Key, Mode};
 use crate::screens::{ScreenFloat, ScreenId, top_float};
 use crate::theme::Theme;
@@ -40,9 +41,12 @@ impl Picker {
         if let Some(rows) = &self.frozen {
             return rows.clone();
         }
+        self.matching(a, &self.query.text)
+    }
+    fn matching(&self, a: &App, query: &str) -> Vec<PickRow> {
         match self.kind {
-            Kind::Find => find_rows(a, &self.query.text),
-            Kind::Search => super::matching_rows(a, &self.query.text)
+            Kind::Find => find_rows(a, query),
+            Kind::Search => super::matching_rows(a, query)
                 .into_iter()
                 .map(|r| PickRow {
                     label: r.label,
@@ -77,11 +81,7 @@ impl Picker {
                     }));
                 }
                 rows.into_iter()
-                    .filter(|r| {
-                        r.label
-                            .to_lowercase()
-                            .contains(&self.query.text.to_lowercase())
-                    })
+                    .filter(|r| r.label.to_lowercase().contains(&query.to_lowercase()))
                     .collect()
             }
         }
@@ -104,23 +104,67 @@ impl ScreenFloat for Picker {
         Some(&mut self.query)
     }
     fn view(&self, t: Theme, a: &App) -> El {
-        let (title, subtitle) = match self.kind {
-            Kind::Find => ("Find", "projects, conversations, decisions, events"),
-            Kind::Filter => ("Filter", place(a).name()),
-            Kind::Search => ("Search", place(a).name()),
+        let rows = self.rows(a);
+        let q = &self.query.text;
+        let total = self.matching(a, "").len();
+        let (title, subtitle, label, noun) = match self.kind {
+            Kind::Find => (
+                "Find",
+                "projects, conversations, decisions, events",
+                "Search projects, conversations, decisions and events".to_string(),
+                Noun::new("result", "results"),
+            ),
+            Kind::Filter => (
+                "Filter",
+                place(a).name(),
+                if place(a) == crate::frame::Place::Conversations {
+                    "Filter projects and states".to_string()
+                } else {
+                    "Filter projects".to_string()
+                },
+                Noun::new("filter", "filters"),
+            ),
+            Kind::Search => {
+                let noun = match place(a) {
+                    crate::frame::Place::Timeline => Noun::new("event", "events"),
+                    crate::frame::Place::Faults => Noun::new("fault", "faults"),
+                    _ => Noun::new("conversation", "conversations"),
+                };
+                (
+                    "Search",
+                    place(a).name(),
+                    format!("Search {}", noun.many),
+                    noun,
+                )
+            }
         };
+        let find = matches!(self.kind, Kind::Find);
         draw::list_picker::view(
             t,
             self.scope(),
-            title,
-            subtitle,
-            &self
-                .rows(a)
-                .iter()
-                .map(|r| r.label.clone())
-                .collect::<Vec<_>>(),
-            self.cursor,
-            &self.query,
+            draw::list_picker::List {
+                title,
+                subtitle,
+                rows: &rows
+                    .iter()
+                    .map(|r| match &r.target {
+                        Choice::Object(id) if find => found(id, &r.label),
+                        _ => Line::Plain(r.label.clone()),
+                    })
+                    .collect::<Vec<_>>(),
+                cursor: self.cursor,
+                input: draw::Input {
+                    edit: &self.query,
+                    label: &label,
+                    placeholder: if find { "type to search" } else { draw::FILTER },
+                    count: noun.kept(q, rows.len(), total),
+                },
+                none: if find {
+                    format!("Nothing matches \"{q}\"")
+                } else {
+                    noun.none(q)
+                },
+            },
         )
     }
 }
@@ -143,11 +187,28 @@ pub fn filter(a: &mut App) {
 pub fn search(a: &mut App) {
     picker(a, Kind::Search)
 }
+/// A Find row as the list picker draws it: its kind and its project come from what it opens.
+fn found(id: &RowId, label: &str) -> Line {
+    let (kind, project) = match id {
+        RowId::Project(_) => return Line::Project(label.into()),
+        RowId::Conversation(c) => (Found::Conversation, c.project.to_string()),
+        RowId::Decision(d) => (Found::Decision, d.project.to_string()),
+        RowId::Event(p, _) => (Found::Event, p.to_string()),
+        _ => return Line::Plain(label.into()),
+    };
+    Line::In {
+        kind,
+        label: label.into(),
+        project,
+    }
+}
 pub fn find_rows(a: &App, query: &str) -> Vec<PickRow> {
     let (prefix, query) = query
         .split_once(':')
         .filter(|(p, _)| matches!(*p, "p" | "c" | "d" | "e"))
         .map_or(("", query), |(p, q)| (p, q));
+    let query = query.trim().to_lowercase();
+    let hit = |s: &str| s.to_lowercase().contains(&query);
     let mut rows = Vec::new();
     if prefix.is_empty() || prefix == "p" {
         rows.extend(
@@ -157,6 +218,7 @@ pub fn find_rows(a: &App, query: &str) -> Vec<PickRow> {
                 .value()
                 .into_iter()
                 .flatten()
+                .filter(|p| hit(p.project.as_str()))
                 .map(|p| PickRow {
                     label: p.project.to_string(),
                     target: Choice::Object(RowId::Project(p.project.clone())),
@@ -175,19 +237,17 @@ pub fn find_rows(a: &App, query: &str) -> Vec<PickRow> {
         ("e", list::events(a)),
     ] {
         if prefix.is_empty() || prefix == p {
-            rows.extend(rs.into_iter().map(|r| PickRow {
-                label: format!("{} · {}", r.label, r.project),
-                target: Choice::Object(r.id),
-            }));
+            rows.extend(
+                rs.into_iter()
+                    .filter(|r| hit(&r.label) || hit(&r.project))
+                    .map(|r| PickRow {
+                        label: r.label,
+                        target: Choice::Object(r.id),
+                    }),
+            );
         }
     }
-    rows.into_iter()
-        .filter(|r| {
-            r.label
-                .to_lowercase()
-                .contains(&query.trim().to_lowercase())
-        })
-        .collect()
+    rows
 }
 pub fn typing(a: &mut App, _: &[Key]) -> bool {
     if let Some(p) = top_float::<Picker>(a) {
@@ -212,24 +272,26 @@ pub fn picker_keys(a: &mut App, inv: &Invocation, tx: &mut Tx) {
         return;
     };
     let rows = p.rows(a);
-    if key == Key::plain(Code::Enter) {
-        if let Some(r) = rows.get(p.cursor) {
-            match &r.target {
-                Choice::Object(id) => {
-                    if matches!(p.kind, Kind::Search) {
-                        settings_mut(a).search = p.query.text.clone();
-                        home::select(a, id.clone());
-                    } else {
-                        list::open(a, id, false);
+    if key == Key::plain(Code::Enter) && p.cursor < rows.len() {
+        let search = matches!(p.kind, Kind::Search).then(|| p.query.text.clone());
+        let chosen = rows.get(p.cursor).map(|r| r.target.clone());
+        a.closed(Float::Screen(f), opener);
+        if let Some(target) = chosen {
+            match target {
+                Choice::Object(id) => match search {
+                    Some(search) => {
+                        settings_mut(a).search = search;
+                        home::select(a, id);
                     }
-                }
+                    None => list::open(a, &id, false),
+                },
                 Choice::Project(project) => {
-                    settings_mut(a).project = project.clone();
+                    settings_mut(a).project = project;
                     reconcile(a);
                     save(a);
                 }
                 Choice::State(state) => {
-                    settings_mut(a).state = state.clone();
+                    settings_mut(a).state = state;
                     reconcile(a);
                     save(a);
                 }
@@ -275,20 +337,28 @@ impl ScreenFloat for Outbox {
             .iter()
             .map(|e| {
                 let copy = crate::copy::outbox_row(e, home::now(a));
-                let label = format!(
-                    "{} · {}{} · {}",
-                    copy.call,
-                    e.project().map(|p| p.to_string()).unwrap_or_default(),
-                    e.conversation()
-                        .map(|c| format!(" #{}", c.id))
-                        .unwrap_or_default(),
-                    e.text().unwrap_or_default()
-                );
+                let about = match e.decision() {
+                    Some(d) => Some(match decision_title(a, &d) {
+                        Some(title) => draw::outbox::About::Decision {
+                            title,
+                            number: d.id.request_number().unwrap_or(1),
+                        },
+                        None => draw::outbox::About::DecisionId(d.id.to_string()),
+                    }),
+                    None => e
+                        .text()
+                        .filter(|s| !s.is_empty())
+                        .map(|s| draw::outbox::About::Text(s.into())),
+                };
                 draw::outbox::Row {
-                    label,
+                    call: copy.call,
+                    project: e.project().map(|p| p.to_string()),
+                    conversation: e.conversation().map(|c| c.id.0),
+                    about,
                     state: copy.state,
                     time: crate::time::clock(e.created),
                     unknown: copy.unknown,
+                    opens: opens(e).is_some(),
                 }
             })
             .collect::<Vec<_>>();
@@ -309,6 +379,50 @@ impl ScreenFloat for Outbox {
         )
     }
 }
+/// Where `⏎` on an outbox entry goes: the object it names. It never sends.
+enum Opens {
+    Item(crate::open::Item),
+    Start,
+}
+
+fn opens(e: &tau_client::outbox::OutboxEntry) -> Option<Opens> {
+    use crate::open::Item;
+    if e.call == tau_client::WriteCall::Create {
+        return Some(Opens::Start);
+    }
+    if let Some(d) = e.decision() {
+        return Some(Opens::Item(Item::Decision {
+            project: d.project.to_string(),
+            id: d.id.to_string(),
+        }));
+    }
+    if let Some(c) = e.conversation() {
+        return Some(Opens::Item(Item::Conversation {
+            project: c.project.to_string(),
+            id: c.id.0,
+        }));
+    }
+    e.project()
+        .map(|p| Opens::Item(Item::Project(p.to_string())))
+}
+
+/// The decision's title, from the inbox or a fetched decision.
+fn decision_title(a: &App, d: &tau_client::DecisionRef) -> Option<String> {
+    let s = a.link.server();
+    s.inbox
+        .value()
+        .and_then(|i| i.projects.get(&d.project))
+        .and_then(|subjects| subjects.get(&d.id.subject()))
+        .filter(|open| open.id == d.id)
+        .map(|open| open.title.clone())
+        .or_else(|| {
+            s.decisions
+                .get(d)
+                .and_then(|v| v.value())
+                .map(|v| v.decision.title.clone())
+        })
+}
+
 pub fn outbox(a: &mut App) {
     let cursor = a
         .link
@@ -323,10 +437,28 @@ pub fn outbox(a: &mut App) {
         details: false,
     })));
 }
-pub fn outbox_keys(a: &mut App, inv: &Invocation, _: &mut Tx) {
+pub fn outbox_keys(a: &mut App, inv: &Invocation, tx: &mut Tx) {
     let Some(&key) = inv.keys.first() else { return };
     if key == Key::plain(Code::Esc) || key == Key::char('q') {
         a.close_float();
+        return;
+    }
+    if key == Key::plain(Code::Enter) {
+        let cursor = top_float::<Outbox>(a).and_then(|o| o.cursor);
+        let target = cursor
+            .and_then(|id| a.link.outbox().get(id))
+            .and_then(opens);
+        match target {
+            Some(Opens::Item(item)) => {
+                a.close_float();
+                a.show(crate::app::Stage::Item(item));
+            }
+            Some(Opens::Start) => {
+                a.close_float();
+                crate::app::commands::run_id(a, "conv.new", tx);
+            }
+            None => {}
+        }
         return;
     }
     let ids = a

@@ -10,7 +10,7 @@ use crate::{
     app::{App, Handler, Stage},
     editor::{EditMode, Editor, Reply},
     floats::{Float, project_picker},
-    frame::{Crumb, Place},
+    frame::{Crumb, Place, Room},
     keys::{Code, Ctx, Key, Mode},
     open::Item,
     theme::Theme,
@@ -257,6 +257,19 @@ impl Screen for Project {
     fn view(&self, t: Theme, a: &App) -> El {
         view::view(t, a)
     }
+    fn room(&self, a: &App) -> Room {
+        let p = &a.screens.project;
+        Room::Lift(if shown(a).is_none() {
+            p.list_cursor
+                .as_ref()
+                .map(|name| format!("project-row-{name}"))
+        } else {
+            p.cursor.as_ref().map(|c| match c {
+                Target::Field(f) => format!("option-{}-{}", f.extension, f.key),
+                Target::Work(place) => format!("work-{place:?}"),
+            })
+        })
+    }
     fn save(&self, t: Theme, a: &App) -> Option<El> {
         view::save(t, a)
     }
@@ -276,7 +289,7 @@ impl Screen for Project {
             ("options.save", actions::save),
             ("field.commit", actions::commit),
             ("list.open", actions::open),
-            ("picker.keys", actions::picker_keys),
+            ("picker.keys", project_picker::keys),
             ("bind.keys", actions::bind_keys),
             ("peek", actions::schema),
             ("float.close", |a, _, _| {
@@ -311,6 +324,9 @@ impl Screen for Project {
             if let Some(f) = super::top_float::<crate::floats::project_bind::Bind>(a) {
                 if f.part != crate::floats::project_bind::Part::Extensions {
                     return false;
+                }
+                if let [k] = keys {
+                    actions::checklist_key(a, *k);
                 }
                 return true;
             }

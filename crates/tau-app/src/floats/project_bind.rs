@@ -29,7 +29,8 @@ pub struct Bind {
     pub part: Part,
     pub extensions: Vec<Extension>,
     pub cursor: usize,
-    pub error: Option<String>,
+    /// What is wrong with the name or the working directory, and which of the two.
+    pub error: Option<(Part, String)>,
 }
 impl Bind {
     pub fn new(project: Option<String>, extensions: Vec<Extension>) -> Self {
@@ -70,7 +71,7 @@ impl ScreenFloat for Bind {
     fn scope(&self) -> Scope {
         if self.part == Part::Extensions {
             Scope {
-                ctx: Ctx::Picker,
+                ctx: Ctx::Bind,
                 mode: Mode::Command,
             }
         } else {
@@ -108,7 +109,12 @@ impl ScreenFloat for Bind {
                     .single_line()
                     .caret(t.c.state.attn, t.c.surface.selection)
                     .color(t.c.fg.default)
-                    .on_edit(move |a: &mut App| {
+                    .on_input_key(crate::app::input::on_field_key)
+                    .label(label)
+                    .key(format!("bind-{label}"));
+                // A closed bind float is drawn as it leaves: rune must not reach its fields then.
+                let input = if active {
+                    input.on_edit(move |a: &mut App| {
                         let f = crate::screens::top_float::<Bind>(a).expect("bind field");
                         if part == Part::Name {
                             &mut f.name.edit
@@ -116,9 +122,9 @@ impl ScreenFloat for Bind {
                             &mut f.directory.edit
                         }
                     })
-                    .on_input_key(crate::app::input::on_field_key)
-                    .label(label)
-                    .key(format!("bind-{label}"));
+                } else {
+                    input
+                };
                 let mut value = row().center_y().gap(12.0).child(
                     ui::text_field(t, edit.focused, input)
                         .w(if part == Part::Name { 220.0 } else { 380.0 })
@@ -135,7 +141,21 @@ impl ScreenFloat for Bind {
                             .color(t.c.fg.muted),
                     );
                 }
-                body = body.child(ui::kv_row(t, label, value));
+                let mut field = col().w_full().gap(8.0).child(ui::kv_row(t, label, value));
+                if let Some((_, words)) = self.error.as_ref().filter(|(about, _)| *about == part) {
+                    field = field.child(
+                        row()
+                            .w_full()
+                            .pl(t.l.float.padding_x + t.l.float.kv_label)
+                            .pr(t.l.float.padding_x)
+                            .child(ui::field_error(t, words).grow(1.0).min_w(0.0)),
+                    );
+                }
+                body = body.child(if edit.focused {
+                    field.key(ui::FLOAT_CURSOR)
+                } else {
+                    field
+                });
             }
         }
         let mut checklist = col().w_full();
@@ -175,14 +195,11 @@ impl ScreenFloat for Bind {
                 }),
             );
         }
-        body = body.child(ui::kv_row(t, "extensions", checklist));
-        if let Some(error) = &self.error {
-            body = body.child(line(t, error, t.ty.ui_small, t.c.text.failed).px(24.0));
-        }
+        body = body.child(ui::kv_list(t, "extensions", checklist));
         let scope = self.scope();
         let hints = if self.part == Part::Extensions {
             vec![
-                ui::float_hint(t, scope, &["<Tab>"], "toggle"),
+                ui::float_hint(t, scope, &["<Space>"], "toggle"),
                 ui::float_hint(
                     t,
                     scope,

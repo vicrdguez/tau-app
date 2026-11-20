@@ -19,7 +19,7 @@ use tau_client::LinkEvent;
 use crate::app::scenes::Scene;
 use crate::app::{App, Focus, Handler, Stage};
 use crate::floats::Float;
-use crate::frame::{Crumb, Place, Segment};
+use crate::frame::{Crumb, Place, Room, Segment};
 use crate::keys::{Ctx, Key, Mode};
 use crate::open::Item;
 use crate::theme::Theme;
@@ -159,6 +159,12 @@ pub trait Screen: Sync {
     /// The page, filling the stage below the header and the notice band.
     fn view(&self, t: Theme, app: &App) -> El;
 
+    /// How the page makes room for a bottom float (`spec.md` §4): by default it keeps its layout
+    /// and nothing on it rides the float's edge.
+    fn room(&self, _app: &App) -> Room {
+        Room::Lift(None)
+    }
+
     /// The page's option-draft indicator in the bottom bar.
     fn save(&self, _t: Theme, _app: &App) -> Option<El> {
         None
@@ -225,9 +231,6 @@ pub trait Screen: Sync {
     /// already).
     fn shown(&self, _app: &mut App) {}
 
-    /// The page's target in the reduced viewport when a bottom float opens.
-    fn reveal_target(&self, _app: &App, _tx: &mut Tx) {}
-
     /// Something the link reports, once; every family hears every event.
     fn on_event(&self, _app: &mut App, _event: &LinkEvent) {}
 
@@ -283,6 +286,24 @@ pub fn top_float<T: ScreenFloat>(app: &mut App) -> Option<&mut T> {
         Some((Float::Screen(f), _)) => (f.as_mut() as &mut dyn Any).downcast_mut::<T>(),
         _ => None,
     }
+}
+
+/// The stage's width, as laid out last, or as the window gives it before the first layout.
+pub(crate) fn stage_width(t: Theme, app: &App) -> f32 {
+    rune::memo::layout_size("stage")
+        .map(|s| s[0])
+        .unwrap_or_else(|| {
+            let side = app.sidebar_place() == Some(crate::frame::SidebarPlace::Beside);
+            app.window[0] - if side { t.l.sidebar.width } else { 0.0 }
+        })
+}
+
+/// Where a reading column `width` wide starts in the page while the details panel is open
+/// (`spec.md` §4.7): where it starts with the panel closed (`closed`) while its right edge clears
+/// the panel by the panel's padding, else moved left by the shortfall, down to its 16 px margin.
+/// `room` is the page's width left of the panel.
+pub(crate) fn beside_details(t: Theme, closed: f32, width: f32, room: f32) -> f32 {
+    closed.min(room - t.l.details.padding - width).max(16.0)
 }
 
 /// The line that stands in for a page's groups until its data arrives (`spec.md` §4.8).

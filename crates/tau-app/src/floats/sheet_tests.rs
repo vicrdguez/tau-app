@@ -48,7 +48,7 @@ fn the_sheet_lists_every_key_the_table_binds_and_no_other() {
         assert!(
             rows.iter().any(|r| &r.text == desc
                 && r.meta.starts_with(b.ctx.name())
-                && r.keys.contains(&shown)),
+                && r.keys.contains(&b.seq)),
             "{shown} {desc} in {}",
             b.ctx.name()
         );
@@ -61,8 +61,9 @@ fn the_sheet_lists_every_key_the_table_binds_and_no_other() {
         );
     }
     assert!(
-        rows.iter()
-            .any(|r| r.keys == "gs" && r.text == "hint: targets in view" && r.meta == "global")
+        rows.iter().any(|r| r.printed() == "gs"
+            && r.text == "hint: targets in view"
+            && r.meta == "global")
     );
 }
 

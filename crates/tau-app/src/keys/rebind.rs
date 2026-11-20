@@ -218,7 +218,7 @@ impl Keymap {
                 .iter()
                 .filter(|b| b.target == Target::Command(c))
             {
-                let shown = display(&b.seq);
+                let shown = written(&b.seq);
                 if !its.contains(&shown) {
                     its.push(shown);
                 }

@@ -30,6 +30,7 @@ pub struct Markdown<'a> {
     source: &'a str,
     peek: bool,
     streaming: bool,
+    hang: f32,
     tints: Vec<Tint>,
     paints: Vec<Paint>,
 }
@@ -40,6 +41,7 @@ pub fn markdown(t: Theme, source: &str) -> Markdown<'_> {
         source,
         peek: false,
         streaming: false,
+        hang: 0.0,
         tints: Vec::new(),
         paints: Vec::new(),
     }
@@ -53,6 +55,13 @@ impl Markdown<'_> {
 
     pub fn streaming(mut self, on: bool) -> Self {
         self.streaming = on;
+        self
+    }
+
+    /// A code block that is not in a list or a quote reaches `px` past the text on each side,
+    /// and its code and label keep the text's edges.
+    pub fn hang(mut self, px: f32) -> Self {
+        self.hang = px;
         self
     }
 
@@ -139,6 +148,7 @@ impl Markdown<'_> {
             marks,
             peek: self.peek,
             streaming: self.streaming,
+            hang: self.hang,
         }
         .blocks(&nodes, Flow::top());
         let mut result = col().w_full().min_w(0.0).child(body);

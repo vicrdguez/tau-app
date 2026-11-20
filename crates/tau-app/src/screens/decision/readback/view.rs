@@ -11,7 +11,7 @@ use crate::assets::marks;
 use crate::screens::ScreenFloat;
 use crate::theme::Theme;
 use crate::time;
-use crate::ui::{Shell, float_hint, float_row, kv_row, shell};
+use crate::ui::{Shell, float_hint, float_row, kv_row, named, shell};
 
 /// The head's title: `Review the design #2 · render-core`.
 fn title(t: Theme, title: &str, d: &DecisionRef) -> El {
@@ -65,18 +65,67 @@ fn value(t: Theme, s: &str) -> El {
         .truncate()
 }
 
-/// A right-column row: a 72 px steel label, then the value, 30 px tall.
+/// A value of the answer's grid: never cut, it wraps (`spec.md` §5.7).
+fn whole(t: Theme, s: &str) -> El {
+    text(s.to_string())
+        .font(t.ty.ui)
+        .color(t.c.fg.default)
+        .wrap()
+}
+
+/// A right-column row: a 72 px steel label, then the value. One line is 30 px; a value that wraps
+/// makes the row taller, with the label on its first line.
 fn rb_row(t: Theme, label: &str, v: El) -> El {
+    let h = t.l.float.row;
     row()
-        .center_y()
-        .h(t.l.float.row)
+        .items_start()
+        .min_h(h)
         .child(
-            text(label.to_string())
-                .font(t.ty.ui_small)
-                .color(t.c.kind.you)
-                .w(72.0),
+            row().center_y().h(h).child(
+                text(label.to_string())
+                    .font(t.ty.ui_small)
+                    .color(t.c.kind.you)
+                    .w(t.l.float.readback_label),
+            ),
         )
-        .child(v.grow(1.0).shrink().min_w(0.0))
+        .child(
+            v.grow(1.0)
+                .shrink()
+                .min_w(0.0)
+                .py((h - t.ty.ui.line_height) / 2.0),
+        )
+}
+
+/// The notes' value: `3 sent with the answer · 2 on passages · 1 on the whole` and `K reads them`
+/// after it. When that doesn't fit `width`, the scopes go under the count and `K` stays on the
+/// first line, so the scope is never cut.
+fn notes_value(t: Theme, scope: crate::ui::Scope, count: &str, scopes: &str, width: f32) -> El {
+    let reads = text("reads them").font(t.ty.ui_small).color(t.c.fg.muted);
+    let k = row()
+        .center_y()
+        .gap(6.0)
+        .child(crate::ui::chip(t, scope, "K", true))
+        .child(reads);
+    let gap = 16.0;
+    let first = |words: &str| {
+        row()
+            .center_y()
+            .gap(gap)
+            .child(whole(t, words).shrink().min_w(0.0))
+    };
+    if scopes.is_empty() {
+        return first(count).child(k);
+    }
+    let one = format!("{count} · {scopes}");
+    let measure = |s: &str, style| rune::text::measure(s, &[], style, None).0;
+    let k_width = measure(&t.keymap.chip("K", scope.mode, scope.ctx).printed, t.ty.key)
+        + 10.0
+        + 6.0
+        + measure("reads them", t.ty.ui_small);
+    if measure(&one, t.ty.ui) + gap + k_width <= width {
+        return first(&one).child(k);
+    }
+    col().child(first(count).child(k)).child(whole(t, scopes))
 }
 
 /// `w1.design_answer runs in #3`: the task kind and the `#id` in orange mono.
@@ -144,18 +193,29 @@ pub(super) fn view(t: Theme, app: &App, f: &Readback) -> El {
         );
     }
     let sending = matches!(f.phase, Phase::Sending(_));
-    let confirm_hints = |word: &'static str| {
-        let y = hint(&["y"], "confirm").on_press(|a: &mut App| a.say("press y to confirm"));
+    // `y` reads as the instruction it is, never as a button: a click only says it again.
+    let confirm_hints = |what: &'static str| {
         if sending {
-            vec![text(word).font(t.ty.ui_small).color(t.c.fg.muted)]
-        } else {
-            vec![y, hint(&["n", "<Esc>", "q"], "cancel")]
+            return vec![text("sending…").font(t.ty.ui_small).color(t.c.fg.muted)];
         }
+        let y = app.settings.keymap.chip("y", scope.mode, scope.ctx);
+        let mut spoken = y.spoken.chars();
+        let name: String = spoken
+            .next()
+            .into_iter()
+            .flat_map(char::to_uppercase)
+            .chain(spoken)
+            .collect();
+        let echo = format!("press {} to {what}", y.printed);
+        let confirm = named(hint(&["y"], what), format!("Press {name} to {what}"))
+            .key("readback-confirm")
+            .on_background_press(move |a: &mut App| a.say(echo.clone()));
+        vec![confirm, hint(&["n", "<Esc>", "q"], "cancel")]
     };
     match &f.kind {
         Kind::Answer => {
             let notes = app.screens.decision.notes.of(&f.decision);
-            let mut left = col().w(300.0).pb(4.0);
+            let mut left = col().w(t.l.float.readback_left).pb(4.0);
             let numbered = r.choices.len() <= 9;
             for (i, c) in r.choices.iter().enumerate() {
                 let picked = f.pick == Some(i);
@@ -193,38 +253,45 @@ pub(super) fn view(t: Theme, app: &App, f: &Readback) -> El {
                     .pt(8.0),
             );
             let passages = notes.iter().filter(|n| n.range.is_some()).count();
-            let whole = notes.len() - passages;
-            let notes_words = if notes.is_empty() {
-                "none".to_string()
-            } else {
-                let mut parts = vec![format!("{} sent with the answer", notes.len())];
-                if passages > 0 {
-                    parts.push(format!(
-                        "{passages} on {}",
-                        if passages == 1 {
-                            "a passage"
-                        } else {
-                            "passages"
-                        }
-                    ));
-                }
-                if whole > 0 {
-                    parts.push(format!("{whole} on the whole"));
-                }
-                parts.join(" · ")
-            };
-            let mut notes_value = row().center_y().gap(16.0).child(value(t, &notes_words));
-            if !notes.is_empty() {
-                notes_value = notes_value.child(
-                    row()
-                        .center_y()
-                        .gap(6.0)
-                        .child(crate::ui::chip(t, scope, "K", true))
-                        .child(text("reads them").font(t.ty.ui_small).color(t.c.fg.muted)),
-                );
+            let on_whole = notes.len() - passages;
+            let mut scopes = Vec::new();
+            if passages > 0 {
+                scopes.push(format!(
+                    "{passages} on {}",
+                    if passages == 1 {
+                        "a passage"
+                    } else {
+                        "passages"
+                    }
+                ));
             }
+            if on_whole > 0 {
+                scopes.push(format!("{on_whole} on the whole"));
+            }
+            let l = t.l.float;
+            let value_width = crate::screens::stage_width(t, app)
+                - 2.0 * l.inset_x
+                - l.readback_left
+                - 1.0
+                - l.readback_right_padding_left
+                - l.padding_x
+                - l.readback_label;
+            let notes_value = if notes.is_empty() {
+                whole(t, "none")
+            } else {
+                notes_value(
+                    t,
+                    scope,
+                    &format!("{} sent with the answer", notes.len()),
+                    &scopes.join(" · "),
+                    value_width,
+                )
+            };
             let then = r.then.as_ref().map(|th| th.task.clone());
-            let mut right = col().w_full().pl(28.0).pr(t.l.float.padding_x);
+            let mut right = col()
+                .w_full()
+                .pl(t.l.float.readback_right_padding_left)
+                .pr(t.l.float.padding_x);
             if f.notes_open {
                 for n in notes {
                     let quote = n
@@ -239,7 +306,7 @@ pub(super) fn view(t: Theme, app: &App, f: &Readback) -> El {
                     right = right.child(rb_row(
                         t,
                         "note",
-                        value(t, &format!("{} · {quote}", n.text)),
+                        whole(t, &format!("{} · {quote}", n.text)),
                     ));
                 }
             } else {
@@ -248,7 +315,7 @@ pub(super) fn view(t: Theme, app: &App, f: &Readback) -> El {
                     .child(rb_row(
                         t,
                         "basis",
-                        value(
+                        whole(
                             t,
                             &format!(
                                 "entry {} · {} characters · shown to the end",
@@ -264,7 +331,7 @@ pub(super) fn view(t: Theme, app: &App, f: &Readback) -> El {
                             kind_value(t, &task, &format!("runs in #{}", r.conversation)),
                         )
                     }))
-                    .child(rb_row(t, "from", value(t, &device)));
+                    .child(rb_row(t, "from", whole(t, &device)));
             }
             let body = row()
                 .w_full()
@@ -275,7 +342,7 @@ pub(super) fn view(t: Theme, app: &App, f: &Readback) -> El {
                 tag(t, "ANSWER", true),
                 Some(open_meta),
                 body,
-                confirm_hints("sending…"),
+                confirm_hints("send this answer"),
             )
         }
         Kind::AgainAfterFault(_) | Kind::AgainUnknown(_) => {
@@ -374,7 +441,7 @@ pub(super) fn view(t: Theme, app: &App, f: &Readback) -> El {
                 tag(t, "SEND AGAIN", true),
                 Some(meta),
                 body,
-                confirm_hints("sending…"),
+                confirm_hints("send it again"),
             )
         }
     }

@@ -40,6 +40,22 @@ pub(crate) fn scratch(a: &mut App) {
     crate::app::link::settle(a);
     typed(a);
 }
+/// No project named, used before or alone among several: the line reads `choose a project`.
+pub(super) fn choose_project(a: &mut App) {
+    base(a);
+    let s = &mut a.screens.start;
+    s.saved.last_project = None;
+    s.project = None;
+    s.with = None;
+}
+pub(crate) fn no_projects(a: &mut App) {
+    fixture_with(a, |v| {
+        v["calls"]["projects"]["result"]["items"] = serde_json::json!([])
+    });
+    base(a);
+    a.open = Default::default();
+    a.server.counts = Default::default();
+}
 fn typed(a: &mut App) {
     let f = Fixture::design();
     a.screens.start.editor.edit.replace_text(
@@ -98,14 +114,8 @@ pub(super) fn all() -> Vec<Scene> {
             base(a);
             typed(a);
         }),
-        ("start-no-projects", |a| {
-            fixture_with(a, |v| {
-                v["calls"]["projects"]["result"]["items"] = serde_json::json!([])
-            });
-            base(a);
-            a.open = Default::default();
-            a.server.counts = Default::default();
-        }),
+        ("start-choose-project", choose_project),
+        ("start-no-projects", no_projects),
         ("start-no-models", |a| {
             fixture_with(a, |v| {
                 v["calls"]["models"]["result"]["items"] = serde_json::json!([])

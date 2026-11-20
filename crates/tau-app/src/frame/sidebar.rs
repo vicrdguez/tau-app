@@ -7,7 +7,7 @@ use super::{Place, ServerPhase, TroubleMark};
 use crate::assets::{brand, carbon, marks};
 use crate::open::Item;
 use crate::theme::Theme;
-use crate::ui::{Counts, Mark, Scope, Tag, chip, count_tag, mark};
+use crate::ui::{Counts, Mark, Scope, Tag, chip, count_tag, mark, with_keys};
 
 /// A row of the sidebar, for its cursor and the current row.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -139,20 +139,14 @@ pub fn sidebar<S: 'static>(t: Theme, s: &Sidebar, on_row: OnRow<S>) -> El {
                 ),
         );
 
+    let action = |r: Row, g: &'static Icon, words: &str, seq: &str| {
+        let key = t.keymap.chip(seq, s.scope.mode, s.scope.ctx);
+        place(r, g, words, Some(chip(t, s.scope, seq, false))).label(with_keys(words, &[&key]))
+    };
     let actions = col()
         .mt(18.0)
-        .child(place(
-            Row::New,
-            &carbon::ADD,
-            "New",
-            Some(chip(t, s.scope, "<leader>cn", false)),
-        ))
-        .child(place(
-            Row::Find,
-            &carbon::SEARCH,
-            "Find",
-            Some(chip(t, s.scope, "<leader>.", false)),
-        ));
+        .child(action(Row::New, &carbon::ADD, "New", "<leader>cn"))
+        .child(action(Row::Find, &carbon::SEARCH, "Find", "<leader>."));
 
     let places = col()
         .mt(12.0)

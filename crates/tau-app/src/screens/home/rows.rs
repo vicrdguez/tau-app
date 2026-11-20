@@ -22,37 +22,24 @@ pub fn width(app: &App) -> f32 {
     stage - 80.0 - if stage >= 1000.0 { 440.0 } else { 0.0 }
 }
 
+/// The optional slots of Failed and Running rows. `detail` is the 132 px column Failed fills
+/// with its reason and Running with its model.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Slots {
     pub extension: bool,
-    pub reason: bool,
-    pub model: bool,
+    pub detail: bool,
     pub time: bool,
 }
 impl Slots {
-    pub fn failed(width: f32) -> Self {
-        Self::fit(
-            width,
-            Self {
-                extension: true,
-                reason: true,
-                model: false,
-                time: true,
-            },
-        )
-    }
-    pub fn running(width: f32) -> Self {
-        Self::fit(
-            width,
-            Self {
-                extension: true,
-                reason: false,
-                model: true,
-                time: false,
-            },
-        )
-    }
-    fn fit(width: f32, mut s: Self) -> Self {
+    /// One decision for every group present, so their columns stand on the same lines. Slots drop
+    /// whole until the label keeps 200 px: time, model, extension, reason. While Failed is
+    /// present its reason holds the detail column, so a model alone doesn't drop it.
+    pub fn home(width: f32, failed: bool, running: bool) -> Self {
+        let mut s = Self {
+            extension: true,
+            detail: failed || running,
+            time: failed,
+        };
         let label = |s: Self| {
             width
                 - 14.0
@@ -60,23 +47,111 @@ impl Slots {
                 - 26.0
                 - 36.0
                 - if s.extension { 42.0 } else { 0.0 }
-                - if s.reason || s.model { 144.0 } else { 0.0 }
+                - if s.detail { 144.0 } else { 0.0 }
                 - if s.time { 96.0 } else { 0.0 }
         };
         if label(s) < 200.0 {
             s.time = false;
         }
-        if label(s) < 200.0 {
-            s.model = false;
+        if label(s) < 200.0 && !failed {
+            s.detail = false;
         }
         if label(s) < 200.0 {
             s.extension = false;
         }
         if label(s) < 200.0 {
-            s.reason = false;
+            s.detail = false;
         }
         s
     }
+    pub fn running(width: f32) -> Self {
+        Self::home(width, false, true)
+    }
+}
+
+/// The columns one list draws its rows on, decided once from every row it shows.
+pub struct Grid {
+    pub home: bool,
+    pub slots: Slots,
+    /// The width of the event time column: the widest time drawn.
+    pub stamp: f32,
+    /// The width of Faults' `after <decision ID>` column, the widest drawn; none when it doesn't
+    /// fit, so it shows whole or not at all.
+    pub after: Option<f32>,
+}
+
+impl Grid {
+    pub fn home(app: &App, rows: &[ListRow]) -> Self {
+        let now = super::now(app);
+        let stamp = rows
+            .iter()
+            .filter(|r| matches!(r.id, RowId::Event(..)))
+            .filter_map(|r| r.at)
+            .map(|at| mono_width(app.theme().ty.mono_small, &stamp(at, now)))
+            .fold(0.0, f32::max);
+        let has = |group: &str| rows.iter().any(|r| r.group == group);
+        Self {
+            home: true,
+            slots: Slots::home(width(app), has("Failed"), has("Running")),
+            stamp,
+            after: None,
+        }
+    }
+    /// A place's grid. Faults rows keep their error at least 200 px by dropping the time, then
+    /// the `after` column.
+    pub fn place(app: &App, rows: &[ListRow]) -> Self {
+        let ty = app.theme().ty;
+        let width = width(app);
+        let widest =
+            |w: &dyn Fn(&ListRow) -> Option<f32>| rows.iter().filter_map(w).fold(0.0, f32::max);
+        let kind =
+            widest(&|r| matches!(r.id, RowId::Fault(..)).then(|| mono_width(ty.mono, &r.label)));
+        let after = widest(&|r| {
+            r.after
+                .as_ref()
+                .map(|d| mono_width(ty.mono_small, &format!("after {d}")))
+        });
+        let mut after = (after > 0.0).then_some(after);
+        let mut time = true;
+        let error = |after: Option<f32>, time: bool| {
+            width
+                - 14.0
+                - 12.0
+                - kind
+                - 12.0
+                - 96.0
+                - 12.0
+                - 26.0
+                - 12.0
+                - after.map_or(0.0, |a| a + 12.0)
+                - if time { 96.0 } else { 0.0 }
+        };
+        if error(after, time) < 200.0 {
+            time = false;
+        }
+        if error(after, time) < 200.0 {
+            after = None;
+        }
+        Self {
+            home: false,
+            slots: Slots {
+                time,
+                ..Slots::running(width)
+            },
+            stamp: 94.0,
+            after,
+        }
+    }
+}
+
+/// Where a row's label starts inside the row: its 12 px padding, the mark's slot, the gap.
+pub fn label_inset() -> f32 {
+    12.0 + crate::theme::tokens().marks.slot + 12.0
+}
+
+/// The drawn width of `s` in a mono style: Iosevka advances half an em per character.
+fn mono_width(font: rune::TextStyle, s: &str) -> f32 {
+    s.chars().count() as f32 * font.size / 2.0
 }
 
 pub fn active(app: &App) -> bool {
@@ -88,32 +163,19 @@ pub fn line(t: Theme, s: &str, color: rune::Color) -> El {
     content::line(t, s, t.ty.ui, color)
 }
 fn small(t: Theme, s: &str, color: rune::Color, w: f32) -> El {
-    content::line(t, s, t.ty.mono_small, color).w(w)
+    content::line(t, s, t.ty.mono_small, color).w(w).min_w(w)
+}
+/// A project name in sage, always whole: an event row cuts its text instead (`spec.md` §5.3).
+fn project(t: Theme, name: &str) -> El {
+    text(name.to_string()).font(t.ty.ui).color(t.c.kind.worker)
 }
 
 fn stamp(at: i64, now: Wall) -> String {
-    let local = |at: i64| {
-        let seconds = at.div_euclid(1000) as libc::time_t;
-        // SAFETY: localtime_r initializes the tm and both pointers remain valid for the call.
-        unsafe {
-            let mut tm: libc::tm = std::mem::zeroed();
-            libc::localtime_r(&seconds, &mut tm);
-            tm
-        }
-    };
-    let date = local(at);
-    let today = local(now.0);
-    let clock = crate::time::clock(Wall(at));
-    if date.tm_year == today.tm_year && date.tm_yday == today.tm_yday {
-        return clock;
-    }
-    let month = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    ][date.tm_mon as usize];
-    format!("{month} {} {clock}", date.tm_mday)
+    crate::time::stamp(Wall(at), now)
 }
 
-pub fn row_view(t: Theme, app: &App, r: &ListRow, selected: bool, home: bool) -> El {
+pub fn row_view(t: Theme, app: &App, r: &ListRow, selected: bool, grid: &Grid) -> El {
+    let home = grid.home;
     let keys = active(app);
     let mut slots = Vec::new();
     let lead = if r.hidden {
@@ -161,21 +223,25 @@ pub fn row_view(t: Theme, app: &App, r: &ListRow, selected: bool, home: bool) ->
                     t.c.kind.literal
                 }))
                 .child(rune::spacer())
-                .child(small(
-                    t,
-                    &r.at
-                        .map(|at| {
-                            crate::time::span(crate::time::between(Wall(at), super::now(app)))
-                        })
-                        .unwrap_or_default(),
-                    if solid { fg } else { t.c.fg.alt },
-                    84.0,
-                ))
-                .child(if solid {
-                    ui::chip(t, app.scope(), "<CR>", false)
-                } else {
-                    el()
-                });
+                .child(
+                    row().w(84.0).min_w(84.0).justify_end().child(content::line(
+                        t,
+                        &r.at
+                            .map(|at| {
+                                crate::time::span(crate::time::between(Wall(at), super::now(app)))
+                            })
+                            .unwrap_or_default(),
+                        t.ty.mono_small,
+                        if solid { fg } else { t.c.fg.alt },
+                    )),
+                );
+            // Every head keeps the chip's width, drawn or not, so the ages line up.
+            let chip = ui::chip(t, app.scope(), "<CR>", false);
+            let head = head.child(if solid {
+                chip
+            } else {
+                chip.opacity(0.0).a11y_hidden()
+            });
             let head = if solid {
                 head.fill(t.c.state.attn)
             } else {
@@ -211,12 +277,7 @@ pub fn row_view(t: Theme, app: &App, r: &ListRow, selected: bool, home: bool) ->
             let date =
                 r.at.map(|at| stamp(at, super::now(app)))
                     .unwrap_or_default();
-            let date = if home && date.contains(' ') {
-                date.rsplit_once(' ').map(|(day, _)| day).unwrap_or(&date)
-            } else {
-                &date
-            };
-            let lead = small(t, date, t.c.fg.muted, if home { 44.0 } else { 94.0 });
+            let lead = small(t, &date, t.c.fg.muted, grid.stamp);
             let number = r
                 .conversation
                 .map(|id| format!("#{id}"))
@@ -228,13 +289,13 @@ pub fn row_view(t: Theme, app: &App, r: &ListRow, selected: bool, home: bool) ->
                     .w_full()
                     .child(lead)
                     .child(label.shrink().min_w(0.0))
-                    .child(line(t, &r.project, t.c.kind.worker))
+                    .child(project(t, &r.project))
                     .child(small(t, &number, t.c.kind.literal, 26.0))
                     .h(28.0)
                     .px(12.0)
             } else {
                 slots.push(small(t, &r.extension, t.c.fg.muted, 86.0));
-                slots.push(line(t, &r.project, t.c.kind.worker).w(96.0));
+                slots.push(project(t, &r.project).min_w(96.0));
                 slots.push(small(t, &number, t.c.kind.literal, 26.0));
                 ui::slot_row(Some(lead), label, slots, 12.0)
                     .h(28.0)
@@ -242,7 +303,16 @@ pub fn row_view(t: Theme, app: &App, r: &ListRow, selected: bool, home: bool) ->
             }
         }
         RowId::MoreRuns | RowId::MoreFaults | RowId::MoreEvents => {
-            line(t, &r.label, t.c.fg.muted).h(28.0).pl(36.0)
+            let inset = if r.id == RowId::MoreEvents {
+                12.0 + grid.stamp + 12.0
+            } else {
+                label_inset()
+            };
+            row()
+                .center_y()
+                .h(28.0)
+                .pl(inset)
+                .child(line(t, &r.label, t.c.fg.muted).shrink().min_w(0.0))
         }
         RowId::Fault(p, task) if !home => {
             let error = app
@@ -254,50 +324,36 @@ pub fn row_view(t: Theme, app: &App, r: &ListRow, selected: bool, home: bool) ->
                 .and_then(|fs| fs.iter().find(|f| f.task == *task))
                 .map(|f| f.error.as_str())
                 .unwrap_or_default();
-            let mut line = row()
-                .center_y()
-                .gap(10.0)
+            let lead = row().center_y().gap(12.0).child(lead).child(
+                content::line(t, &r.label, t.ty.mono, t.c.kind.literal)
+                    .min_w(mono_width(t.ty.mono, &r.label)),
+            );
+            slots.push(line(t, &r.project, t.c.kind.worker).w(96.0));
+            slots.push(small(
+                t,
+                &format!("#{}", r.conversation.unwrap_or_default()),
+                t.c.kind.literal,
+                26.0,
+            ));
+            if let Some(w) = grid.after {
+                let after = r.after.as_ref().map(|d| format!("after {d}"));
+                slots.push(small(t, &after.unwrap_or_default(), t.c.fg.alt, w));
+            }
+            if grid.slots.time {
+                slots.push(row().w(84.0).min_w(84.0).justify_end().child(content::line(
+                    t,
+                    &r.at.map(|a| stamp(a, super::now(app))).unwrap_or_default(),
+                    t.ty.mono_small,
+                    t.c.fg.muted,
+                )));
+            }
+            let error = content::line(t, error, t.ty.ui, t.c.fg.alt);
+            ui::slot_row(Some(lead), error, slots, 12.0)
                 .h(28.0)
                 .px(12.0)
-                .child(lead)
-                .child(content::line(t, &r.label, t.ty.mono, t.c.kind.literal))
-                .child(
-                    content::line(t, error, t.ty.ui, t.c.fg.alt)
-                        .grow(1.0)
-                        .min_w(0.0),
-                )
-                .child(content::line(t, &r.project, t.ty.ui_small, t.c.kind.worker))
-                .child(content::line(
-                    t,
-                    &format!("#{}", r.conversation.unwrap_or_default()),
-                    t.ty.mono_small,
-                    t.c.kind.literal,
-                ));
-            if let Some(after) = &r.after
-                && width(app) >= 500.0
-            {
-                line = line.child(content::line(
-                    t,
-                    &format!("after {after}"),
-                    t.ty.mono_small,
-                    t.c.fg.alt,
-                ));
-            }
-            line.child(small(
-                t,
-                &r.at
-                    .map(|at| stamp(at, super::now(app)))
-                    .unwrap_or_default(),
-                t.c.fg.muted,
-                84.0,
-            ))
         }
         _ => {
-            let slots_on = if !home || r.mark == Some(Mark::Running) {
-                Slots::running(width(app))
-            } else {
-                Slots::failed(width(app))
-            };
+            let slots_on = grid.slots;
             if matches!(r.id, RowId::Fault(..)) {
                 label = content::line(t, &r.label, t.ty.mono, t.c.kind.literal);
                 if let Some(after) = &r.after {
@@ -329,11 +385,13 @@ pub fn row_view(t: Theme, app: &App, r: &ListRow, selected: bool, home: bool) ->
             if slots_on.extension {
                 slots.push(small(t, &r.extension, t.c.fg.muted, 30.0));
             }
-            if slots_on.model {
-                slots.push(line(t, &r.model, t.c.fg.alt).w(132.0));
-            }
-            if slots_on.reason && home {
-                slots.push(line(t, &r.reason, t.c.fg.alt).w(132.0));
+            if slots_on.detail {
+                let detail = if home && r.mark != Some(Mark::Running) {
+                    &r.reason
+                } else {
+                    &r.model
+                };
+                slots.push(line(t, detail, t.c.fg.alt).w(132.0));
             }
             if slots_on.time && home {
                 slots.push(row().w(84.0).justify_end().child(content::line(

@@ -223,14 +223,15 @@ pub fn written(seq: &[Key]) -> String {
     out
 }
 
-/// The design's printed form: `␣cn`, `⌘K`, `⌘⏎`, `C-h`, `M-⏎`, `S-Tab`, `Esc`.
+/// The design's printed form: `␣cn`, `⌘K`, `⌘⏎`, `⌥P`, `C-h`, `⌥⏎`, `S-Tab`, `Esc`. Option and
+/// Command print as the Mac writes them; `written` keeps the keymap's `M-` and `D-`.
 pub fn display(seq: &[Key]) -> String {
     let mut out = String::new();
     for (i, k) in seq.iter().enumerate() {
         let word = |s: &str| s.to_string();
         let base = match k.code {
             Code::Char(' ') => "␣".to_string(),
-            Code::Char(c) if k.mods.cmd => c.to_uppercase().to_string(),
+            Code::Char(c) if k.mods.cmd || k.mods.alt => c.to_uppercase().to_string(),
             Code::Char(c) => c.to_string(),
             Code::Enter => "⏎".to_string(),
             Code::Esc => word("Esc"),
@@ -251,14 +252,14 @@ pub fn display(seq: &[Key]) -> String {
         if named && i > 0 && !out.ends_with(' ') {
             out.push(' ');
         }
+        if k.mods.alt {
+            out.push('⌥');
+        }
         if k.mods.cmd {
             out.push('⌘');
         }
         if k.mods.ctrl {
             out.push_str("C-");
-        }
-        if k.mods.alt {
-            out.push_str("M-");
         }
         if k.mods.shift {
             out.push_str("S-");
@@ -269,6 +270,92 @@ pub fn display(seq: &[Key]) -> String {
         }
     }
     out
+}
+
+/// The printed form in words, for assistive technology: `Space c n`, `Command-Return`,
+/// `Option-P`, `Control-H`, `Shift-K`, `Escape`. Every modifier and the leader are named.
+pub fn spoken(seq: &[Key]) -> String {
+    let words: Vec<String> = seq
+        .iter()
+        .map(|k| {
+            let chord = k.mods.ctrl || k.mods.alt || k.mods.cmd;
+            let shifted = k.mods.shift || matches!(k.code, Code::Char(c) if c.is_uppercase());
+            let mut out = String::new();
+            for (on, m) in [
+                (k.mods.ctrl, "Control-"),
+                (k.mods.alt, "Option-"),
+                (shifted, "Shift-"),
+                (k.mods.cmd, "Command-"),
+            ] {
+                if on {
+                    out.push_str(m);
+                }
+            }
+            out.push_str(&match k.code {
+                Code::Char(c) => match char_name(c) {
+                    Some(name) => name.to_string(),
+                    None if chord || shifted => c.to_uppercase().to_string(),
+                    None => c.to_string(),
+                },
+                Code::Enter => "Return".into(),
+                Code::Esc => "Escape".into(),
+                Code::Tab => "Tab".into(),
+                Code::Backspace => "Delete".into(),
+                Code::Delete => "Forward Delete".into(),
+                Code::Up => "Up Arrow".into(),
+                Code::Down => "Down Arrow".into(),
+                Code::Left => "Left Arrow".into(),
+                Code::Right => "Right Arrow".into(),
+                Code::Home => "Home".into(),
+                Code::End => "End".into(),
+                Code::PageUp => "Page Up".into(),
+                Code::PageDown => "Page Down".into(),
+                Code::Label => "a hint label".into(),
+            });
+            out
+        })
+        .collect();
+    words.join(" ")
+}
+
+/// A key whose character a reader would not say as itself.
+fn char_name(c: char) -> Option<&'static str> {
+    Some(match c {
+        ' ' => "Space",
+        '.' => "Period",
+        ',' => "Comma",
+        ';' => "Semicolon",
+        ':' => "Colon",
+        '/' => "Slash",
+        '\\' => "Backslash",
+        '?' => "Question mark",
+        '!' => "Exclamation mark",
+        '[' => "Left bracket",
+        ']' => "Right bracket",
+        '(' => "Left parenthesis",
+        ')' => "Right parenthesis",
+        '{' => "Left brace",
+        '}' => "Right brace",
+        '<' => "Less than",
+        '>' => "Greater than",
+        '-' => "Minus",
+        '+' => "Plus",
+        '=' => "Equals",
+        '_' => "Underscore",
+        '\'' => "Apostrophe",
+        '"' => "Quote",
+        '`' => "Backtick",
+        '~' => "Tilde",
+        '#' => "Number sign",
+        '$' => "Dollar",
+        '%' => "Percent",
+        '^' => "Caret",
+        '&' => "Ampersand",
+        '*' => "Asterisk",
+        '@' => "At",
+        '|' => "Vertical bar",
+        _ => return None,
+    })
 }
 
 /// A rune key event as the keymap names it. `key_base` is `Tx::key_base()`: the character the key

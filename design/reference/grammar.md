@@ -51,8 +51,8 @@ global
 │  ├─ connect      the Connect screen
 │  └─ start        the start page's composer
 └─ hint
-picker             palette, find, project, workflow, model, thinking, filter, the bind and add-extension checklists
-bind               the bind float's two text fields
+picker             palette, find, project, workflow, model, thinking, filter
+bind               the bind float's two text fields, and the bind and add-extension checklists
 readback           the answer readback, send again
 reply              the not-recorded reply
 confirm            before bind, addExtensions and pairing over plain HTTP
@@ -135,7 +135,7 @@ commands:  n next decision   . find anything   ; commands   y yank to clipboard
 
 Home is `␣oh` and the sidebar's Home row; there is no other key for it.
 
-**which-key** opens in the float shell 300 ms after a proper prefix (`␣`, `␣a`, `g`, `z`, `]`, `[`, `d`). It is display only and consumes no key but `Esc`, which cancels the prefix; the bottom bar shows the pending keys. Body: the key grid, group entries first in `fg` 600, a 1 px hairline, then single commands in `fg.alt` 400. Each entry is its key (orange `mono`) and its `desc`. The root's head is `␣ leader` alone, with the hint `Esc closes`. The `␣a` head is `answer` with the subtitle `every command reads back what it sends before y`; its leaves carry an outlined `◇` in `fg.alt`, never coral. A leaf that can't run here stays listed, greyed, with the reason: `open a decision first`, `not answered`, `its work did not fail`, `offline`, `an answer is waiting for a reply`.
+**which-key** opens in the float shell once a proper prefix (`␣`, `␣a`, `g`, `z`, `]`, `[`, `d`) has waited 300 ms since its last key. Each prefix key typed before then starts the wait again, so a sequence typed without such a pause never shows it. Once up, it stays for the whole sequence: a further prefix key swaps its table at once, with no new wait, and it leaves when the sequence ends. It is display only and consumes no key but `Esc`, which cancels the prefix; the bottom bar shows the pending keys. Body: the key grid, group entries first in `fg` 600, a 1 px hairline, then single commands in `fg.alt` 400. Each entry is its key (orange `mono`) and its `desc`. The root's head is `␣ leader` alone, with the hint `Esc closes`. The `␣a` head is `answer` with the subtitle `every command reads back what it sends before y`; its leaves carry an outlined `◇` in `fg.alt`, never coral. A leaf that can't run here stays listed, greyed, with the reason: `open a decision first`, `not answered`, `its work did not fail`, `offline`, `an answer is waiting for a reply`.
 
 ## 6. Normal keys by context
 
@@ -162,7 +162,7 @@ on key(e):          resolve against the last drawn frame
 - **The send mode is the drawn one.** A composer whose caption said `steer` sends a steer; if the run ended in flight, the server starts a run with it, and the transcript shows that.
 - **The start page sends what its line drew:** the project and the workflow (or model) as drawn when `⌘⏎` was pressed, even if a poll changed them after. From the press until `create` replies or times out, `⌘⏎`, `M-p` and `M-w` are off and the text is read-only; auto-repeat never fires `⌘⏎`. A `create` result that arrives after the stage left the page adds the conversation to the sidebar and moves nothing.
 - **`␣cx` and `␣cc` act only in the conversation's own view,** where `pi.live` is live. `␣cx` names the drawn run: it is on only while the drawn frame shows a run, and off after sending until the view shows that run gone or a new one. A list row's state comes from a poll and never drives them.
-- **Every bottom float keeps its target in view:** the page scrolls so the cursor's row sits above it; a conversation's queue, unsent rows and composer lift above it.
+- **Every bottom float keeps its target in view:** the cursor's row, line or field rides the float's top edge once the edge reaches it, and a conversation's queue, unsent rows and composer ride it too (`../spec.md` §4); nothing else on the page moves.
 
 ## 8. The float shell and the bottom bar
 
@@ -170,7 +170,8 @@ Every bottom float is one component (`../spec.md` §6), and one that takes the k
 
 - `:` takes ex names from the table (`:w`, `:answer`, `:theme`, `:bind`). `Tab` completes; Up/Down walk the history.
 - **Palette** (`␣;`, `⌘K`): every command as `desc · :ex · keys`, with `◇` on answers; one that can't run here is listed with the reason. Choosing an answer command opens its readback.
-- **Pickers** (`␣.`, `M-p` and `M-w` on the start page, `␣cm`, `␣ct`, `␣pf`, `␣pa`): `C-j C-k` move, `C-n C-p` page the preview, `⏎` chooses (or confirms a checklist), `Tab` toggles an item in a checklist, `S-Tab` goes back from the bind float's checklist to its fields, `Esc C-c` cancel. Results freeze once you move. Every picker is one step: `M-w` lists the workflows and the models together.
+- **Pickers** (`␣.`, `M-p` and `M-w` on the start page, `␣cm`, `␣ct`, `␣pf`, `␣pa` when no view names a project): `C-j C-k` move, `C-n C-p` page the preview, `⏎` chooses, and in the start page's and option fields' pickers a press on a row chooses it; `Esc C-c` cancel. Results freeze once you move. Every picker is one step: `M-w` lists the workflows and the models together.
+- **The bind and add-extension checklists** (`bind.keys`): `j k`, `C-j C-k`, `C-n C-p` and Down Up move, `␣` ticks or unticks the row under the cursor, `⏎` goes on to Confirm, `Esc C-c` cancel. `Tab` and `S-Tab` walk the bind float's regions (name, working directory, extensions), wrapping, and never tick.
 - **The bottom bar** (26 px, always there) holds the badge, pending keys, the echo and the save state; while the sidebar is hidden, the count tags and abnormal server state at its right end. The echo is the last transient message: it never repeats the bar and prints no key chips. Anything the user must act on is a notice band, never only an echo. `:messages` keeps the history.
 
 ## 9. Printed keys
@@ -180,15 +181,16 @@ Every bottom float is one component (`../spec.md` §6), and one that takes the k
 - `⏎` on the Needs you cursor head;
 - the header's segments: `◆ ␣ad Answer`, `␣ar send again`, `␣cx stop`, `␣cc continue`;
 - `␣cc` in the run-failure and stopped lines;
-- `:w` with option drafts, in the bottom bar;
+- `:w` with option drafts: in the bottom bar, and as `:w save` on the head of each Options group that has drafts. The Project view prints no other chip in the stage, so it keeps the budget while drafts span at most three groups;
 - `c` in the first-note ghost (`+ note c`);
 - `␣rc` on the offline notice, `␣rp` on the revoked notice, `␣rt` on an unknown row that isn't an answer;
-- `␣pb` on a Home with no projects (the start page says `⌘⏎ binds one` instead, since it is in Insert);
+- `␣pb` on Home and the Projects place with no projects, pressable (the start page's composer says `⌘⏎ bind a project` instead, since it is in Insert);
+- `␣th` on a place whose filtered rows are all hidden on this device (`2 faulted tasks hidden on this device ␣th show hidden`);
 - `⏎ connect` in the Connect form's footer; over plain HTTP its `y` is in the Confirm float, never in the form, where `y` is a letter;
 - in the sidebar, `␣cn` and `␣.`;
-- as hints: `M-p` and `M-w` on the start line (lit in Insert and Normal), `⌘⏎ start` or `starting…` in the start composer, the composer's and the note's Insert keys, the float hints.
+- as hints: `M-p` and `M-w` on the start line (lit in Insert and Normal), `⌘⏎ start` or `starting…` in the start composer, the composer's and the note's Insert keys, the float hints. The start line's two parts and the start composer's hint take a press too, as their keys do and only while lit.
 
-A disabled action prints no chip (`stop · off`). Server text never names a client key. The one plain-word key is the echo after a click on the `y` chip, `press y to confirm`. which-key, the palette and `␣hk` carry the rest.
+A chip or hint prints Option as `⌥` with the key in capitals (`⌥P`, `⌥⏎`), as it prints Command (`⌘K`); `keymap.toml`, `settings.toml` and this file write it `M-`. Assistive technology reads a printed key in words, from the keys this device types: `Space c n`, `Command-Return`, `Option-P`, `Control-H`, `Escape`, in a chip, a hint, which-key, the palette, the Settings key cells and `␣hk` alike; a list of keys reads `Space Semicolon or Command-K`; a control of words and a key reads as one name, `start, Command-Return`. A disabled action prints no chip (`stop · off`). Server text never names a client key. The one plain-word key is the echo after a click on the readback's `y` hint, `press y to send this answer` (`press y to send it again` in send-again). which-key, the palette and `␣hk` carry the rest.
 
 ## 10. Editors
 

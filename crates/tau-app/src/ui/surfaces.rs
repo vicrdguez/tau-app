@@ -1,9 +1,10 @@
 //! The one container style, its small text field, and the notice band (`visual-language.md`
 //! §1.1, `spec.md` §4).
 
-use rune::{El, row, text};
+use rune::{El, icon, row, text};
 
 use super::keys::{Scope, chip};
+use crate::assets::marks;
 use crate::theme::Theme;
 
 /// The container: `surface.raised`, a hairline edge (coral while it has the caret in Insert),
@@ -39,6 +40,21 @@ pub fn text_field(t: Theme, focused: bool, input: El) -> El {
         .border(1.0, edge)
         .radius(t.l.radius.pill)
         .child(input.grow(1.0).min_w(0.0))
+}
+
+/// A line under a text field that says what is wrong with its value: the rose `×` and the words.
+pub fn field_error(t: Theme, words: &str) -> El {
+    row()
+        .gap(8.0)
+        .child(icon(&marks::FAILED, 8.0).color(t.c.state.blocked).mt(5.0))
+        .child(
+            text(words.to_string())
+                .font(t.ty.prose_small)
+                .color(t.c.fg.default)
+                .wrap()
+                .grow(1.0)
+                .min_w(0.0),
+        )
 }
 
 /// A notice band's action at its right: a chip and a word (`␣rc reconnect`).

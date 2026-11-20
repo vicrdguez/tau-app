@@ -3,7 +3,7 @@
 //! - a running conversation lacks `␣cx stop`, a failed one `␣cc continue`, an idle one prints a
 //!   segment, or a segment stays on while the view's stream is down;
 //! - `␣cx` sends while no run is drawn, or stays on after sending until the drawn run is gone or
-//!   a new one shows; `␣cc` sends while nothing failed;
+//!   a new one shows; `␣cc` sends while nothing failed; a click on a segment does otherwise;
 //! - `⌘⏎` sends anything but the drawn mode (steer while running, plain while idle), `M-⏎` anything
 //!   but a follow-up, or either sends empty or white-space text;
 //! - bare `⏎` sends, from Insert or from the composer's Normal mode;
@@ -26,6 +26,7 @@ use tau_client::{ConvRef, TaskId};
 
 use super::*;
 use crate::app::scenes::on_fixture;
+use crate::app::testing::{click, window};
 use crate::app::{Stage, input};
 use crate::frame::SegmentKind;
 use crate::keys::parse_seq;
@@ -157,6 +158,27 @@ fn space_cx_stops_the_drawn_run_once_and_then_reads_off() {
         1,
         "a second press sends nothing"
     );
+}
+
+#[test]
+fn a_click_on_stop_does_what_space_cx_does_and_only_while_it_is_lit() {
+    let stops = |a: &App| {
+        writes(a)
+            .iter()
+            .filter(|(c, _)| *c == tau_client::WriteCall::Stop)
+            .count()
+    };
+    let mut a = at("notes-cli", 4);
+    a.focus = crate::app::Focus::Sidebar;
+    a.sidebar_cursor = a.current_row();
+    let mut rt = window(a);
+    click(&mut rt, "segment-stop");
+    assert_eq!(stops(&rt.state), 0, "muted while the sidebar has the keys");
+    let mut rt = window(at("notes-cli", 4));
+    click(&mut rt, "segment-stop");
+    assert_eq!(stops(&rt.state), 1);
+    click(&mut rt, "segment-stop");
+    assert_eq!(stops(&rt.state), 1, "stop · off takes no click");
 }
 
 #[test]

@@ -2,6 +2,8 @@
 //! from the client model; no polling or protocol behavior lives here.
 #[cfg(test)]
 mod click_tests;
+#[cfg(test)]
+pub(crate) mod drawn;
 pub mod list;
 pub mod nav;
 mod rows;
@@ -18,7 +20,7 @@ use tau_client::{ConvRef, DecisionRef, Project, Wall};
 
 use super::{NOTHING_RECEIVED, Screen, places};
 use crate::app::{App, Handler, Invocation, Stage};
-use crate::frame::{Crumb, Place};
+use crate::frame::{Crumb, Place, Room};
 use crate::keys::{Ctx, Key};
 use crate::open::Item;
 use crate::theme::Theme;
@@ -472,18 +474,10 @@ impl Screen for Home {
             .value()
             .is_some_and(Vec::is_empty)
         {
-            return body.child(
-                row()
-                    .center_y()
-                    .gap(8.0)
-                    .mt(14.0)
-                    .mx(12.0)
-                    .child(list::line(t, "No projects yet", t.c.fg.alt))
-                    .child(ui::chip(t, app.scope(), "<leader>pb", false))
-                    .child(list::line(t, "binds one", t.c.fg.alt)),
-            );
+            return body.child(no_projects(t, app.scope()).mt(14.0).mx(12.0));
         }
         let rs = rows(app);
+        let grid = list::Grid::home(app, &rs);
         let selected = selected(app).map(|r| r.id);
         let mut group = "";
         for r in &rs {
@@ -507,7 +501,7 @@ impl Screen for Home {
                     .iter()
                     .rfind(|r| r.group == "Needs you")
                     .is_some_and(|last| last.id == r.id);
-            let rendered = list::row_view(t, app, r, selected.as_ref() == Some(&r.id), true);
+            let rendered = list::row_view(t, app, r, selected.as_ref() == Some(&r.id), &grid);
             body = body.child(if last_need {
                 rendered.mb(2.0)
             } else {
@@ -579,10 +573,15 @@ impl Screen for Home {
     fn keys(&self, app: &mut App, keys: &[Key], count: Option<u32>) -> bool {
         motion(app, keys, count)
     }
-    fn reveal_target(&self, app: &App, tx: &mut Tx) {
-        if let Some(id) = &app.screens.home.cursor.id {
-            tx.scroll_into_view(format!("list-{id:?}"));
-        }
+    fn room(&self, app: &App) -> Room {
+        Room::Lift(
+            app.screens
+                .home
+                .cursor
+                .id
+                .as_ref()
+                .map(|id| format!("list-{id:?}")),
+        )
     }
     fn shown(&self, app: &mut App) {
         app.link.refresh_faults();
@@ -696,4 +695,25 @@ fn calm_scene(app: &mut App) {
     crate::app::link::refresh(app);
     reconcile(app);
     super::peek::settle_scene(app);
+}
+
+/// `No projects yet · ␣pb binds one`, on Home and the Projects place when the server has no
+/// project. The chip and its words press as `␣pb` does, while it is lit.
+pub fn no_projects(t: Theme, scope: ui::Scope) -> El {
+    let key = t.keymap.chip("<leader>pb", scope.mode, scope.ctx);
+    let bind = row()
+        .center_y()
+        .gap(8.0)
+        .child(ui::chip(t, scope, "<leader>pb", false))
+        .child(list::line(t, "binds one", t.c.fg.alt));
+    row()
+        .center_y()
+        .gap(8.0)
+        .child(list::line(t, "No projects yet", t.c.fg.alt))
+        .child(ui::control(
+            bind,
+            ui::with_keys("binds one", &[&key]),
+            key.lit,
+            |a: &mut App, tx| crate::app::commands::press_key(a, "<leader>pb", tx),
+        ))
 }

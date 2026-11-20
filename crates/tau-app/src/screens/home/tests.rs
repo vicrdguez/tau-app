@@ -120,33 +120,39 @@ fn since_counts_only_timestamped_objects_and_needs_five_minutes() {
 
 #[test]
 fn slot_dropping_preserves_label_and_fixed_identity_columns() {
+    let all = Slots {
+        extension: true,
+        detail: true,
+        time: true,
+    };
+    assert_eq!(Slots::home(744.0, true, true), all);
+    assert_eq!(Slots::home(744.0, true, false), all);
     assert_eq!(
-        Slots::failed(744.0),
+        Slots::home(744.0, false, true),
+        Slots { time: false, ..all },
+        "Running alone keeps no time column"
+    );
+    let failed_at_1300 = Slots {
+        extension: false,
+        detail: true,
+        time: false,
+    };
+    assert_eq!(Slots::home(532.0, true, false), failed_at_1300);
+    assert_eq!(
+        Slots::home(532.0, true, true),
+        failed_at_1300,
+        "both groups drop the same slots, and the reason keeps the shared column"
+    );
+    assert_eq!(
+        Slots::home(532.0, false, true),
         Slots {
             extension: true,
-            reason: true,
-            model: false,
-            time: true
-        }
+            detail: false,
+            time: false,
+        },
+        "Running alone drops its model before its extension"
     );
-    assert_eq!(
-        Slots::failed(532.0),
-        Slots {
-            extension: false,
-            reason: true,
-            model: false,
-            time: false
-        }
-    );
-    assert_eq!(
-        Slots::running(532.0),
-        Slots {
-            extension: true,
-            reason: false,
-            model: false,
-            time: false
-        }
-    );
+    assert_eq!(Slots::running(532.0), Slots::home(532.0, false, true));
 }
 
 #[test]
