@@ -1,0 +1,44 @@
+{
+  "events": [
+    {
+      "t": 0.05,
+      "type": "key",
+      "name": "["
+    },
+    {
+      "t": 0.1,
+      "type": "key",
+      "name": "t"
+    },
+    {
+      "t": 0.15,
+      "type": "key",
+      "name": "["
+    },
+    {
+      "t": 0.2,
+      "type": "key",
+      "name": "t"
+    },
+    {
+      "t": 0.3,
+      "type": "key",
+      "name": "z"
+    },
+    {
+      "t": 0.35,
+      "type": "key",
+      "name": "a"
+    },
+    {
+      "t": 1,
+      "type": "key",
+      "name": "z"
+    },
+    {
+      "t": 1.05,
+      "type": "key",
+      "name": "a"
+    }
+  ]
+}

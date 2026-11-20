@@ -59,7 +59,13 @@ find = '{ mode = "n", ctx = "sidebar", seq = "x", shadows = "parent" }'
 replace = '{ mode = "n", ctx = "sidebar", seq = "x" }'
 
 [[mutant]]
-name = "the start page's project key bound in Insert"
+name = "the start page's project key bound in Insert with no Normal twin"
 rule = "KL14"
 find = '{ mode = "n", ctx = "start", seq = "<M-p>", tui = "kitty", tui_alt = "<leader>pp" }'
 replace = '{ mode = "i", ctx = "start", seq = "<M-p>", tui = "kitty", tui_alt = "<leader>pp" }'
+
+[[mutant]]
+name = "the start page's project key in the composer's Insert"
+rule = "KL14"
+find = '{ mode = "i", ctx = "start", seq = "<M-p>", tui = "kitty", tui_alt = "<leader>pp" }'
+replace = '{ mode = "i", ctx = "composer", seq = "<M-p>", tui = "kitty", tui_alt = "<leader>pp" }'

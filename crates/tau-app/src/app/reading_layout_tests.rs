@@ -229,6 +229,98 @@ fn reading_layout_conversation_prose_measure_is_840() {
 }
 
 #[test]
+fn reading_layout_uses_the_supplied_measure_without_changing_the_peek() {
+    fn measured_view<const WIDTH: u16>(app: &App, _: &mut Cx<App>) -> El {
+        let t = Theme::new(
+            crate::theme::Variant::Ember,
+            crate::theme::Measure::new(f32::from(WIDTH)).unwrap(),
+            true,
+        );
+        crate::screens::get(crate::screens::of(&app.stage)).view(t, app)
+    }
+    fn markdown_view(state: &(Theme, bool), _: &mut Cx<(Theme, bool)>) -> El {
+        let source = "| first | second | third |\n| --- | --- | --- |\n| a long cell with many words repeated to fill the table width | another long cell with many words repeated to fill the table width | a third long cell with many words repeated to fill the table width |";
+        let md = crate::content::markdown(state.0, source);
+        if state.1 {
+            md.peek().build()
+        } else {
+            md.build()
+        }
+    }
+    for px in [600.0, 1200.0] {
+        let t = Theme::new(
+            crate::theme::Variant::Ember,
+            crate::theme::Measure::new(px).unwrap(),
+            true,
+        );
+        for name in ["conversation-streaming", "decision-note-insert"] {
+            let mut app = scene(name);
+            app.window = [2000.0, 982.0];
+            let fonts = rune::text::TextSystem::new(
+                crate::assets::fonts().unwrap(),
+                crate::theme::FAMILIES,
+            );
+            let mut rt = Runtime::with_text(
+                app,
+                if px == 600.0 {
+                    measured_view::<600>
+                } else {
+                    measured_view::<1200>
+                },
+                (2000.0, 982.0),
+                Env::new(true, 1.0),
+                fonts,
+            );
+            rt.frame(1.0);
+            let elements = rt.elements();
+            if name.starts_with("conversation") {
+                assert!((keyed(&elements, "conv-column").rect[2] - (px + 40.0)).abs() <= 1.0);
+                let prose = elements
+                    .iter()
+                    .find(|e| {
+                        e.role == "text"
+                            && e.text
+                                .as_deref()
+                                .is_some_and(|s| s.len() > 120 && s.contains(' '))
+                    })
+                    .unwrap();
+                assert!((prose.rect[2] - px).abs() <= 1.0);
+            } else {
+                let column = keyed(&elements, "b0");
+                let margin = keyed(&elements, "decision-mtop");
+                assert!((column.rect[2] - px).abs() <= 1.0);
+                assert!((margin.rect[0] - column.rect[0] - px - 48.0).abs() <= 1.0);
+            }
+        }
+        for peek in [false, true] {
+            let fonts = rune::text::TextSystem::new(
+                crate::assets::fonts().unwrap(),
+                crate::theme::FAMILIES,
+            );
+            let mut rt = Runtime::with_text(
+                (t, peek),
+                markdown_view,
+                (2000.0, 982.0),
+                Env::new(true, 1.0),
+                fonts,
+            );
+            rt.frame(1.0);
+            let elements = rt.elements();
+            let table = elements
+                .iter()
+                .find(|e| e.role == "row")
+                .expect("Markdown table row");
+            let expected = if peek { 370.0 } else { px };
+            assert!(
+                (table.rect[2] - expected).abs() <= 1.0,
+                "table {:?}, expected {expected}",
+                table.rect
+            );
+        }
+    }
+}
+
+#[test]
 fn reading_layout_streaming_code_keeps_wrapped_note_highlights() {
     struct Code {
         source: String,

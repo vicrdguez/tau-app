@@ -54,6 +54,89 @@ fn yanked(a: &App) -> Option<&str> {
 }
 
 #[test]
+fn pending_yank_shows_its_effective_key_and_object_prefix() {
+    for (command, design, to, prefix) in [
+        ("yank", "y", "Y", "Y"),
+        ("yank.clipboard", "<leader>y", "<leader>hy", "␣hy"),
+    ] {
+        let mut a = review_at("timeline");
+        a.settings.keymap = a
+            .settings
+            .keymap
+            .rebind(
+                command,
+                &parse_seq(design).unwrap(),
+                &parse_seq(to).unwrap(),
+            )
+            .unwrap();
+        keys(&mut a, to);
+        assert_eq!(super::shown(&a), prefix);
+        keys(&mut a, "i");
+        assert_eq!(super::shown(&a), format!("{prefix}i"));
+        keys(&mut a, "w");
+        assert_eq!(yanked(&a), Some("timeline"));
+        assert_eq!(super::shown(&a), "");
+    }
+}
+
+#[test]
+fn accepted_rebinds_leave_every_yank_object_available_in_both_readers() {
+    for conversation in [false, true] {
+        for (object, decision, transcript) in [
+            ("iw", Some("timeline"), Some("Port")),
+            ("aw", Some("timeline "), Some("Port ")),
+            (
+                "is",
+                Some("The timeline is the one record that every client reads the same way."),
+                Some("Port the config loader from JSON to TOML."),
+            ),
+            (
+                "as",
+                Some("The timeline is the one record that every client reads the same way. "),
+                Some("Port the config loader from JSON to TOML. "),
+            ),
+            ("ip", Some(BASIS), Some(INPUT)),
+            (
+                "ap",
+                Some(
+                    "The timeline is the one record that every client reads the same way. Today it can only be paged through `history`. An export lets the owner keep it outside the store, diff two exports, and feed it to other tools.\n\n",
+                ),
+                Some(INPUT),
+            ),
+            ("im", None, Some(INPUT)),
+            ("am", None, Some(INPUT)),
+            ("y", Some(BASIS), Some(INPUT)),
+        ] {
+            let mut a = if conversation {
+                notes_cli()
+            } else {
+                review_at("timeline")
+            };
+            if conversation {
+                keys(&mut a, "ggj");
+            }
+            a.settings.keymap = a
+                .settings
+                .keymap
+                .rebind(
+                    "toggle.details",
+                    &parse_seq("<leader>td").unwrap(),
+                    &parse_seq("s").unwrap(),
+                )
+                .unwrap();
+            keys(&mut a, &format!("y{object}"));
+            assert_eq!(
+                yanked(&a),
+                if conversation { transcript } else { decision },
+                "{conversation} {object}"
+            );
+            assert!(!a.details_visible);
+            assert!(a.yank.is_none());
+        }
+    }
+}
+
+#[test]
 fn words_in_a_decision_are_their_source_bytes() {
     let mut a = review_at("timeline");
     keys(&mut a, "yiw");

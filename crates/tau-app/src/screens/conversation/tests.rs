@@ -10,7 +10,8 @@
 //! - the composer keeps the text it sent, or loses a draft when `Esc Esc` leaves it;
 //! - the cursor opens anywhere but the last stop with follow on, an upward motion leaves follow
 //!   on, `G` leaves it off, `]t [t ]m [m` stop anywhere but tool rows and message heads;
-//! - `za` leaves the row under the cursor as it was, `zR` or `zM` miss a row;
+//! - `za` or Enter leaves a fold unchanged, moves the cursor away, or `zR` or `zM` miss a row;
+//! - Enter changes a non-foldable stop, or Enter or `:open` toggles while composing;
 //! - `gd` in an owned conversation opens anything but its owner;
 //! - `␣cm` lists other than the server's models with the current one marked, `⏎` sets another
 //!   model than the one under the cursor; `␣ct` lists other than the seven levels or drops the
@@ -321,6 +322,46 @@ fn za_toggles_the_row_under_the_cursor_and_zr_zm_every_row() {
 }
 
 #[test]
+fn enter_toggles_each_foldable_and_keeps_the_cursor_on_it() {
+    for (project, id) in [("notes-cli", 4), ("render-core", 3)] {
+        let mut a = at(project, id);
+        keys(&mut a, "zR");
+        let rows = foldables(&items(&a, &shown(&a).unwrap()));
+        assert!(!rows.is_empty());
+        for (stop, _) in rows {
+            let conv = shown_conv(&a).unwrap();
+            a.screens.conversation.conv_mut(&conv).cursor = Some(stop.clone());
+            for expected in [false, true] {
+                keys(&mut a, "<CR>");
+                assert_eq!(cursor(&a), Some(stop.clone()));
+                assert_eq!(
+                    foldables(&items(&a, &shown(&a).unwrap()))
+                        .into_iter()
+                        .find(|(s, _)| *s == stop),
+                    Some((stop.clone(), expected))
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn enter_on_text_and_enter_or_open_while_composing_leave_folds_alone() {
+    let mut a = at("render-core", 3);
+    keys(&mut a, "[t[t");
+    let before = items(&a, &shown(&a).unwrap());
+    keys(&mut a, "i<CR><Esc><CR>:open<CR>");
+    assert_eq!(items(&a, &shown(&a).unwrap()), before);
+    assert!(inputs(&a).is_empty());
+    keys(&mut a, "<Esc>gg");
+    let stop = cursor(&a);
+    let before = items(&a, &shown(&a).unwrap());
+    keys(&mut a, "<CR>");
+    assert_eq!(cursor(&a), stop);
+    assert_eq!(items(&a, &shown(&a).unwrap()), before);
+}
+
+#[test]
 fn gd_in_an_owned_conversation_opens_its_owner() {
     let mut a = at("render-core", 8);
     keys(&mut a, "gd");
@@ -475,6 +516,59 @@ fn while_the_open_stream_is_down_writes_read_off_and_the_count_stops() {
     assert_eq!(running_count(&a), None, "the count stops");
     keys(&mut a, "<leader>cx");
     assert!(writes(&a).is_empty());
+}
+
+#[test]
+fn moving_tracks_folds_and_unsent_inputs_but_not_the_cursor() {
+    let mut a = at("notes-cli", 4);
+    let before = Conversation.moving(&a);
+    keys(&mut a, "[t");
+    assert_eq!(Conversation.moving(&a), before);
+    keys(&mut a, "za");
+    let folded = Conversation.moving(&a);
+    assert_ne!(folded, before);
+    keys(&mut a, "i");
+    typed(&mut a, "Use snapshots.");
+    assert_eq!(Conversation.moving(&a), folded, "typing lands");
+    keys(&mut a, "<D-CR>");
+    assert_ne!(Conversation.moving(&a), folded);
+}
+
+#[test]
+fn moving_ignores_a_server_entry() {
+    use crate::app::testing::{paired, settle};
+    use tau_client::engine::StreamEvent;
+    use tau_client::sse::Frame;
+    let setup = paired(false);
+    let mut a = App::launch(setup.link);
+    on_fixture(&mut a, Stage::Item(conv("notes-cli", 4)));
+    let before = Conversation.moving(&a);
+    let count = shown(&a).unwrap().held.unwrap().entries.len();
+    let fixture = tau_client::Fixture::design();
+    let ops = fixture.value()["streams"]["open notes-cli #4"]["later"][2]["ops"]
+        .as_array()
+        .unwrap()
+        .clone();
+    setup
+        .wire
+        .deliver_to_all(StreamEvent::Frame(Frame::Ops(ops)));
+    settle(&mut a.link);
+    assert!(shown(&a).unwrap().held.unwrap().entries.len() > count);
+    assert_eq!(Conversation.moving(&a), before);
+}
+
+#[test]
+fn a_send_refused_before_leaving_keeps_the_draft_and_does_not_move() {
+    let mut a = at("render-core", 8);
+    keys(&mut a, "i");
+    typed(&mut a, "Keep this draft.");
+    a.link.forget_server();
+    let before = Conversation.moving(&a);
+    keys(&mut a, "<D-CR>");
+    assert_eq!(composer_text(&a), "Keep this draft.");
+    assert!(inputs(&a).is_empty());
+    assert_eq!(Conversation.moving(&a), before);
+    assert!(a.echo.as_deref().unwrap().contains("not connected"));
 }
 
 #[test]

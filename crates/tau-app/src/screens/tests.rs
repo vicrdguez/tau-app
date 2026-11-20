@@ -9,7 +9,7 @@ use rune::{El, Tx};
 
 use super::*;
 use crate::app::{Invocation, commands};
-use crate::keys::keymap;
+use crate::keys::Keymap;
 
 fn conversation() -> Item {
     Item::Conversation {
@@ -84,7 +84,7 @@ fn the_keys_go_to_the_float_owner_else_the_page_else_nobody() {
 }
 
 fn run(a: &mut App, id: &str) {
-    let command = keymap().command(id).expect("a keymap command");
+    let command = Keymap::design().command(id).expect("a keymap command");
     let inv = Invocation {
         command,
         count: None,
@@ -134,7 +134,7 @@ fn the_frame_ui_floats_and_content_never_name_the_client() {
 #[test]
 #[ignore = "inventory: prints every palette command with no handler"]
 fn list_unbuilt_commands() {
-    for c in keymap().palette() {
+    for c in Keymap::design().palette() {
         if !commands::handled().any(|id| id == c.id) {
             println!("UNBUILT {} {}", c.id, c.desc);
         }

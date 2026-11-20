@@ -13,7 +13,7 @@ use rune::{Cx, El, Tx, el, row, text};
 
 use crate::app::{App, Focus, Handler, Invocation};
 use crate::frame::Row;
-use crate::keys::{Code, Key, keymap};
+use crate::keys::{Code, Key};
 use crate::screens::{self, HintTarget};
 use crate::theme::Theme;
 
@@ -153,7 +153,7 @@ pub fn overlay(t: Theme, app: &App, cx: &Cx<App>) -> Option<El> {
                     })
                 })
                 .collect();
-            labels(shown.len(), keymap().hint_alphabet())
+            labels(shown.len(), app.settings.keymap.hint_alphabet())
                 .into_iter()
                 .zip(shown)
                 .collect()
@@ -230,7 +230,7 @@ pub(crate) fn draw(app: &mut App) -> Vec<(String, screens::Anchor)> {
     };
     let n = h.targets.len();
     let dealt = h.drawn.get_or_insert_with(|| {
-        labels(n, keymap().hint_alphabet())
+        labels(n, app.settings.keymap.hint_alphabet())
             .into_iter()
             .zip(0..n)
             .collect()

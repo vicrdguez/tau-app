@@ -16,13 +16,22 @@ All run through Nix from the repository root.
 | `nix run .#script <name> <at> [scene]` | plays `tools/scripts/<name>.json` (keys and clicks, as a window gets them) from a scene and renders the frame at `<at>` seconds |
 | `nix run .#compare <scene> [mockup]` | the render beside its mockup and their difference, into `target/snaps/compare/` |
 
+Motion replays use the same keys as the window.
+
+| Replay | Shows |
+|---|---|
+| `nix run .#script sidebar-slide 0.3 home` | sidebar hiding at 100 ms; 0.7 is settled and 1.0 shows the return |
+| `nix run .#script details-slide 0.3 conversation-streaming` | details opening beside the conversation; 1.0 shows closing |
+| `nix run .#script send-enter 0.3 conversation-steer-insert` | a three-line draft sent above the shrinking composer |
+| `nix run .#script fold-glide 0.45 conversation-streaming` | a tool fold opening at 100 ms; 1.15 shows closing |
+
 Fonts load at run time from `$TAU_ASSETS/fonts`, which every command sets. The path baked in at build time is the default.
 
 ## Modules
 
 | Module | Holds |
 |---|---|
-| `theme` | `design/tokens.json` parsed once: three colour variants (`t.c`), the type scale (`t.ty`), layout and timings (`t.l`). `Theme::of(variant)` swaps colours only, so `␣ht` never reflows. |
+| `theme` | `design/tokens.json` parsed once: three colour variants (`t.c`), the type scale (`t.ty`), layout and timings (`t.l`), derived reading widths (`t.read`), and motion policy (`t.motion`). `Motion::moves` creates user-triggered animation islands for floats, panels, folds and sends. Motion off uses `Spring::NONE` and no islands. `Theme::of(variant)` swaps colours only, so `␣ht` never reflows. |
 | `assets` | the fonts, the Carbon icons, the client's small marks and key glyphs, the brand SVGs |
 | `keys` | the keymap engine over `design/keymap.toml`: contexts, modes, prefix-free resolution with `shadows`, counts, pending sequences, which-key entries, `:` names, lit and muted chips. It returns an `Outcome` and never runs anything. |
 | `editor` | one modal editor (Insert, Normal, Visual) layered over rune's `TextEdit`, for the composer, notes, fields, Connect and the start page |
@@ -32,11 +41,35 @@ Fonts load at run time from `$TAU_ASSETS/fonts`, which every command sets. The p
 | `open` | the open items in the sidebar's order: open, close, cycle |
 | `ui` | primitives that take the theme and plain data: rows, chips and hints, count tags, the mode badge, group heads, facts lines, the container, the text field, the notice band, the float shell, the wordmark |
 | `frame` | the sidebar, the stage header, the bottom bar, the notice band and the layout of every region at any window size |
-| `floats` | which-key, the palette, the `:` line, `:messages`, Confirm (and `gx`'s, `open_url`), and the sheet (`:jumps`, the `␣hk` cheat sheet generated from `keymap.toml`); `Float::Screen` holds a screen's own float |
+| `floats` | which-key, the palette, the `:` line, `:messages`, Confirm (and `gx`'s, `open_url`), the sheet (`:jumps`, the `␣hk` cheat sheet generated from `keymap.toml`), and the settings float (`settings.rs`); `Float::Screen` holds a screen's own float |
+| `settings` | this device's `Settings` (theme, reading width, motion, keymap), read from `settings.toml` at launch and changed only through `settings::change` (§ Settings); `file.rs` is the pure TOML read and write |
 | `nav` | the jumplist (`C-o C-i :jumps`, kept on this device) and hint mode (`gs`), over each screen's anchor and targets |
 | `yank` | `y{obj}` and `␣y{obj}` from the readers: the operator waiting for its object, plain-text sentences, the register |
 | `app` | the state (`App`), the rune wiring (`spec`, `view`, `poll`), key dispatch (`input`), the command tables (`commands`), the link in the app (`link`), what the frame shows of the server (`server`) and the headless scenes (`scenes`) |
 | `screens` | one family per file or folder: `connect`, `start`, `home`, `places`, `project`, `peek`, `conversation`, `decision` (§ Screens) |
+
+## Settings
+
+`App::settings` is one `Copy` value: the theme variant, the reading `Measure`, the motion flag and the `Keymap` with this device's moved keys. `App::theme()` derives the `Theme` from it each frame, so a change shows on the next frame everywhere: colours, the reading column, every printed key.
+
+**The file.** `settings.toml` at the link's store root, beside `client.toml` (`TAU_CLIENT_DIR` or `~/.config/tau`). The fixture link has no root, so scenes, tests on `App::default()` and `--demo` read and write nothing.
+
+```toml
+theme = "ember-soft"      # ember | ember-soft | ember-light
+reading_width = 880       # px, 600 to 1200
+motion = false
+
+[keys."start.workflow"]   # the command id from keymap.toml
+"<M-w>" = "<M-m>"         # its key as keymap.toml writes it = the key you press instead
+```
+
+`settings::load` runs once at launch. It never fails: each problem (unreadable, not TOML, an unknown key, a wrong type, a width out of range, a `[keys]` line the keymap refuses) is one line in `:messages`, the echo says `settings.toml: 2 problems · :messages`, and every other value still applies. All `[keys]` lines go to `Keymap::rebind_all` together, so a swap written in the file loads.
+
+`settings::change(app, new, edit)` is the only write path. It applies `new` at once, then re-reads the file and rewrites only the key `edit` names with `toml_edit`, so comments, unknown keys and hand edits made since launch stay. A key put back to its design key loses its line, and an empty command table goes with it. A file that can't be read or isn't TOML is never written over; the change lasts until quit and the echo says why.
+
+**The float** (`floats/settings.rs`, `␣hs`, `:settings`, `⌘,`) lists the values in `Field::ALL`, a hairline, then `Keymap::key_rows()`. Typing filters; `C-j C-k` (Down Up) move; `C-h C-l` (Left Right) and `⏎` change a value; `⏎` on a key row takes a new key and `C-x` puts back the design's. While a row takes a key, `input::press` hands every key to `floats::settings::capture` before the keymap: `⏎` keeps it if `Keymap::rebind` allows it, `Esc` and `C-c` cancel, Backspace takes one back, auto-repeats and a fifth key are ignored, and a refusal stays on the row and in the echo. Scenes: `settings`, `settings-capture`, `settings-refused`; `tools/scripts/settings-rebind.json` plays the whole rebind on the `start` scene.
+
+**A fifth setting** is a field on `Settings`, a variant in `Field` and its `ALL`, and the match arms the compiler then asks for: `Field::key`, `label`, `shown`, `choices`, `step`, and the read and write arms in `settings/file.rs`. Its row, its keys and its save follow. Add a test per value it can be given to `settings/tests.rs` first.
 
 ## The link in the app
 
@@ -77,6 +110,8 @@ A screen family is one file, or one folder with a `mod.rs`, under `src/screens/`
 6. **An editor.** Give the editor's `edit` to `text_input` with `on_edit` (reaching the field in your `State`) and `on_input_key(app::input::on_field_key)`. In `keys`, hand the keys to `Editor::insert` or `Editor::normal`; `Reply::Pass` returns false. Call `Editor::tick` from `poll` for Insert's timed `jk`. Connect is the worked example.
 7. **Its floats.** Implement `ScreenFloat` (owner, scope, badge, view, `edit_mut`) and open it with `app.open_float(Float::Screen(Box::new(..)))`. Its keys go to the owner's `commands` and `keys`; `screens::top_float::<T>(app)` gets it back to change it. Confirm is the frame's (`Float::Confirm` with an `on_yes` step).
 8. **Jumps, hints, yanks.** `anchor` says where the page's cursor stands, as JSON only the family reads back, and `land` puts it there: the jumplist keeps anchors, and a jump records one when a command the keymap marks `jump` (or `gg`, `G`) moves the stage. `targets` lists what hint mode labels: each target's rune key, where its label sits, the scrolling element that clips it, and its anchor. `yank` returns the source text of a text object at the cursor. A family without a cursor leaves all four at their defaults.
+The defaulted `Screen::moving` fingerprints the page state a key may animate. The conversation includes its folds and unsent input ids, but not its cursor or server entries. `app::input::Moving` compares that fingerprint with float count, sidebar placement and details visibility. A page change or float close stays instant.
+
 9. **Link hooks.** `shown` runs when `App::show` puts one of the family's stages on the stage, `on_event` for every `LinkEvent`, `on_focus` for window focus, `poll` every frame.
 10. **Its scenes.** `scenes()` returns named states built with `app::scenes::on_fixture(app, stage)` (the fixture's open items, `stage` shown, the fixture link settled) or `before_any_frame`. Name a scene after its mockup, render it with `nix run .#snap <name>` and compare with `nix run .#compare <name>`.
 11. **Its tests.** In the family's own file or folder (`connect/tests.rs`). `app::testing` makes links on the fixture that a test can silence, refuse every call to, or end a stream of, on a clock that moves when told.
@@ -121,7 +156,7 @@ let noted = markdown(t, source)
 
 `render.rs` draws the outline. Gaps follow the prototype's margins, collapsed as a page collapses them: 12 px after a paragraph, list, table, code block, quote or image; `h1` 12 below its rule (6 px padding and 1 px `border.strong`); `h2` 26 above and 8 below; `h3` to `h6` 24 and 6; list items 4 apart, and a list nested in an item 4 under the item's text. The peek steps down to 8, `h1` 6 (4 px padding), `h2` 12 and 4, `h3` to `h6` 10 and 3 (`spec.md` §5.4). List markers hang in a 24 px column (18 in the peek) plus 2 px: `• ◦ ▪` by level in `fg.muted`, numerals right-aligned in `mono` `fg.alt`, or a task's 14 px box. A quote has its 3 px `border.strong` bar and its prose in italic `fg.alt`; an alert's kind word heads it in 600. Every fenced block, `diff`, `patch` and `mermaid` included, is the same square `surface.code` block with a 2 px gold rule, `mono` 13/20 (12/18 in the peek), padding 20 above, 7 below and 14 at the sides, and its language in gold `ui.small` pinned 3 px from its top and 10 from its right; in the peek the code has 5 px above it, so the label sits over the first line's end. Code scrolls sideways under a 32 px fade and is coloured by rune-kit's scanners, except the line still streaming in. An image loads nothing and is a 32 px placeholder, `image · <alt> · <host>`.
 
-`style.rs` owns the rune-kit style for prose, the fonts of both sizes, and the syntax colours. It reads Markdown metrics, the peek's width and syntax colours from `design/tokens.json` because `Theme::l` does not yet expose those groups. Colours otherwise come from the supplied theme. A heading's level picks rune-kit's fourth heading slot, so `h5` (uppercase, +0.04 em) and `h6` (italic) keep their own fonts; `h5` is uppercased only where a capital takes the same bytes, so marks keep their place. Tables fit the 600 px measure (the peek's column in the peek) less any list or quote inset: their columns shrink to their longest word, then the table scrolls. Inline-code pills are padded 5 px (4 in the peek). Links have no opener, tasks have no handler, and images have no loader. Content never receives coral from this module. The block holding the source's end streams (`streaming(true)`), and the final unterminated source line is muted through a source highlight.
+`style.rs` owns the rune-kit style for prose, the fonts of both sizes, and the syntax colours. It reads Markdown metrics and the peek's width from `t.l`, the reading measure from `t.read`, and syntax colours from `t.c`. Colours otherwise come from the supplied theme. A heading's level picks rune-kit's fourth heading slot, so `h5` (uppercase, +0.04 em) and `h6` (italic) keep their own fonts; `h5` is uppercased only where a capital takes the same bytes, so marks keep their place. Tables fit the reading measure (the peek's column in the peek) less any list or quote inset: their columns shrink to their longest word, then the table scrolls. Inline-code pills are padded 5 px (4 in the peek). Links have no opener, tasks have no handler, and images have no loader. Content never receives coral from this module. The block holding the source's end streams (`streaming(true)`), and the final unterminated source line is muted through a source highlight.
 
 ### Pinned rune-kit limits
 

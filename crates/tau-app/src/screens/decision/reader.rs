@@ -154,32 +154,44 @@ fn blocks_after(doc: &Doc, at: usize) -> i64 {
         .count() as i64
 }
 
-/// Keys no command took on the page: motions, `v V`, Visual's `Esc`, an operator's object.
+pub fn object_key(app: &mut App, key: Key) -> bool {
+    let Some(d) = shown(app) else { return false };
+    let op = app.screens.decision.page_of(&d).and_then(|p| p.op);
+    let around = match (op, key.typed()) {
+        (Some(Op::Annotate), Some(c @ ('i' | 'a'))) => {
+            app.screens.decision.page(&d).op = Some(Op::Object { around: c == 'a' });
+            return true;
+        }
+        (Some(Op::Object { around }), _) => around,
+        _ => return false,
+    };
+    app.screens.decision.page(&d).op = None;
+    if let (Some(doc), Some(Cursor::Text(at))) = (doc(app, &d), cursor(app, &d)) {
+        let range = match key.typed() {
+            Some('w') => Some(doc.word_around(at, around)),
+            Some('p' | 's') => doc.block_of(at).map(|b| doc.blocks[b].range.clone()),
+            _ => None,
+        };
+        if let Some(r) = range {
+            annotate(app, &d, r);
+        }
+    }
+    true
+}
+
+/// Keys no command took on the page: motions, `v V`, Visual's `Esc`.
 pub fn key(app: &mut App, keys: &[Key], count: Option<u32>) -> bool {
+    if let [key] = keys
+        && object_key(app, *key)
+    {
+        return true;
+    }
     let Some(d) = shown(app) else { return true };
     let (Some(doc), Some(from)) = (doc(app, &d), cursor(app, &d)) else {
         return true;
     };
     let choices = record(app, &d).map_or(0, |v| v.decision.choices.len());
     let page = app.screens.decision.page(&d);
-    if let Some(Op::Object { around }) = page.op {
-        page.op = None;
-        if let (Cursor::Text(at), [k]) = (from, keys) {
-            let range = match k.typed() {
-                Some('w') => Some(doc.word_around(at, around)),
-                Some('p' | 's') => doc.block_of(at).map(|b| doc.blocks[b].range.clone()),
-                _ => None,
-            };
-            if let Some(r) = range {
-                annotate(app, &d, r);
-            }
-        }
-        return true;
-    }
-    if keys == [Key::char('a')] && page.op == Some(Op::Annotate) {
-        page.op = Some(Op::Object { around: true });
-        return true;
-    }
     if keys == [Key::plain(Code::Esc)] {
         page.visual = None;
         page.op = None;
@@ -360,14 +372,12 @@ fn under_cursor(app: &App, d: &DecisionRef) -> Option<usize> {
         })
 }
 
-/// `i`: edit the note under the cursor; after `c`, the start of an inner object.
+/// `i`: edit the note under the cursor.
 pub fn edit(app: &mut App) {
-    let Some(d) = shown(app) else { return };
-    let page = app.screens.decision.page(&d);
-    if page.op == Some(Op::Annotate) {
-        page.op = Some(Op::Object { around: false });
+    if object_key(app, Key::char('i')) {
         return;
     }
+    let Some(d) = shown(app) else { return };
     let Some(i) = under_cursor(app, &d) else {
         app.say("no note here");
         return;

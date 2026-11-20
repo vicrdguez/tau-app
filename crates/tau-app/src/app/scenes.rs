@@ -36,6 +36,10 @@ pub fn all() -> &'static [Scene] {
 /// The frame's own scenes.
 const SCENES: &[Scene] = &[
     ("home-connecting", before_any_frame),
+    ("home-motion-off", |a| {
+        home(a);
+        a.settings.motion = false;
+    }),
     ("home-connecting-800", before_any_frame),
     ("which-key-root", |a| {
         home(a);
@@ -54,7 +58,7 @@ const SCENES: &[Scene] = &[
     }),
     ("home-light", |a| {
         home(a);
-        a.variant = Variant::EmberLight;
+        a.settings.theme = Variant::EmberLight;
     }),
     ("sidebar-hidden", |a| {
         home(a);
@@ -102,6 +106,18 @@ const SCENES: &[Scene] = &[
         home(a);
         a.open_float(Float::palette());
     }),
+    ("settings", |a| {
+        home(a);
+        a.open_float(Float::settings());
+    }),
+    ("settings-capture", |a| {
+        home(a);
+        settings_capture(a, "<M-m>");
+    }),
+    ("settings-refused", |a| {
+        home(a);
+        settings_capture(a, "<M-p><CR>");
+    }),
     ("cmdline", |a| {
         home(a);
         let mut f = Float::cmdline();
@@ -122,18 +138,21 @@ const SCENES: &[Scene] = &[
     }),
 ];
 
+/// The settings float filtered to the start page's workflow key, taking `seq` as its new key.
+fn settings_capture(a: &mut App, seq: &str) {
+    a.open_float(Float::settings());
+    a.float_edit().replace_text("workflow");
+    for key in crate::keys::parse_seq(&format!("<CR>{seq}")).expect("a key sequence") {
+        super::input::press(a, key, false, &mut rune::Tx::default());
+    }
+}
+
 /// Presses `seq` long enough ago for which-key to be due.
 fn pending(a: &mut App, seq: &str) {
     let scope = a.scope();
     for key in crate::keys::parse_seq(seq).expect("a key sequence") {
-        a.keys.press(
-            crate::keys::keymap(),
-            scope.mode,
-            scope.ctx,
-            key,
-            false,
-            -1.0,
-        );
+        a.keys
+            .press(a.settings.keymap, scope.mode, scope.ctx, key, false, -1.0);
     }
     a.which_key_shown = true;
 }

@@ -53,7 +53,7 @@ pub(super) fn all() -> Vec<Scene> {
         ("start", base),
         ("start-light", |a| {
             base(a);
-            a.variant = crate::theme::Variant::EmberLight;
+            a.settings.theme = crate::theme::Variant::EmberLight;
         }),
         ("start-project-picker", |a| {
             base(a);

@@ -82,7 +82,7 @@ The screens you act in are the start page, Home, Conversation, Decision and Proj
 | A decision record | `decision` | §5.6, "Refreshing" |
 | Projects, extensions, models, options | the calls | on connect, on opening their views and pickers, after each write |
 
-**Device-local state**, never sent (`client.md` §8): the server URL and device name (`~/.config/tau/client.toml`); the token (macOS Keychain); theme; the sidebar's visibility and the details panel's; the open items, their order and each one's cursor; each place's filter and cursor; the last project used and the last workflow per project; the start page's draft; each conversation's composer draft; each decision's note drafts; the outbox; the label cache; hidden faults and hidden failed runs; the since-you-left base; the jumplist. `fixture.json` → `local` shows one instance.
+**Device-local state**, never sent (`client.md` §8): the server URL and device name (`~/.config/tau/client.toml`); the token (macOS Keychain); the theme, the reading width, motion and any key moved (`settings.toml` beside `client.toml`, changed in the settings float, `␣hs` `:settings` `⌘,`, and by `␣ht`); the sidebar's visibility and the details panel's; the open items, their order and each one's cursor; each place's filter and cursor; the last project used and the last workflow per project; the start page's draft; each conversation's composer draft; each decision's note drafts; the outbox; the label cache; hidden faults and hidden failed runs; the since-you-left base; the jumplist. `fixture.json` → `local` shows one instance.
 
 ---
 
@@ -98,7 +98,7 @@ Window 1512 × 982 logical px (a 14″ MacBook Pro, maximised), with the sidebar
 | Notice band (when a state needs one) | top of the stage, its width, 38 px for one line, 56 px when its sentence takes two; pushes the page down | `surface.side` | offline, refused, revoked, superseded, a stream that keeps failing |
 | Peek (Home and the places, stage ≥ 1000 px) | 1072, 44, 440, 912; a hairline at its left and no line inside | `surface.read` | the cursor row, live (§5.4) |
 | Details panel (`␣td`) | 1272, 44, 240, 912; a hairline at its left | `surface.read` | a view's secondary facts (§4.5) |
-| Bottom float | 260 to 1500, foot at y 946, up to 40 % of the window tall | `surface.raised`, the float shell (§6) | which-key, palette, `:` line, find, pickers, filter, bind, confirm, readback, outbox, Server, the peek float |
+| Bottom float | 260 to 1500, foot at y 946, up to 40 % of the window tall | `surface.raised`, the float shell (§6) | which-key, palette, `:` line, settings, find, pickers, filter, bind, confirm, readback, outbox, Server, the peek float |
 | Bottom bar | 0, 956, 1512, 26 | `surface.bar` | mode badge · pending keys · echo · save state of option drafts; at its right end, while the sidebar is hidden, the count tags and any abnormal server state (§4.3) |
 
 With the sidebar hidden, the stage and its header start at x 0; the window controls sit at the header's left and its content starts at x 88. A float covers the stage only, never the sidebar or the bottom bar; the page is clipped at the float's top edge, and the insets beside and under the float show `surface.read`.
@@ -140,7 +140,7 @@ With the sidebar hidden, the stage and its header start at x 0; the window contr
 - Any command that changes what the stage shows (`␣oh`, `]b`, `␣cn`, a float's choice) gives the stage the keys. The badge stays `NORMAL` in the sidebar.
 - A sidebar that is not drawn (hidden by its stored choice, or under a 1000 px window) is drawn while it, or a float opened from it, has the keys: over the stage's left 248 px, with a hairline at its right, and nothing reflows. It goes when the keys go back to the stage.
 
-**Hiding.** `␣tb` (or the toggle in the stage header) shows and hides the sidebar; the choice kept on this device is its only state. Under a 1000 px window the sidebar is not drawn whatever the choice, and `␣tb` does what `C-h` does (§4.7). While it is not drawn, the count tags and any abnormal server state sit at the right end of the bottom bar (§4.3), so nothing that needs you and nothing wrong with the link is out of sight.
+**Hiding.** The sidebar slides on a 200 ms spring when a key or press shows or hides it. Beside the stage, both move together. Over the stage, the sidebar stays opaque during exit. Motion off and Reduce Motion make this instant (`reference/visual-language.md` §7). `␣tb` (or the toggle in the stage header) shows and hides the sidebar; the choice kept on this device is its only state. Under a 1000 px window the sidebar is not drawn whatever the choice, and `␣tb` does what `C-h` does (§4.7). While it is not drawn, the count tags and any abnormal server state sit at the right end of the bottom bar (§4.3), so nothing that needs you and nothing wrong with the link is out of sight.
 
 **Server line.** Calm, `fg.muted`: `laptop → tau.tail4e2f.ts.net ⌄`; the host is cut at its end with `…` when it doesn't fit. Before pairing: `not connected`. Not calm, `fg` with its mark: `○ connecting` (from launch until the first `inbox` frame, §4.8), `○ reconnecting in 4 s`, `○ offline 6 m`, `◷ server stopped · retrying`, `× refused by the server`, `× revoked`, `× server speaks protocol 2`. The Server float has the detail (each stream and its state).
 
@@ -290,7 +290,7 @@ The draft clears when `create` succeeds. This device then remembers the project 
 
 **Calls:** `projects`, `extensions` and `models` when the page opens; `options {project}` when its project is set or changes; then `create`, `input`.
 
-**Keys:** Insert on open. `⏎` is a new line; `⌘⏎` starts; `M-p` opens the project picker; `M-w` opens the workflow list (Option-p and Option-w can't type `π` and `∑` here). In Insert the two are the start editor's own keys; in Normal they are the commands `start.project` (`:project`) and `start.workflow` (`:workflow`). `Esc` or `jk` leaves Insert; in Normal the composer's hint reads `⌘⏎ start · i writes`, and `i a o` return to Insert.
+**Keys:** Insert on open. `⏎` is a new line; `⌘⏎` starts; `M-p` opens the project picker; `M-w` opens the workflow list (Option-p and Option-w can't type `π` and `∑` here). In both modes they are the commands `start.project` (`:project`) and `start.workflow` (`:workflow`). `Esc` or `jk` leaves Insert; in Normal the composer's hint reads `⌘⏎ start · i writes`, and `i a o` return to Insert.
 
 ### 5.3 Home
 
@@ -372,7 +372,7 @@ The project and `#4` are in the breadcrumb, and the rest of the settings in the 
 - an item in `pi.live.tools` → steel triangle, `running` (`fg.alt`); its output shows open, the last 6 lines, streaming;
 - a call with neither while no run is live → mauve `help`, **`no result`** (bold, `fg`).
 
-**Duration (D12):** a finished row shows its outcome word and no duration. A running row counts up from the `timestamp` of the `pi.assistant` message that made the call: `4.2 s` (one decimal under 10 s), `12 s`, `17 m`; while the view's stream is down the count stops (§4.9). Two or more adjacent `ok` rows fold into one, `✓ 2 tool calls · read, bash   ok`, with no figure; failed, running and no-result rows never fold. `za` opens and closes a row or a fold, `]t [t` move. **Opened output** sits under its row in the container style on `surface.sunken`, in `mono.output`, showing the bytes as sent (Iosevka draws `ℹ` as a bold i in its cell; the client substitutes nothing).
+**Duration (D12):** a finished row shows its outcome word and no duration. A running row counts up from the `timestamp` of the `pi.assistant` message that made the call: `4.2 s` (one decimal under 10 s), `12 s`, `17 m`; while the view's stream is down the count stops (§4.9). Two or more adjacent `ok` rows fold into one, `✓ 2 tool calls · read, bash   ok`, with no figure; failed, running and no-result rows never fold. A press, Enter or `za` opens and closes a tool row, tool group or thinking fold and keeps the cursor on it. Enter acts only in the reader. `]t [t` move. **Opened input and output** sit under the row in the container style on `surface.sunken`, in `mono.output`, showing the bytes as sent (Iosevka draws `ℹ` as a bold i in its cell; the client substitutes nothing). The input appears above the output when the summary omits fields or lines, exceeds 48 characters, or falls back to JSON for a non-empty object. A sole multiline string shows as itself; other omitted arguments show as pretty JSON. When both blocks show, small muted `input` and `output` labels tell them apart.
 
 **Live run.** `pi.live.generation.message` renders as an agent message in progress with its own header, `agent · writing` (and the model when it differs); its last block is `fg.muted` (the streaming tail, never coral). When it is committed as an entry it joins the turn's header.
 
@@ -381,6 +381,8 @@ The project and `#4` are in the breadcrumb, and the rest of the settings in the 
 **A stopped run.** Not verified: whether `stop` leaves a `runFailure`. If it does, `conversations` reports the conversation `failed`. The client then reads the reason (one `open` of that conversation, closed after its first frame) and, when the reason names an abort (`aborted`), shows **stopped**: no rose mark, not in Failed, not counted by `×`; the facts line reads `stopped`, the header `␣cc continue`; the line after the last entry reads `Stopped · continue runs it again on the same context`, untinted. If a stopped run leaves no `runFailure`, it is simply idle. This is a first implementation test (`open-questions.md` §3).
 
 **Queue** (`pi.inbox.items`), directly above the composer: the mode word and its state (`steer · queued`, `follow-up · queued`, steel and `fg.muted`) and the text on the content bar (`prose.small`, inline Markdown, two lines at most). Under the last: `queued inputs can't be taken back`. A row leaves when the core places it.
+
+**Send motion.** A locally accepted send enters above the composer with an 8 px rise and fade on a 180 ms spring. The composer shrinks and the transcript moves with it. A refused send keeps the draft and starts no motion. The server's replacement of the unsent row with a transcript message is instant (`reference/visual-language.md` §7).
 
 **Unsent rows,** between the queue and the composer: `sending…`; on an unknown outcome the mauve `?`, the mode word, the text on the content bar, and `no reply · resends when connected` (or `not sent automatically · ␣rt retries`, `client.md` §2.2).
 

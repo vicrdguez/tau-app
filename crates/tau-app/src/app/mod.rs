@@ -22,10 +22,11 @@ use tau_client::{Link, LinkPhase};
 
 use crate::floats::{self, Float};
 use crate::frame::{self, Bar, Header, Parts, Place, Row, Sidebar, SidebarPlace};
-use crate::keys::{Keys, Mode, keymap};
+use crate::keys::{Keymap, Keys, Mode};
 use crate::open::{Item, OpenItems};
 use crate::screens::{self, Screens};
-use crate::theme::{Theme, Variant, tokens};
+use crate::settings::Settings;
+use crate::theme::{Theme, tokens};
 use crate::ui::{Badge, Scope};
 
 /// What the stage shows: one page. `crate::screens::of` names the screen family that draws it.
@@ -48,7 +49,9 @@ pub enum Focus {
 }
 
 pub struct App {
-    pub variant: Variant,
+    pub settings: Settings,
+    /// The system's Reduce Motion, as rune last reported it.
+    pub reduced_motion: bool,
     /// The window's size in points, as last laid out.
     pub window: [f32; 2],
     /// Seconds since launch (the virtual clock when headless).
@@ -111,7 +114,8 @@ impl Default for App {
 impl App {
     fn new(link: Link) -> App {
         App {
-            variant: Variant::Ember,
+            settings: Settings::default(),
+            reduced_motion: false,
             window: tokens().layout.window,
             now: 0.0,
             focus: Focus::Stage,
@@ -146,6 +150,7 @@ impl App {
     pub fn launch(link: Link) -> App {
         let mut app = App::new(link);
         local::load(&mut app);
+        crate::settings::load(&mut app);
         let paired = !matches!(
             app.link.status().phase,
             LinkPhase::NotPaired | LinkPhase::Pairing
@@ -155,7 +160,7 @@ impl App {
     }
 
     pub fn theme(&self) -> Theme {
-        Theme::of(self.variant)
+        self.settings.theme(self.reduced_motion)
     }
 
     /// Where the keys are: the top float, else the sidebar, else the stage's page.
@@ -290,7 +295,8 @@ impl App {
 
 /// Builds the window from the state.
 pub fn view(app: &App, cx: &mut Cx<App>) -> El {
-    let t = app.theme();
+    let reduced = cx.is_reduced_motion();
+    let t = app.settings.theme(reduced);
     // The first frame lays out before `on_layout` reports the size: draw at the real one.
     let size = cx.layout_size("root").unwrap_or(app.window);
     let scope = app.scope();
@@ -298,7 +304,7 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
     let framed = page.framed();
     let place = app.sidebar_place_at(size[0]).filter(|_| framed);
     let groups = app.server.open_groups(&app.open);
-    let sidebar = place.map(|p| {
+    let sidebar = framed.then(|| {
         let s = Sidebar {
             server: &app.server.phase,
             counts: app.server.counts,
@@ -307,7 +313,7 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
             open: &groups,
             scope,
         };
-        (frame::sidebar(t, &s, commands::open_row), p)
+        frame::sidebar(t, &s, commands::open_row)
     });
     let header = if framed {
         frame::header(
@@ -341,9 +347,11 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
                 Focus::Sidebar => crate::keys::Ctx::Sidebar,
                 Focus::Stage => page.ctx(app),
             };
-            Some(floats::view(t, f, ctx, &app.messages))
+            Some(floats::view(t, f, ctx, &app.messages, &app.settings))
         }
-        None if app.which_key_shown => keymap()
+        None if app.which_key_shown => app
+            .settings
+            .keymap
             .which_key(app.keys.pending(), scope.mode, scope.ctx)
             .map(|wk| {
                 let why = |id: &str| page.unavailable(app, id);
@@ -367,6 +375,7 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
         Parts {
             window: size,
             sidebar,
+            sidebar_place: place,
             header,
             notice: app
                 .server
@@ -382,14 +391,20 @@ pub fn view(app: &App, cx: &mut Cx<App>) -> El {
             lights: rune::is_headless(),
         },
     )
-    .on_layout(|s: &mut App, r| s.window = [r[2], r[3]])
+    .on_layout(move |s: &mut App, r| {
+        s.window = [r[2], r[3]];
+        s.reduced_motion = reduced;
+    })
 }
 
 /// Runs at the start of every frame: keeps the clock, shows which-key when its delay is up, pumps
 /// the link into `App::server`, and runs each screen's `poll`.
 pub fn poll(app: &mut App, now: f64, tx: &mut Tx) -> bool {
     app.now = now;
-    let due = app.floats.is_empty() && app.keys.which_key_due(now, keymap().whichkey_delay_ms());
+    let due = app.floats.is_empty()
+        && app
+            .keys
+            .which_key_due(now, app.settings.keymap.whichkey_delay_ms());
     let reveal = std::mem::take(&mut app.reveal_float_target) || (due && !app.which_key_shown);
     let mut changed = due != app.which_key_shown;
     app.which_key_shown = due;
@@ -419,8 +434,8 @@ pub fn spec(fonts: &'static [&'static [u8]]) -> AppSpec<App> {
 }
 
 /// How long a pending prefix waits before which-key shows.
-pub fn which_key_delay() -> Duration {
-    Duration::from_secs_f64(keymap().whichkey_delay_ms() / 1000.0)
+pub fn which_key_delay(km: Keymap) -> Duration {
+    Duration::from_secs_f64(km.whichkey_delay_ms() / 1000.0)
 }
 
 #[cfg(test)]

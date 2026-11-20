@@ -26,7 +26,6 @@ fn paired(dir: &std::path::Path) -> (Link, ManualClock) {
     let config = ClientConfig {
         server: Some(fixture.url()),
         device: Some(fixture.device()),
-        theme: None,
     };
     store.save_client(&config).unwrap();
     let secrets = Secrets::memory();

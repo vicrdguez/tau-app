@@ -10,6 +10,7 @@ pub mod outbox;
 pub mod project_bind;
 pub mod project_picker;
 pub mod server;
+pub mod settings;
 pub mod sheet;
 pub mod which_key;
 
@@ -17,8 +18,9 @@ pub use sheet::{Sheet, SheetRow};
 
 use rune::{El, TextEdit, row, text, text_input};
 
-use crate::keys::{Command, Ctx, Key, Mode, keymap};
+use crate::keys::{Command, Ctx, Key, Keymap, Mode};
 use crate::screens::ScreenFloat;
+use crate::settings::Settings;
 use crate::theme::Theme;
 use crate::ui::{Badge, Scope, Shell, float_hint, float_row, glyphs, shell, title};
 
@@ -66,6 +68,8 @@ pub enum Float {
     Confirm(Confirm),
     /// `:jumps`, the keys cheat sheet.
     Sheet(Sheet),
+    /// `␣hs`, `:settings`, `⌘,`.
+    Settings(settings::SettingsFloat),
     /// A float a screen family owns: the peek float, the readback, a picker of its own.
     Screen(Box<dyn ScreenFloat>),
 }
@@ -93,6 +97,10 @@ impl Float {
         })
     }
 
+    pub fn settings() -> Float {
+        Float::Settings(settings::SettingsFloat::new(focused_edit()))
+    }
+
     pub fn cmdline() -> Float {
         Float::CmdLine(CmdLine {
             line: focused_edit(),
@@ -105,13 +113,16 @@ impl Float {
         match self {
             Float::Picker(_) | Float::CmdLine(_) | Float::Sheet(_) => Ctx::Picker,
             Float::Confirm(_) => Ctx::Confirm,
+            Float::Settings(_) => Ctx::Settings,
             Float::Screen(f) => f.scope().ctx,
         }
     }
 
     pub fn mode(&self) -> Mode {
         match self {
-            Float::Picker(_) | Float::CmdLine(_) | Float::Sheet(_) => Mode::Command,
+            Float::Picker(_) | Float::CmdLine(_) | Float::Sheet(_) | Float::Settings(_) => {
+                Mode::Command
+            }
             Float::Confirm(_) => Mode::Readback,
             Float::Screen(f) => f.scope().mode,
         }
@@ -119,7 +130,9 @@ impl Float {
 
     pub fn badge(&self) -> Badge {
         match self {
-            Float::Picker(_) | Float::CmdLine(_) | Float::Sheet(_) => Badge::Command,
+            Float::Picker(_) | Float::CmdLine(_) | Float::Sheet(_) | Float::Settings(_) => {
+                Badge::Command
+            }
             Float::Confirm(_) => Badge::ReadbackPlain,
             Float::Screen(f) => f.badge(),
         }
@@ -138,6 +151,7 @@ impl Float {
             Float::Picker(p) => Some(&mut p.query),
             Float::CmdLine(c) => Some(&mut c.line),
             Float::Sheet(s) => Some(&mut s.query),
+            Float::Settings(s) => Some(&mut s.query),
             Float::Confirm(_) => None,
             Float::Screen(f) => f.edit_mut(),
         }
@@ -151,8 +165,8 @@ fn matches(query: &str, hay: &[&str]) -> bool {
 
 /// Why `command` can't run where the keys are (`ctx`), or `None` when it can. A command of the
 /// views says which to open (`open a decision first`); any other names where it runs.
-pub fn unavailable(command: &Command, ctx: Ctx) -> Option<String> {
-    if keymap().applies(command, ctx) {
+pub fn unavailable(km: Keymap, command: &Command, ctx: Ctx) -> Option<String> {
+    if km.applies(command, ctx) {
         return None;
     }
     let mut views = Vec::new();
@@ -181,6 +195,7 @@ pub fn unavailable(command: &Command, ctx: Ctx) -> Option<String> {
             Ctx::Outbox => (&[], &["the outbox"]),
             Ctx::Server => (&[], &["the Server float"]),
             Ctx::Peek => (&[], &["the peek"]),
+            Ctx::Settings => (&[], &["the settings float"]),
         };
         views.extend_from_slice(view);
         places.extend_from_slice(place);
@@ -203,17 +218,16 @@ fn either(words: &[&str]) -> String {
 }
 
 /// The palette's rows for `query`, in the keymap's order.
-pub fn palette_rows(query: &str) -> Vec<&'static Command> {
-    keymap()
-        .palette()
+pub fn palette_rows(km: Keymap, query: &str) -> Vec<&'static Command> {
+    km.palette()
         .filter(|c| matches(query, &[&c.desc, &c.ex]))
         .collect()
 }
 
 /// The `:` line's completions: commands whose name starts with the word typed.
-pub fn completions(line: &str) -> Vec<&'static Command> {
+pub fn completions(km: Keymap, line: &str) -> Vec<&'static Command> {
     let word = line.split_whitespace().next().unwrap_or("");
-    keymap().ex_completions(word)
+    km.ex_completions(word)
 }
 
 /// The messages a `:messages` picker shows for `query`.
@@ -252,18 +266,18 @@ fn plural(n: usize, one: &str, many: &str) -> String {
 
 /// The top float in its shell. `ctx` is where the keys were before it opened, for the palette's
 /// "runs here" test; `history` is the echo's history.
-pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String]) -> El {
+pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String], settings: &Settings) -> El {
     let scope = f.scope();
     let hint = |seqs: &[&str], word: &str| float_hint(t, scope, seqs, word);
     match f {
         Float::Picker(p) if p.kind == PickerKind::Palette => {
-            let rows = palette_rows(&p.query.text);
+            let rows = palette_rows(t.keymap, &p.query.text);
             let mut body = rune::col().w_full();
             for (i, c) in rows.iter().enumerate().take(12) {
-                let here = unavailable(c, ctx).is_none();
+                let here = unavailable(t.keymap, c, ctx).is_none();
                 let fg = if here { t.c.fg.default } else { t.c.fg.muted };
                 let mut keys = row().center_y().gap(8.0).w(120.0);
-                for k in keymap().keys_of(c, Mode::Normal) {
+                for k in t.keymap.keys_of(c, Mode::Normal) {
                     keys = keys.child(glyphs(&k, t.ty.mono_small, t.c.fg.muted));
                 }
                 let content = row()
@@ -284,7 +298,7 @@ pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String]) -> El {
                                     .shrink()
                                     .min_w(0.0),
                             )
-                            .children(unavailable(c, ctx).map(|r| {
+                            .children(unavailable(t.keymap, c, ctx).map(|r| {
                                 text(format!("· {r}"))
                                     .font(t.ty.ui_small)
                                     .color(t.c.fg.muted)
@@ -349,7 +363,7 @@ pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String]) -> El {
             )
         }
         Float::CmdLine(c) => {
-            let rows = completions(&c.line.text);
+            let rows = completions(t.keymap, &c.line.text);
             let mut body = rune::col().w_full();
             for (i, cmd) in rows.iter().enumerate().take(8) {
                 let content = row()
@@ -407,6 +421,7 @@ pub fn view(t: Theme, f: &Float, ctx: Ctx, history: &[String]) -> El {
             },
         ),
         Float::Sheet(s) => sheet::view(t, scope, s),
+        Float::Settings(s) => settings::view(t, s, settings),
         // The app draws a screen's float: it reads the app's state.
         Float::Screen(_) => rune::el(),
     }
@@ -423,5 +438,7 @@ pub fn cursor_step(key: Key) -> Option<i64> {
     }
 }
 
+#[cfg(test)]
+mod settings_tests;
 #[cfg(test)]
 mod tests;

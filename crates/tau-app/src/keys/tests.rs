@@ -17,20 +17,31 @@
 //! - a printed chip is lit where its key doesn't run (Insert, under a float, a command that
 //!   doesn't apply);
 //! - `:` names, completions and the palette miss or duplicate commands;
-//! - an auto-repeat fires a write, an answer or a readback's `y`.
+//! - an auto-repeat fires a write, an answer or a readback's `y`;
+//! - a moved binding hands its handler the keys typed, not the design's, so `[b` stops reading
+//!   as backwards once `]b` and `[b` move;
+//! - a chip prints the design's key where this device types another, or a moved key for a
+//!   binding that didn't move, or is lit by the key that moved away;
+//! - a key written for settings.toml doesn't read back as the same keys.
 
 use super::*;
 
-fn km() -> &'static Keymap {
-    keymap()
+fn km() -> Keymap {
+    Keymap::design()
 }
 
 fn k(seq: &str) -> Vec<Key> {
     parse_seq(seq).expect("a key sequence")
 }
 
+/// `km` with `command`'s key `design` typed as `to`.
+fn moved(km: Keymap, command: &str, design: &str, to: &str) -> Keymap {
+    km.rebind(command, &k(design), &k(to))
+        .expect("the move is allowed")
+}
+
 /// Presses every key of `seq` and returns the last outcome.
-fn press<'k>(keys: &mut Keys, km: &'k Keymap, mode: Mode, ctx: Ctx, seq: &str) -> Outcome<'k> {
+fn press(keys: &mut Keys, km: Keymap, mode: Mode, ctx: Ctx, seq: &str) -> Outcome<'static> {
     let mut out = Outcome::Pending;
     for key in k(seq) {
         out = keys.press(km, mode, ctx, key, false, 0.0);
@@ -46,8 +57,12 @@ fn command_id<'a>(out: &'a Outcome<'a>) -> Option<&'a str> {
 }
 
 fn resolve(mode: Mode, ctx: Ctx, seq: &str) -> Option<String> {
+    resolve_in(km(), mode, ctx, seq)
+}
+
+fn resolve_in(km: Keymap, mode: Mode, ctx: Ctx, seq: &str) -> Option<String> {
     let mut keys = Keys::default();
-    command_id(&press(&mut keys, km(), mode, ctx, seq)).map(str::to_string)
+    command_id(&press(&mut keys, km, mode, ctx, seq)).map(str::to_string)
 }
 
 const MINIMAL: &str = r#"
@@ -80,6 +95,7 @@ confirm = ""
 outbox = ""
 server = ""
 peek = ""
+settings = ""
 
 [groups]
 "<leader>" = "leader"
@@ -557,25 +573,27 @@ fn no_two_command_bindings_live_where_one_is_a_prefix_of_the_other() {
     ];
     for mode in modes {
         for ctx in Ctx::ALL {
-            let live: Vec<&Binding> = km
+            let all: Vec<Bound> = km.bindings().collect();
+            let live: Vec<usize> = km
                 .active(mode, ctx)
                 .into_iter()
-                .filter(|b| matches!(b.target, Target::Command(_)))
+                .filter(|&i| matches!(all[i].target, Target::Command(_)))
                 .collect();
-            for a in &live {
-                for b in &live {
-                    let clash = a.seq.len() < b.seq.len() && b.seq.starts_with(&a.seq);
+            for &i in &live {
+                for &j in &live {
+                    let (a, b) = (&all[i], &all[j]);
+                    let clash = a.seq.len() < b.seq.len() && b.seq.starts_with(a.seq);
                     assert!(
                         !clash,
                         "{mode:?} {ctx:?}: {} is a prefix of {}",
-                        display(&a.seq),
-                        display(&b.seq)
+                        display(a.seq),
+                        display(b.seq)
                     );
-                    let twice = a.seq == b.seq && !std::ptr::eq(*a, *b) && a.target != b.target;
+                    let twice = a.seq == b.seq && i != j && a.target != b.target;
                     assert!(
                         !twice,
                         "{mode:?} {ctx:?}: {} runs two commands",
-                        display(&a.seq)
+                        display(a.seq)
                     );
                 }
             }
@@ -728,26 +746,157 @@ fn the_shown_keys_lead_with_the_count() {
 #[test]
 fn a_chip_is_lit_only_where_its_key_runs() {
     let km = km();
-    assert!(km.lit("<leader>cn", Mode::Normal, Ctx::List));
-    assert!(km.lit("<leader>cn", Mode::Normal, Ctx::Sidebar));
+    assert!(km.chip("<leader>cn", Mode::Normal, Ctx::List).lit);
+    assert!(km.chip("<leader>cn", Mode::Normal, Ctx::Sidebar).lit);
     assert!(
-        !km.lit("<leader>cn", Mode::Insert, Ctx::Start),
+        !km.chip("<leader>cn", Mode::Insert, Ctx::Start).lit,
         "every leader chip is muted in Insert"
     );
     assert!(
-        !km.lit("<leader>cn", Mode::Command, Ctx::Picker),
+        !km.chip("<leader>cn", Mode::Command, Ctx::Picker).lit,
         "everything outside a float is muted"
     );
-    assert!(km.lit("<leader>cx", Mode::Normal, Ctx::Conversation));
+    assert!(km.chip("<leader>cx", Mode::Normal, Ctx::Conversation).lit);
     assert!(
-        !km.lit("<leader>cx", Mode::Normal, Ctx::Sidebar),
+        !km.chip("<leader>cx", Mode::Normal, Ctx::Sidebar).lit,
         "␣cx doesn't apply in the sidebar"
     );
-    assert!(km.lit("<Esc>", Mode::Command, Ctx::Picker));
+    assert!(km.chip("<Esc>", Mode::Command, Ctx::Picker).lit);
     assert!(
-        !km.lit("<leader>", Mode::Normal, Ctx::List),
+        !km.chip("<leader>", Mode::Normal, Ctx::List).lit,
         "a prefix runs nothing"
     );
+}
+
+#[test]
+fn a_chip_prints_the_key_this_device_types() {
+    let design = km();
+    let mine = moved(design, "item.next", "]b", "]o");
+    let chip = |km: Keymap, seq: &str, mode: Mode, ctx: Ctx| {
+        let c = km.chip(seq, mode, ctx);
+        (c.printed, c.lit)
+    };
+    assert_eq!(
+        chip(design, "]b", Mode::Normal, Ctx::List),
+        ("]b".into(), true)
+    );
+    assert_eq!(
+        chip(mine, "]b", Mode::Normal, Ctx::List),
+        ("]o".into(), true)
+    );
+    assert_eq!(
+        chip(mine, "[b", Mode::Normal, Ctx::List),
+        ("[b".into(), true),
+        "its other key didn't move"
+    );
+    assert_eq!(
+        chip(mine, "<leader>cn", Mode::Normal, Ctx::List),
+        ("␣cn".into(), true)
+    );
+    assert_eq!(
+        chip(mine, "]b", Mode::Command, Ctx::Picker),
+        ("]o".into(), false),
+        "under a float it prints the moved key, muted"
+    );
+}
+
+#[test]
+fn the_key_that_moved_away_runs_nothing_there() {
+    let mine = moved(km(), "item.next", "]b", "]o");
+    assert_eq!(resolve_in(mine, Mode::Normal, Ctx::List, "]b"), None);
+    assert_eq!(
+        resolve_in(mine, Mode::Normal, Ctx::List, "]o").as_deref(),
+        Some("item.next")
+    );
+    let moved_away = parse_seq("]b").expect("keys");
+    let look = mine.lookup(Mode::Normal, Ctx::List, &moved_away);
+    assert_eq!(look.exact, None);
+}
+
+#[test]
+fn a_moved_binding_hands_its_handler_the_design_keys() {
+    let mine = moved(
+        moved(km(), "item.next", "]b", "]o"),
+        "item.next",
+        "[b",
+        "[o",
+    );
+    let mut keys = Keys::default();
+    for (typed, design) in [("]o", "]b"), ("[o", "[b"), ("3[o", "[b")] {
+        match press(&mut keys, mine, Mode::Normal, Ctx::List, typed) {
+            Outcome::Command { command, keys, .. } => {
+                assert_eq!(command.id, "item.next");
+                assert_eq!(keys, k(design), "{typed}");
+            }
+            other => panic!("{typed}: {other:?}"),
+        }
+    }
+    match press(&mut keys, mine, Mode::Normal, Ctx::List, "]g") {
+        Outcome::Command { keys, .. } => assert_eq!(keys, k("]g"), "nothing moved"),
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn every_key_the_keymap_writes_reads_back_from_its_written_form() {
+    let toml: toml::Value =
+        toml::from_str(include_str!("../../../../design/keymap.toml")).expect("toml");
+    let mut seqs: Vec<String> = Vec::new();
+    for c in toml["command"].as_array().expect("commands") {
+        for b in c["keys"].as_array().into_iter().flatten() {
+            seqs.push(b["seq"].as_str().expect("seq").to_string());
+        }
+    }
+    for set in toml["builtin"].as_table().expect("builtin").values() {
+        for s in set.as_array().expect("a set") {
+            seqs.push(s.as_str().expect("a key").to_string());
+        }
+    }
+    seqs.extend(toml["groups"].as_table().expect("groups").keys().cloned());
+    assert!(seqs.len() > 200, "{} sequences", seqs.len());
+    for s in &seqs {
+        let keys = k(s);
+        assert_eq!(parse_seq(&written(&keys)), Ok(keys), "{s}");
+    }
+    for keys in [
+        vec![Key::char('<'), Key::ctrl('a')],
+        vec![
+            Key::char('<'),
+            Key::char('U'),
+            Key::char('p'),
+            Key::char('>'),
+        ],
+        vec![Key::char('>'), Key::char('<')],
+        vec![Key::char('<'), Key::char('>'), Key::char('<')],
+    ] {
+        assert_eq!(parse_seq(&written(&keys)), Ok(keys));
+    }
+    for c in (32..=126).filter_map(char::from_u32).chain(['é', '界']) {
+        for mask in 0..8 {
+            let keys = vec![Key {
+                code: Code::Char(c),
+                mods: Mods {
+                    ctrl: mask & 1 != 0,
+                    alt: mask & 2 != 0,
+                    cmd: mask & 4 != 0,
+                    shift: false,
+                },
+            }];
+            assert_eq!(parse_seq(&written(&keys)), Ok(keys), "{c} {mask}");
+        }
+    }
+    for s in [
+        "<leader>cm",
+        "<M-m>",
+        "]o",
+        "<D-CR>",
+        "<S-Tab>",
+        "<C-h>",
+        "<Esc>",
+        "G",
+    ] {
+        assert_eq!(written(&k(s)), s);
+    }
 }
 
 // ───────────── ex names and the palette ─────────────

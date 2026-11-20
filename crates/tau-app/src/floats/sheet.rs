@@ -4,7 +4,7 @@
 use rune::{El, TextEdit, col, row, text, text_input};
 
 use crate::app::App;
-use crate::keys::{Binding, Ctx, Mode, Target, display, keymap};
+use crate::keys::{Ctx, Keymap, Mode, Target, display};
 use crate::theme::Theme;
 use crate::ui::{self, Scope, Shell, glyphs};
 
@@ -42,9 +42,9 @@ impl Sheet {
         }
     }
 
-    /// `␣hk`: the keys cheat sheet.
-    pub fn keys() -> Sheet {
-        Sheet::new("Keys", "every key in keymap.toml".into(), keys_rows())
+    /// `␣hk`: the keys cheat sheet, at the keys this device types.
+    pub fn keys(km: Keymap) -> Sheet {
+        Sheet::new("Keys", "every key in keymap.toml".into(), keys_rows(km))
     }
 
     /// The indices of the rows the query keeps, in order.
@@ -64,14 +64,16 @@ impl Sheet {
 
 /// The cheat sheet's rows, generated from `keymap.toml` (`grammar.md` §12 KL10): each command's
 /// keys in each context it binds them, contexts in the table's tree order, commands in its order.
-pub fn keys_rows() -> Vec<SheetRow> {
-    let km = keymap();
+pub fn keys_rows(km: Keymap) -> Vec<SheetRow> {
     let mut rows = Vec::new();
     for ctx in Ctx::ALL {
         for (i, c) in km.commands().iter().enumerate() {
             let mut modes: Vec<(Mode, Vec<String>)> = Vec::new();
-            for b in km.bindings().iter().filter(|b| bound(b, i, ctx)) {
-                let shown = display(&b.seq);
+            for b in km
+                .bindings()
+                .filter(|b| b.ctx == ctx && b.target == Target::Command(i))
+            {
+                let shown = display(b.seq);
                 match modes.iter_mut().find(|(m, _)| *m == b.mode) {
                     Some((_, keys)) if !keys.contains(&shown) => keys.push(shown),
                     Some(_) => {}
@@ -102,10 +104,6 @@ pub fn keys_rows() -> Vec<SheetRow> {
         }
     }
     rows
-}
-
-fn bound(b: &Binding, command: usize, ctx: Ctx) -> bool {
-    b.ctx == ctx && b.target == Target::Command(command)
 }
 
 fn mode_word(mode: Mode) -> &'static str {

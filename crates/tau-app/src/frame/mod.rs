@@ -6,13 +6,13 @@ mod bar;
 mod header;
 mod sidebar;
 
-use rune::{El, Spring, SpringPair, Transition, col, el, row};
+use rune::{El, Transition, col, el, row};
 
 pub use bar::{Bar, bar};
 pub use header::{Crumb, Header, Segment, SegmentKind, header};
 pub use sidebar::{OpenGroup, OpenRow, Row, Sidebar, row_key, sidebar};
 
-use crate::theme::Theme;
+use crate::theme::{Motion, Theme};
 use crate::ui::{NoticeAction, Scope};
 
 /// A place: a page of every project (`spec.md` §3.1). Faults has no sidebar row.
@@ -94,7 +94,8 @@ pub fn notice(t: Theme, scope: Scope, n: &Notice) -> El {
 pub struct Parts {
     pub window: [f32; 2],
     /// The sidebar beside the stage, or over it while it has the keys with no room beside.
-    pub sidebar: Option<(El, SidebarPlace)>,
+    pub sidebar: Option<El>,
+    pub sidebar_place: Option<SidebarPlace>,
     pub header: El,
     pub notice: Option<El>,
     pub page: El,
@@ -122,17 +123,25 @@ pub fn frame(t: Theme, p: Parts) -> El {
     let l = t.l;
     let [w, h] = p.window;
     let side_w = l.sidebar.width;
-    let beside = matches!(p.sidebar, Some((_, SidebarPlace::Beside)));
+    let beside = p.sidebar_place == Some(SidebarPlace::Beside);
     let stage_x = if beside { side_w } else { 0.0 };
     let stage_w = w - stage_x;
     let stage_h = h - l.height.bottombar;
 
-    let mut columns = row()
-        .w_full()
-        .grow(1.0)
-        .min_h(0.0)
-        .min_w(0.0)
-        .child(p.page.grow(1.0).min_w(0.0).min_h(0.0));
+    let mut columns = row().w_full().grow(1.0).min_h(0.0).min_w(0.0).child(
+        t.motion
+            .moves(col().key("page-box"), t.motion.panel)
+            .grow(1.0)
+            .min_w(0.0)
+            .min_h(0.0)
+            .child(
+                p.page
+                    .w_full()
+                    .h_full()
+                    .instant_changes()
+                    .transition(Transition::none()),
+            ),
+    );
     if let Some(peek) = p.peek {
         columns = columns.child(
             peek.w(l.peek.width)
@@ -142,14 +151,25 @@ pub fn frame(t: Theme, p: Parts) -> El {
     }
     if let Some(details) = p.details {
         columns = columns.child(
-            details
+            t.motion
+                .moves(col().key("details"), t.motion.panel)
+                .transition(
+                    Transition::offset(l.details.width, 0.0).springs(Motion::pair(t.motion.panel)),
+                )
+                .child(
+                    details
+                        .w_full()
+                        .h_full()
+                        .instant_changes()
+                        .border_sides([0.0, 0.0, 0.0, 1.0], t.c.border.hairline),
+                )
                 .w(l.details.width)
-                .h_full()
-                .border_sides([0.0, 0.0, 0.0, 1.0], t.c.border.hairline),
+                .h_full(),
         );
     }
     let mut body = col()
         .key("stage-body")
+        .instant_changes()
         .w_full()
         .grow(1.0)
         .min_h(0.0)
@@ -158,13 +178,15 @@ pub fn frame(t: Theme, p: Parts) -> El {
         body = body.child(n);
     }
     body = body.child(columns);
-    let mut stage = col()
-        .key("stage")
+    let mut stage = t
+        .motion
+        .moves(col().key("stage"), t.motion.panel)
         .absolute(stage_x, 0.0)
         .size(stage_w, stage_h)
         .fill(t.c.surface.read)
         .child(
             p.header
+                .instant_changes()
                 .w_full()
                 .h(l.stage_header.height)
                 .border_sides([0.0, 0.0, 1.0, 0.0], t.c.border.hairline),
@@ -173,15 +195,11 @@ pub fn frame(t: Theme, p: Parts) -> El {
     if let Some(float) = p.float {
         // The page stops at the float's top edge: the insets beside and under it show
         // `surface.read`, never a line of the page.
-        let f = l.float_fade_ms / 1000.0;
         stage = stage.child(
             col()
                 .key("bottom-float")
-                .animated_changes()
-                .transition(
-                    Transition::opacity()
-                        .springs(SpringPair::new(Spring::new(f, 0.0), Spring::new(f, 0.0))),
-                )
+                .instant_changes()
+                .transition(Transition::none())
                 .w_full()
                 .fill(t.c.surface.read)
                 .px(l.float.inset_x)
@@ -196,12 +214,32 @@ pub fn frame(t: Theme, p: Parts) -> El {
         .h_full()
         .fill(t.c.surface.read)
         .child(stage);
-    if let Some((side, place)) = p.sidebar {
-        let side = side.key("sidebar").absolute(0.0, 0.0).size(side_w, stage_h);
-        root = root.child(match place {
-            SidebarPlace::Beside => side,
-            SidebarPlace::Over => side.border_sides([0.0, 1.0, 0.0, 0.0], t.c.border.hairline),
-        });
+    if let Some(side) = p.sidebar {
+        let side = if p.sidebar_place == Some(SidebarPlace::Over) {
+            side.border_sides([0.0, 1.0, 0.0, 0.0], t.c.border.hairline)
+        } else {
+            side
+        };
+        // Rune always fades removed nodes, exposing page text through an exiting sidebar.
+        let mut side = t
+            .motion
+            .moves(col().key("sidebar"), t.motion.panel)
+            .transition(Transition::none())
+            .offset(
+                if p.sidebar_place.is_some() {
+                    0.0
+                } else {
+                    -side_w
+                },
+                0.0,
+            )
+            .absolute(0.0, 0.0)
+            .size(side_w, stage_h)
+            .child(side.w_full().h_full().instant_changes());
+        if p.sidebar_place.is_none() {
+            side = side.inert();
+        }
+        root = root.child(side);
     }
     root = root.child(p.bar.absolute(0.0, stage_h).size(w, l.height.bottombar));
     if p.lights {
@@ -209,6 +247,9 @@ pub fn frame(t: Theme, p: Parts) -> El {
     }
     if let Some(overlay) = p.overlay {
         root = root.child(overlay);
+    }
+    if !t.motion.on {
+        root = root.token_motion(rune::Spring::NONE);
     }
     root
 }

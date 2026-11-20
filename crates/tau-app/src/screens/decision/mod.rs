@@ -35,10 +35,7 @@ mod standing_tests;
 #[cfg(test)]
 mod tests;
 
-use std::sync::LazyLock;
-
 use rune::{El, Tx};
-use serde_json::Value;
 use tau_client::clock::{Clock, SystemClock};
 use tau_client::{DecisionRef, LinkEvent, LinkPhase, Wall};
 
@@ -55,39 +52,6 @@ use crate::open::Item;
 use crate::theme::Theme;
 use crate::ui::Badge;
 use reader::{record, shown};
-
-static TOKENS: LazyLock<Value> = LazyLock::new(|| {
-    serde_json::from_str(include_str!("../../../../../design/tokens.json"))
-        .expect("design/tokens.json is JSON")
-});
-
-/// `design/tokens.json`, for the groups the theme doesn't carry yet (`tau.layout.decision`,
-/// `tau.client_ms.readback_arm`).
-fn tokens_json() -> &'static Value {
-    &TOKENS
-}
-
-/// `tau.layout.decision`: the text column, the gap and the notes margin, centred together.
-#[derive(Clone, Copy, Debug)]
-struct DecisionLayout {
-    text: f32,
-    gap: f32,
-    notes_margin: f32,
-    block: f32,
-    fold_notes_below: f32,
-}
-
-fn decision_layout() -> DecisionLayout {
-    let d = &tokens_json()["tau"]["layout"]["decision"];
-    let n = |k: &str, or: f32| d[k].as_f64().map_or(or, |v| v as f32);
-    DecisionLayout {
-        text: n("text", 840.0),
-        gap: n("gap", 48.0),
-        notes_margin: n("notes_margin", 320.0),
-        block: n("block", 1208.0),
-        fold_notes_below: n("fold_notes_below", 1256.0),
-    }
-}
 
 /// The wall clock ages count from: the fixture's `now` in a scene.
 fn now(app: &App) -> Wall {
@@ -235,6 +199,10 @@ impl Screen for Decision {
 
     fn yank(&self, app: &mut App, obj: crate::yank::Object) -> Option<String> {
         yank::text(app, obj)
+    }
+
+    fn object_key(&self, app: &mut App, key: Key) -> bool {
+        app.scope().ctx == Ctx::Decision && reader::object_key(app, key)
     }
 
     fn keys(&self, app: &mut App, keys: &[Key], count: Option<u32>) -> bool {

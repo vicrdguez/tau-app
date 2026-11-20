@@ -83,6 +83,8 @@ pub struct ToolRow {
     pub name: String,
     /// The arguments as one line: a command, a query, a path, else the JSON.
     pub args: String,
+    /// The full arguments when the summary loses fields or lines, or exceeds the row width.
+    pub input: Option<String>,
     pub outcome: Outcome,
     /// The `timestamp` of the message that made the call, for a running row's count (D12).
     pub started: Option<i64>,
@@ -211,10 +213,12 @@ pub fn build(held: &Held, folds: &Folds) -> Vec<Item> {
             .get(&stop)
             .copied()
             .unwrap_or(outcome == Outcome::Running);
+        let (args, input) = summary(args);
         ToolRow {
             call: call.to_string(),
             name: name.to_string(),
-            args: summary(args),
+            args,
+            input,
             outcome,
             started,
             output,
@@ -402,21 +406,43 @@ fn texts(id: EntryId, content: usize, source: &str) -> Vec<Text> {
         .collect()
 }
 
-/// A tool call's arguments as one line, as the prototype words them.
-fn summary(args: &Value) -> String {
-    let field = |k: &str| args.get(k).and_then(Value::as_str);
-    if let Some(c) = field("command") {
-        c.to_string()
-    } else if let Some(q) = field("query") {
-        format!("\"{q}\"")
-    } else if let Some(p) = field("path") {
-        p.to_string()
-    } else if let Some(t) = field("text") {
-        t.lines().next().unwrap_or_default().to_string()
-    } else if args.is_null() {
-        String::new()
-    } else {
-        args.to_string()
+// The narrowest tool row shows about this many characters.
+const SUMMARY_CHARS: usize = 48;
+
+/// A tool call's one-line summary and the input it leaves out.
+fn summary(args: &Value) -> (String, Option<String>) {
+    let field = ["command", "query", "path", "text"]
+        .into_iter()
+        .find_map(|key| args.get(key)?.as_str().map(|value| (key, value)));
+    let pretty = || serde_json::to_string_pretty(args).unwrap_or_else(|_| args.to_string());
+    match field {
+        Some((key, value)) => {
+            let first = value.lines().next().unwrap_or_default();
+            let summary = if key == "query" {
+                format!("\"{first}\"")
+            } else {
+                first.to_string()
+            };
+            let input = if args.as_object().is_some_and(|o| o.len() > 1) {
+                Some(pretty())
+            } else if value.lines().count() > 1 || summary.chars().count() > SUMMARY_CHARS {
+                Some(value.to_string())
+            } else {
+                None
+            };
+            (summary, input)
+        }
+        None => {
+            let summary = if args.is_null() {
+                String::new()
+            } else {
+                args.to_string()
+            };
+            let input = (args.as_object().is_some_and(|o| !o.is_empty())
+                || summary.chars().count() > SUMMARY_CHARS)
+                .then(pretty);
+            (summary, input)
+        }
     }
 }
 

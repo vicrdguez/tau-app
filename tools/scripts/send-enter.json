@@ -1,0 +1,14 @@
+{
+  "events": [
+    {"t": 0.05, "type": "key", "name": "Enter"},
+    {"t": 0.06, "type": "type", "text": "Keep the existing fixture coverage.", "every": 0.0001},
+    {"t": 0.10, "type": "key", "name": "Enter"},
+    {"t": 0.11, "type": "type", "text": "Report any failures before changing the tests.", "every": 0.0001},
+    {
+      "t": 0.2,
+      "type": "key",
+      "name": "Enter",
+      "cmd": true
+    }
+  ]
+}

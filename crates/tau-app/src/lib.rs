@@ -12,6 +12,7 @@ pub mod keys;
 pub mod nav;
 pub mod open;
 pub mod screens;
+pub mod settings;
 pub mod theme;
 pub mod time;
 pub mod ui;

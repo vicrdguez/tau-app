@@ -40,6 +40,7 @@ confirm = ""                       # the y/n float before bind, addExtensions an
 outbox = ""                        # the outbox float
 server = ""                        # the Server float
 peek = ""                          # the K float over a list or an open item
+settings = ""                      # the settings float (␣hs, :settings, ⌘,)
 
 [groups]                           # which-key labels (KL8)
 "<leader>" = "leader"
@@ -68,7 +69,6 @@ editor_normal = ["h", "j", "k", "l", "w", "b", "e", "W", "B", "E", "0", "^", "$"
                  "i", "a", "I", "A", "o", "O", "r", "n", "N", "/", "?", "%"]
 editor_textobjects = ["iw", "aw", "ip", "ap", "is", "as", "i\"", "a\"", "i(", "a(", "i[", "a[", "i{", "a{", "iq", "aq", "ib", "ab"]
 editor_insert = ["<Esc>", "jk", "<C-w>", "<C-u>", "<C-CR>", "<S-Tab>", "<C-t>", "<C-d>", "<C-j>", "<C-k>", "<C-f>", "<C-n>", "<C-p>", "<Tab>", "<BS>"]
-start_insert = ["<M-p>", "<M-w>"]  # the start editor's own Insert keys: start.project and start.workflow (bound in Normal below). No other editor has them (grammar §10).
 visual = ["<Esc>"]                 # leaves Visual, in readers and editors
 hint = ["<Esc>", "a", "s", "d", "f", "g", "h", "j", "k", "l"]
 pending = ["<Esc>"]                # Esc cancels a pending prefix (the which-key head prints it as a chip)
@@ -290,6 +290,16 @@ ctx = ["global"]
 keys = [{ mode = "n", ctx = "global", seq = "<leader>ht" }]
 
 [[command]]
+id = "help.settings"
+ex = "settings"
+desc = "settings: theme, width, keys"
+tier = "local"
+kind = "command"
+ctx = ["global"]
+note = "The settings float: the theme, the reading width, motion, and every key a command has, each movable to another (settings.toml at the client root keeps them). ⌘, is the macOS alias."
+keys = [{ mode = "n", ctx = "global", seq = "<leader>hs" }, { mode = "n", ctx = "global", seq = "<D-,>" }]
+
+[[command]]
 id = "toggle.follow"
 ex = "follow"
 desc = "follow the run"
@@ -432,7 +442,7 @@ tier = "local"
 kind = "command"
 jump = true
 ctx = ["list", "reader"]
-note = "A row: its object (an event: the conversation it names; a fault: its decision, else its conversation). In the sidebar: the place or open item, and the stage gets the keys. In readers: a details link, a #id, a choice (moves the cursor there), an option field (opens its editor or picker)."
+note = "A row: its object (an event: the conversation it names; a fault: its decision, else its conversation). In the sidebar: the place or open item, and the stage gets the keys. In readers: a details link, a #id, a choice (moves the cursor there), an option field (opens its editor or picker). In a conversation reader: toggles the foldable stop under the cursor, including tool rows, tool groups and thinking folds; does nothing on other stops or while composing."
 keys = [{ mode = "n", ctx = "list", seq = "<CR>" }, { mode = "n", ctx = "list", seq = "l" }, { mode = "n", ctx = "reader", seq = "<CR>" }]
 
 [[command]]
@@ -490,8 +500,9 @@ desc = "start page: project"
 tier = "local"
 kind = "command"
 ctx = ["start"]
-note = "The project picker for the start page. In Insert the same key is the start editor's own (builtin start_insert). Off while create is in flight."
-keys = [{ mode = "n", ctx = "start", seq = "<M-p>", tui = "kitty", tui_alt = "<leader>pp" }]
+note = "The project picker for the start page, in Normal and in Insert (KL14 lets an Insert binding repeat its command's Option chord from Normal). Off while create is in flight."
+keys = [{ mode = "n", ctx = "start", seq = "<M-p>", tui = "kitty", tui_alt = "<leader>pp" },
+        { mode = "i", ctx = "start", seq = "<M-p>", tui = "kitty", tui_alt = "<leader>pp" }]
 
 [[command]]
 id = "start.workflow"
@@ -500,8 +511,9 @@ desc = "start page: workflow or model"
 tier = "local"
 kind = "command"
 ctx = ["start"]
-note = "One flat list: the project's workflows, then one bare-agent row per model. In Insert the same key is the start editor's own (builtin start_insert). Off while create is in flight."
-keys = [{ mode = "n", ctx = "start", seq = "<M-w>", tui = "kitty", tui_alt = "<leader>pw" }]
+note = "One flat list: the project's workflows, then one bare-agent row per model. In Normal and in Insert, like start.project. Off while create is in flight."
+keys = [{ mode = "n", ctx = "start", seq = "<M-w>", tui = "kitty", tui_alt = "<leader>pw" },
+        { mode = "i", ctx = "start", seq = "<M-w>", tui = "kitty", tui_alt = "<leader>pw" }]
 
 [[command]]
 id = "composer.focus"
@@ -611,7 +623,7 @@ desc = "toggle fold"
 tier = "local"
 kind = "command"
 ctx = ["reader"]
-note = "Tool blocks, folded tool groups, thinking blocks, long inputs."
+note = "Tool blocks, folded tool groups, thinking blocks, long inputs. In a conversation reader, za and Enter toggle the fold under the cursor; a press also toggles a tool row, tool group or thinking line and puts the cursor there. An opened tool row shows full input above output when its summary omits fields or lines."
 keys = [{ mode = "n", ctx = "reader", seq = "za" }, { mode = "n", ctx = "reader", seq = "zo" }, { mode = "n", ctx = "reader", seq = "zc" },
         { mode = "n", ctx = "reader", seq = "zR" }, { mode = "n", ctx = "reader", seq = "zM" }]
 
@@ -983,6 +995,19 @@ keys = [{ mode = "c", ctx = "picker", seq = "<C-j>" }, { mode = "c", ctx = "pick
         { mode = "c", ctx = "picker", seq = "<C-n>" }, { mode = "c", ctx = "picker", seq = "<C-p>" },
         { mode = "c", ctx = "picker", seq = "<CR>" }, { mode = "c", ctx = "picker", seq = "<Tab>" }, { mode = "c", ctx = "picker", seq = "<S-Tab>" },
         { mode = "c", ctx = "picker", seq = "<Esc>" }, { mode = "c", ctx = "picker", seq = "<C-c>" }]
+
+[[command]]
+id = "settings.keys"
+ex = "-"
+desc = "settings float keys"
+tier = "local"
+kind = "modal"
+ctx = ["settings"]
+note = "C-j C-k move (the float's own Down and Up too); C-h C-l change a value (Left and Right too); Enter changes a value or takes a new key for the row: the keys pressed next bypass the keymap, Enter keeps them, BS takes the last back, Esc and C-c cancel, four at most; C-x puts back the row's design key; Esc and C-c close. Typing filters. These keys never move."
+keys = [{ mode = "c", ctx = "settings", seq = "<C-j>" }, { mode = "c", ctx = "settings", seq = "<C-k>" },
+        { mode = "c", ctx = "settings", seq = "<C-h>" }, { mode = "c", ctx = "settings", seq = "<C-l>" },
+        { mode = "c", ctx = "settings", seq = "<CR>" }, { mode = "c", ctx = "settings", seq = "<C-x>" },
+        { mode = "c", ctx = "settings", seq = "<Esc>" }, { mode = "c", ctx = "settings", seq = "<C-c>" }]
 
 [[command]]
 id = "bind.keys"

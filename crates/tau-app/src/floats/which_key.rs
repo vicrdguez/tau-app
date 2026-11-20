@@ -28,7 +28,7 @@ fn words(t: Theme, s: &str, style: rune::TextStyle, color: rune::Color) -> El {
 fn entry(t: Theme, e: &WhichEntry, ctx: Ctx, why: Why, width: f32) -> El {
     let reason = e
         .command
-        .and_then(|c| super::unavailable(c, ctx).or_else(|| why(&c.id)));
+        .and_then(|c| super::unavailable(t.keymap, c, ctx).or_else(|| why(&c.id)));
     let dim = !e.applies || reason.is_some();
     let key_color = if dim { t.c.fg.muted } else { t.c.kind.literal };
     let (style, color) = match (e.group, dim) {

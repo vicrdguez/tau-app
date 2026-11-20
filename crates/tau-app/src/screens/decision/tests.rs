@@ -15,8 +15,8 @@
 //! - `dd` and `u` lose a draft for good; drafts don't survive a relaunch, or leak between
 //!   decisions; `]n` skips a passage.
 
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 
 use rune::{KeyEvent, Tx};
@@ -347,15 +347,21 @@ fn answer_commands_away_from_a_decision_say_where_they_run() {
 fn the_answer_resolves_only_in_the_views_normal_mode() {
     let mut t = review_with_drafts();
     assert!(
-        t.app.scope().lit("<leader>ad"),
+        t.app.scope().lit(t.app.settings.keymap, "<leader>ad"),
         "Normal, the stage has the keys"
     );
     assert_eq!(segments(&t.app)[0].kind, SegmentKind::Answer);
     t.keys("<C-h>");
-    assert!(!t.app.scope().lit("<leader>ad"), "the sidebar has the keys");
+    assert!(
+        !t.app.scope().lit(t.app.settings.keymap, "<leader>ad"),
+        "the sidebar has the keys"
+    );
     t.keys("<C-l><leader>mw");
     assert_eq!(t.app.badge(), Badge::Insert);
-    assert!(!t.app.scope().lit("<leader>ad"), "Insert");
+    assert!(
+        !t.app.scope().lit(t.app.settings.keymap, "<leader>ad"),
+        "Insert"
+    );
 }
 
 #[test]
@@ -367,6 +373,44 @@ fn which_key_greys_send_again_with_its_reason() {
         page.unavailable(&t.app, "auth.again").as_deref(),
         Some("its work did not fail")
     );
+}
+
+#[test]
+fn a_rebound_command_cannot_take_a_note_operators_object_key() {
+    let paragraph = "The timeline is the one record that every client reads the same way. Today it can only be paged through `history`. An export lets the owner keep it outside the store, diff two exports, and feed it to other tools.";
+    for (object, expected) in [
+        ("iw", "timeline"),
+        ("aw", "timeline "),
+        ("2iw", "timeline"),
+        ("2aw", "timeline "),
+        ("is", paragraph),
+        ("as", paragraph),
+        ("ip", paragraph),
+        ("ap", paragraph),
+    ] {
+        let mut t = on("render-core", "w1:3:design#2");
+        t.cursor_at("timeline");
+        t.app.settings.keymap = t
+            .app
+            .settings
+            .keymap
+            .rebind(
+                "toggle.details",
+                &parse_seq("<leader>td").unwrap(),
+                &parse_seq("s").unwrap(),
+            )
+            .expect("an accepted move");
+        t.keys(&format!("c{object}"));
+        let editing = t.app.screens.decision.editing.as_ref().expect(object);
+        let state::Anchor::Range { range, .. } = &editing.anchor else {
+            panic!("a passage note")
+        };
+        let text = t.text();
+        let start = doc::byte_of(&text, range.start as usize).unwrap();
+        let end = doc::byte_of(&text, range.end as usize).unwrap();
+        assert_eq!(&text[start..end], expected, "{object}");
+        assert!(!t.app.details_visible, "s belongs to the pending operator");
+    }
 }
 
 #[test]

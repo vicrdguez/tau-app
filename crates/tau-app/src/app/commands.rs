@@ -12,8 +12,9 @@ use super::input::keep_cursor;
 use super::{App, Focus, Stage};
 use crate::floats::{self, CmdLine, Float, Picker, PickerKind, Sheet};
 use crate::frame::{Place, Row};
-use crate::keys::{Code, Command, Key, keymap};
+use crate::keys::{Code, Command, Key};
 use crate::screens::{self, ScreenId};
+use crate::settings::{self, Edit, Field};
 
 /// A command as the keys (or the palette, or `:`) ran it.
 pub struct Invocation<'k> {
@@ -41,7 +42,8 @@ fn frame() -> HashMap<&'static str, Handler> {
         }
     });
     t.insert("help.theme", |a, _, tx| {
-        a.variant = a.variant.next();
+        let next = Field::Theme.step(&a.settings, 1);
+        settings::change(a, next, Edit::Field(Field::Theme));
         tx.instant();
     });
     t.insert("open.home", |a, _, _| a.show(Stage::Place(Place::Home)));
@@ -68,8 +70,10 @@ fn frame() -> HashMap<&'static str, Handler> {
     t.insert("cmdline.open", |a, _, _| a.open_float(Float::cmdline()));
     t.insert("open.messages", |a, _, _| a.open_float(Float::messages()));
     t.insert("help.keys", |a, _, _| {
-        a.open_float(Float::Sheet(Sheet::keys()))
+        a.open_float(Float::Sheet(Sheet::keys(a.settings.keymap)))
     });
+    t.insert("help.settings", |a, _, _| a.open_float(Float::settings()));
+    t.insert("settings.keys", floats::settings::keys);
     t.insert("picker.keys", picker_keys);
     t.insert("confirm.keys", confirm_keys);
     t.extend(crate::nav::handlers());
@@ -217,8 +221,8 @@ pub fn open_row(a: &mut App, row: &Row, tx: &mut Tx) {
 
 /// Runs the command `id` as the palette would.
 pub fn run_id(a: &mut App, id: &str, tx: &mut Tx) {
-    if let Some(command) = keymap().command(id) {
-        let applies = keymap().applies(command, a.scope().ctx);
+    if let Some(command) = a.settings.keymap.command(id) {
+        let applies = a.settings.keymap.applies(command, a.scope().ctx);
         run(
             a,
             &Invocation {
@@ -269,10 +273,12 @@ fn picker_keys(a: &mut App, inv: &Invocation, tx: &mut Tx) {
     if let Some(step) = floats::cursor_step(key) {
         let len = match a.floats.last() {
             Some((Float::Picker(p), _)) if p.kind == PickerKind::Palette => {
-                floats::palette_rows(&p.query.text).len()
+                floats::palette_rows(a.settings.keymap, &p.query.text).len()
             }
             Some((Float::Picker(p), _)) => floats::message_rows(&a.messages, &p.query.text).len(),
-            Some((Float::CmdLine(c), _)) => floats::completions(&c.line.text).len(),
+            Some((Float::CmdLine(c), _)) => {
+                floats::completions(a.settings.keymap, &c.line.text).len()
+            }
             Some((Float::Sheet(s), _)) => s.shown().len(),
             _ => 0,
         };
@@ -289,7 +295,7 @@ fn picker_keys(a: &mut App, inv: &Invocation, tx: &mut Tx) {
     }
     if key == Key::plain(Code::Tab) {
         if let Some((Float::CmdLine(c), _)) = a.floats.last_mut()
-            && let Some(cmd) = floats::completions(&c.line.text).get(c.cursor)
+            && let Some(cmd) = floats::completions(a.settings.keymap, &c.line.text).get(c.cursor)
         {
             c.line.replace_text(cmd.ex.clone());
         }
@@ -300,8 +306,10 @@ fn picker_keys(a: &mut App, inv: &Invocation, tx: &mut Tx) {
     }
     match a.close_float() {
         Some(Float::Picker(p)) if p.kind == PickerKind::Palette => {
-            if let Some(command) = floats::palette_rows(&p.query.text).get(p.cursor) {
-                let applies = keymap().applies(command, a.scope().ctx);
+            if let Some(command) =
+                floats::palette_rows(a.settings.keymap, &p.query.text).get(p.cursor)
+            {
+                let applies = a.settings.keymap.applies(command, a.scope().ctx);
                 run(
                     a,
                     &Invocation {
@@ -333,9 +341,9 @@ fn run_ex(a: &mut App, line: &str, tx: &mut Tx) {
         a.history.push(line.to_string());
     }
     let name = line.split_whitespace().next().unwrap_or(line);
-    match keymap().by_ex(name) {
+    match a.settings.keymap.by_ex(name) {
         Some(command) => {
-            let applies = keymap().applies(command, a.scope().ctx);
+            let applies = a.settings.keymap.applies(command, a.scope().ctx);
             run(
                 a,
                 &Invocation {

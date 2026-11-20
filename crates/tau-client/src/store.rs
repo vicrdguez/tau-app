@@ -16,8 +16,6 @@ pub struct ClientConfig {
     pub server: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub device: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub theme: Option<String>,
 }
 
 /// Files under one root (`~/.config/tau`), or nowhere at all for a demo.
@@ -52,6 +50,34 @@ impl Store {
             root: None,
             server: None,
         }
+    }
+
+    pub fn root(&self) -> Option<&Path> {
+        self.root.as_deref()
+    }
+
+    pub fn load_device(&self, name: &str) -> io::Result<Option<String>> {
+        let Some(root) = self.root() else {
+            return Ok(None);
+        };
+        match fs::read_to_string(root.join(name)) {
+            Ok(text) => Ok(Some(text)),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+
+    pub fn save_device(&self, name: &str, text: &str) -> io::Result<()> {
+        let Some(root) = self.root() else {
+            return Ok(());
+        };
+        let path = root.join(name);
+        let path = if path.is_symlink() {
+            path.canonicalize()?
+        } else {
+            path
+        };
+        write_whole(&path, text.as_bytes())
     }
 
     pub fn client(&self) -> ClientConfig {
@@ -101,12 +127,7 @@ impl Store {
         {
             fs::remove_dir_all(dir)?;
         }
-        let ClientConfig { theme, .. } = self.client();
-        self.save_client(&ClientConfig {
-            server: None,
-            device: None,
-            theme,
-        })
+        self.save_client(&ClientConfig::default())
     }
 }
 

@@ -2,25 +2,56 @@
 //! that has the keys; a command goes to its handler, and what is left goes to the region's own
 //! handler (the sidebar's motions, a float's input).
 
+#[cfg(test)]
+mod motion_tests;
+
 use rune::{KeyEvent, Tx};
 
 use super::commands::{self, Invocation};
-use super::{App, Focus};
+use super::{App, Focus, Stage};
 use crate::floats::Float;
-use crate::frame::Row;
-use crate::keys::{Code, Key, Outcome, from_rune, keymap};
+use crate::frame::{Row, SidebarPlace};
+use crate::keys::{Code, Key, Outcome, from_rune};
 use crate::screens;
 
-/// The window's `on_key`. What a key changes lands at once (`visual-language.md` §7: rows never
-/// move, the sidebar shows and hides with no slide, `␣ht` switches within one frame), except a
-/// float it opens, which fades in.
+#[derive(Clone, PartialEq)]
+struct Moving {
+    floats: usize,
+    sidebar: Option<SidebarPlace>,
+    details: bool,
+    stage: Stage,
+    page: u64,
+}
+
+impl Moving {
+    fn of(app: &App) -> Self {
+        Self {
+            floats: app.floats.len(),
+            sidebar: app.sidebar_place().filter(|_| screens::page(app).framed()),
+            details: app.details_visible && screens::page(app).has_details(app),
+            stage: app.stage.clone(),
+            page: screens::page(app).moving(app),
+        }
+    }
+
+    fn moved_since(&self, before: &Self) -> bool {
+        self.stage == before.stage
+            && self.floats >= before.floats
+            && (self.floats > before.floats
+                || self.sidebar != before.sidebar
+                || self.details != before.details
+                || self.page != before.page)
+    }
+}
+
+/// Keys animate only the user-driven changes listed in visual-language.md §7.
 pub fn on_key(app: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
-    let floats = app.floats.len();
+    let before = Moving::of(app);
     let handled = match from_rune(ev, tx.key_base()) {
         Some(key) => press(app, key, tx.key_repeat(), tx),
         None => false,
     };
-    if app.floats.len() > floats {
+    if app.theme().motion.on && Moving::of(app).moved_since(&before) {
         tx.animated();
     } else {
         tx.instant();
@@ -35,19 +66,31 @@ pub fn on_field_key(app: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
 
 /// One key. False hands it on (a float's field types it).
 pub fn press(app: &mut App, key: Key, repeat: bool, tx: &mut Tx) -> bool {
+    if crate::floats::settings::capturing(app) {
+        return crate::floats::settings::capture(app, key, repeat);
+    }
     if app.keys.is_idle() {
         app.echo = None;
         if crate::yank::key(app, key, tx) {
             return true;
         }
+        if let Some(screen) = screens::holder(app)
+            && screens::get(screen).object_key(app, key)
+        {
+            return true;
+        }
     }
     let scope = app.scope();
-    match app
-        .keys
-        .press(keymap(), scope.mode, scope.ctx, key, repeat, app.now)
-    {
+    match app.keys.press(
+        app.settings.keymap,
+        scope.mode,
+        scope.ctx,
+        key,
+        repeat,
+        app.now,
+    ) {
         Outcome::Pending => {
-            tx.wake_after(super::which_key_delay());
+            tx.wake_after(super::which_key_delay(app.settings.keymap));
             true
         }
         Outcome::Cancelled | Outcome::Ignored => true,
@@ -88,6 +131,9 @@ fn region(app: &mut App, keys: &[Key], count: Option<u32>) -> bool {
     }
     if let Some(screen) = screens::holder(app) {
         return screens::get(screen).keys(app, keys, count);
+    }
+    if matches!(app.floats.last(), Some((Float::Settings(_), _))) {
+        return crate::floats::settings::other_keys(app, keys);
     }
     if let Some((f, _)) = app.floats.last_mut() {
         return float_keys(f, &app.history, keys);
@@ -130,7 +176,7 @@ fn float_keys(f: &mut Float, history: &[String], keys: &[Key]) -> bool {
             c.cursor = 0;
             false
         }
-        Float::Confirm(_) | Float::Screen(_) => true,
+        Float::Confirm(_) | Float::Settings(_) | Float::Screen(_) => true,
     }
 }
 

@@ -9,7 +9,7 @@ use rune::Tx;
 use super::*;
 use crate::app::{App, input};
 use crate::floats::Float;
-use crate::keys::{Target, display, keymap, parse_seq};
+use crate::keys::{Keymap, Target, display, parse_seq};
 use crate::ui::Badge;
 
 fn keys(a: &mut App, seq: &str) {
@@ -37,14 +37,14 @@ fn space_h_k_opens_the_sheet_as_a_picker_and_esc_closes_it() {
 
 #[test]
 fn the_sheet_lists_every_key_the_table_binds_and_no_other() {
-    let rows = keys_rows();
-    let km = keymap();
+    let km = Keymap::design();
+    let rows = keys_rows(km);
     for b in km.bindings() {
         let Target::Command(i) = b.target else {
             continue;
         };
         let desc = &km.commands()[i].desc;
-        let shown = display(&b.seq);
+        let shown = display(b.seq);
         assert!(
             rows.iter().any(|r| &r.text == desc
                 && r.meta.starts_with(b.ctx.name())

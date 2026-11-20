@@ -84,6 +84,7 @@ The checkout commands use the working tree and are intended for the edit loop.
 Headless renders still require a GPU or a working software graphics driver.
 
 The app defaults to `~/.config/tau` for configuration and per-server state, and to the macOS Keychain for tokens.
+Your theme, reading width, motion and moved keys are in `settings.toml` there. `␣hs`, `:settings` or `⌘,` opens the settings float, which saves each change at once; a hand edit applies at the next launch. [`crates/tau-app/README.md`](crates/tau-app/README.md#settings) describes the file.
 `TAU_CLIENT_DIR` overrides the configuration and state root. `TAU_TOKEN_DIR` explicitly selects private token files instead of the Keychain.
 The UI gate sets both to temporary directories and removes them afterward. It never needs your server or provider credentials.
 

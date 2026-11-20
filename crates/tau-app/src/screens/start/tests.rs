@@ -1,3 +1,11 @@
+//! How the start page's keys could fail:
+//! - `M-p` or `M-w` opens nothing in Insert, or nothing in Normal;
+//! - a moved key opens its picker in one mode only, or the key it replaced still opens it (a
+//!   literal handler behind the keymap's back);
+//! - the start line prints the design's key after a move, or mutes a hint whose key runs in
+//!   Insert;
+//! - a picker opens while a create is pending.
+
 use super::*;
 use crate::app::{commands, input, link, testing};
 use crate::keys::parse_seq;
@@ -181,6 +189,98 @@ fn options_invalid_keeps_text_and_opens_options() {
             .unwrap()
             .contains("w1 can't start")
     );
+}
+
+fn picker(a: &mut App) -> Option<String> {
+    crate::screens::top_float::<Picker>(a).map(|p| p.title.clone())
+}
+
+fn workflow_on_m_m(a: &mut App) {
+    let (from, to) = (parse_seq("<M-w>").unwrap(), parse_seq("<M-m>").unwrap());
+    a.settings.keymap = a
+        .settings
+        .keymap
+        .rebind("start.workflow", &from, &to)
+        .expect("M-m is free on the start page");
+}
+
+#[test]
+fn the_design_keys_open_each_picker_in_insert_and_in_normal() {
+    let mut a = ready();
+    for mode in [Mode::Insert, Mode::Normal] {
+        if mode == Mode::Normal {
+            key(&mut a, "<Esc>");
+        }
+        assert_eq!(a.scope().mode, mode);
+        key(&mut a, "<M-p>");
+        assert_eq!(picker(&mut a).as_deref(), Some("Project"), "{mode:?}");
+        key(&mut a, "<Esc><M-w>");
+        assert_eq!(picker(&mut a).as_deref(), Some("Workflow"), "{mode:?}");
+        key(&mut a, "<Esc>");
+        assert!(a.floats.is_empty());
+    }
+}
+
+#[test]
+fn a_moved_workflow_key_opens_the_list_in_both_modes_and_the_old_key_opens_nothing() {
+    let mut a = ready();
+    workflow_on_m_m(&mut a);
+    for mode in [Mode::Insert, Mode::Normal] {
+        if mode == Mode::Normal {
+            key(&mut a, "<Esc>");
+        }
+        assert_eq!(a.scope().mode, mode);
+        key(&mut a, "<M-w>");
+        assert!(a.floats.is_empty(), "{mode:?}: the key it replaced");
+        key(&mut a, "<M-m>");
+        assert_eq!(picker(&mut a).as_deref(), Some("Workflow"), "{mode:?}");
+        key(&mut a, "<Esc>");
+    }
+}
+
+#[test]
+fn the_start_line_prints_the_key_this_device_types_lit_in_insert() {
+    let mut a = ready();
+    workflow_on_m_m(&mut a);
+    assert_eq!(a.scope().mode, Mode::Insert);
+    let lit = a.theme().c.fg.alt;
+    let fonts =
+        rune::text::TextSystem::new(crate::assets::fonts().unwrap(), crate::theme::FAMILIES);
+    let mut rt = rune::Runtime::with_text(
+        a,
+        crate::app::view,
+        (1512.0, 982.0),
+        rune::Env::new(true, 1.0),
+        fonts,
+    );
+    rt.frame(1.0);
+    let elements = rt.elements();
+    let printed = |key: &str| {
+        elements
+            .iter()
+            .find(|e| e.text.as_deref() == Some(key))
+            .map(|e| e.text_color)
+    };
+    assert_eq!(printed("M-m"), Some(Some(lit)), "the moved key, lit");
+    assert_eq!(printed("M-p"), Some(Some(lit)), "the project's key, lit");
+    assert_eq!(printed("M-w"), None, "the key it replaced");
+}
+
+#[test]
+fn no_picker_opens_while_a_create_is_pending_in_either_mode() {
+    let mut a = ready();
+    workflow_on_m_m(&mut a);
+    a.screens.start.editor.edit.replace_text("task");
+    run(&mut a, "start.send");
+    assert!(a.screens.start.pending.is_some());
+    for mode in [Mode::Insert, Mode::Normal] {
+        if mode == Mode::Normal {
+            key(&mut a, "<Esc>");
+        }
+        assert_eq!(a.scope().mode, mode);
+        key(&mut a, "<M-p><M-m><M-w>");
+        assert!(a.floats.is_empty(), "{mode:?}");
+    }
 }
 
 #[test]

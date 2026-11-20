@@ -1,10 +1,11 @@
-//! Printed keys: chips and hints. Each one names its key in the keymap's syntax, so what it prints
-//! and whether it is lit both come from `keymap.toml` (`spec.md` §4.6, `grammar.md` §9).
+//! Printed keys: chips and hints. Each one names its key as `keymap.toml` writes it; the theme's
+//! keymap (`t.keymap`) prints the key this device types for it and says whether it is lit
+//! (`spec.md` §4.6, `grammar.md` §9).
 
 use rune::{El, TextStyle, icon, row, text};
 
 use crate::assets::marks;
-use crate::keys::{Ctx, Mode, display, keymap, parse_seq};
+use crate::keys::{Ctx, Keymap, Mode};
 use crate::theme::Theme;
 
 /// Where the keys are: the mode and context of the region that has them. A printed key is lit
@@ -16,16 +17,9 @@ pub struct Scope {
 }
 
 impl Scope {
-    pub fn lit(self, seq: &str) -> bool {
-        keymap().lit(seq, self.mode, self.ctx)
+    pub fn lit(self, km: Keymap, seq: &str) -> bool {
+        km.chip(seq, self.mode, self.ctx).lit
     }
-}
-
-/// `seq` in the design's printed form (`<leader>cn` → `␣cn`).
-pub fn printed(seq: &str) -> String {
-    parse_seq(seq)
-        .map(|k| display(&k))
-        .unwrap_or_else(|_| seq.to_string())
 }
 
 /// A printed key's characters, with `␣` and `⏎` drawn as the client's own glyphs so no font
@@ -60,14 +54,18 @@ pub fn glyphs(printed: &str, style: TextStyle, color: rune::Color) -> El {
 /// A key chip: `key` orange on `surface.bar` (`surface.cursor.side` inside a float), or muted
 /// and inert where its key doesn't run.
 pub fn chip(t: Theme, scope: Scope, seq: &str, in_float: bool) -> El {
-    let lit = scope.lit(seq);
-    let fg = if lit { t.c.kind.literal } else { t.c.fg.muted };
+    let key = t.keymap.chip(seq, scope.mode, scope.ctx);
+    let fg = if key.lit {
+        t.c.kind.literal
+    } else {
+        t.c.fg.muted
+    };
     let bg = if in_float {
         t.c.surface.cursor_side
     } else {
         t.c.surface.bar
     };
-    glyphs(&printed(seq), t.ty.key, fg)
+    glyphs(&key.printed, t.ty.key, fg)
         .h(18.0)
         .px(5.0)
         .radius(t.l.radius.pill)
@@ -76,12 +74,9 @@ pub fn chip(t: Theme, scope: Scope, seq: &str, in_float: bool) -> El {
 
 /// A muted key hint inside a container: no fill, `fg.alt` while lit, `fg.muted` while inert.
 pub fn hint(t: Theme, scope: Scope, seq: &str) -> El {
-    let fg = if scope.lit(seq) {
-        t.c.fg.alt
-    } else {
-        t.c.fg.muted
-    };
-    glyphs(&printed(seq), t.ty.hint, fg)
+    let key = t.keymap.chip(seq, scope.mode, scope.ctx);
+    let fg = if key.lit { t.c.fg.alt } else { t.c.fg.muted };
+    glyphs(&key.printed, t.ty.hint, fg)
 }
 
 /// A float's foot hint: the chip, then a muted word (`Esc closes`).

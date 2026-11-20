@@ -29,7 +29,7 @@ pub(super) fn save(t: Theme, a: &App) -> Option<El> {
                 ui::glyphs(
                     ":w",
                     t.ty.key,
-                    if a.scope().lit("<leader>ms") {
+                    if a.scope().lit(t.keymap, "<leader>ms") {
                         t.c.kind.literal
                     } else {
                         t.c.fg.muted

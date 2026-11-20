@@ -40,6 +40,47 @@ fn replaced(path: &[&str], value: serde_json::Value) -> String {
 }
 
 #[test]
+fn reading_measure_is_bounded_and_steps_hold_at_the_ends() {
+    assert_eq!(Measure::default().px(), 840.0);
+    for (input, nearest) in [
+        (599.0, 600.0),
+        (1201.0, 1200.0),
+        (f32::NEG_INFINITY, 600.0),
+        (f32::INFINITY, 1200.0),
+        (f32::NAN, 840.0),
+    ] {
+        assert_eq!(Measure::new(input).unwrap_err().px(), nearest);
+    }
+    assert_eq!(Measure::new(600.0).unwrap().step(-1).px(), 600.0);
+    assert_eq!(Measure::new(1200.0).unwrap().step(1).px(), 1200.0);
+    assert_eq!(Measure::default().step(-1).px(), 800.0);
+    assert_eq!(Measure::default().step(1).px(), 880.0);
+}
+
+#[test]
+fn reading_defaults_and_float_motion_preserve_the_design() {
+    let t = Theme::of(Variant::Ember);
+    assert_eq!(
+        (
+            t.read.measure,
+            t.read.conversation,
+            t.read.decision_block,
+            t.read.fold_notes_below
+        ),
+        (840.0, 880.0, 1208.0, 1256.0)
+    );
+    assert_eq!(t.motion.float, rune::Spring::new(0.09, 0.0));
+    assert_eq!(t.motion.panel, rune::Spring::new(0.2, 0.0));
+    assert_eq!(t.motion.page, rune::Spring::new(0.18, 0.0));
+    assert!(t.motion.on);
+    let off = Theme::new(Variant::Ember, Measure::default(), false);
+    assert_eq!(off.motion.float, rune::Spring::NONE);
+    assert_eq!(off.motion.panel, rune::Spring::NONE);
+    assert_eq!(off.motion.page, rune::Spring::NONE);
+    assert!(!off.motion.on);
+}
+
+#[test]
 fn the_embedded_tokens_parse() {
     Tokens::parse(EMBEDDED).expect("design/tokens.json parses");
 }

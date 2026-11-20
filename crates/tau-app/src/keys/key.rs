@@ -129,10 +129,16 @@ fn named(name: &str) -> Option<Code> {
         "BS" => Code::Backspace,
         "Del" => Code::Delete,
         "Space" | "leader" => Code::Char(' '),
+        "lt" => Code::Char('<'),
+        "gt" => Code::Char('>'),
         "Up" => Code::Up,
         "Down" => Code::Down,
         "Left" => Code::Left,
         "Right" => Code::Right,
+        "Home" => Code::Home,
+        "End" => Code::End,
+        "PageUp" => Code::PageUp,
+        "PageDown" => Code::PageDown,
         "label" => Code::Label,
         _ => {
             let mut cs = name.chars();
@@ -159,10 +165,62 @@ fn parse_angle(inner: &str) -> Option<Key> {
         rest = &rest[2..];
     }
     let code = named(rest)?;
-    if mods == Mods::default() && matches!(code, Code::Char(c) if c != ' ') {
+    if mods == Mods::default()
+        && matches!(code, Code::Char(c) if c != ' ')
+        && !matches!(rest, "lt" | "gt")
+    {
         return None;
     }
     Some(Key { code, mods })
+}
+
+/// The inverse of `parse_seq`, for settings.toml: `<leader>cm`, `<M-m>`, `]o`, `<D-CR>`.
+pub fn written(seq: &[Key]) -> String {
+    let mut out = String::new();
+    for k in seq {
+        let name = match k.code {
+            Code::Char('<') => "lt".to_string(),
+            Code::Char('>') if k.mods != Mods::default() => "gt".to_string(),
+            Code::Char(' ') if k.mods == Mods::default() => {
+                out.push_str("<leader>");
+                continue;
+            }
+            Code::Char(c) if k.mods == Mods::default() => {
+                out.push(c);
+                continue;
+            }
+            Code::Char(' ') => "Space".to_string(),
+            Code::Char(c) => c.to_string(),
+            Code::Enter => "CR".into(),
+            Code::Esc => "Esc".into(),
+            Code::Tab => "Tab".into(),
+            Code::Backspace => "BS".into(),
+            Code::Delete => "Del".into(),
+            Code::Up => "Up".into(),
+            Code::Down => "Down".into(),
+            Code::Left => "Left".into(),
+            Code::Right => "Right".into(),
+            Code::Home => "Home".into(),
+            Code::End => "End".into(),
+            Code::PageUp => "PageUp".into(),
+            Code::PageDown => "PageDown".into(),
+            Code::Label => "label".into(),
+        };
+        out.push('<');
+        for (on, m) in [
+            (k.mods.ctrl, "C-"),
+            (k.mods.alt, "M-"),
+            (k.mods.cmd, "D-"),
+            (k.mods.shift, "S-"),
+        ] {
+            if on {
+                out.push_str(m);
+            }
+        }
+        out.push_str(&name);
+        out.push('>');
+    }
+    out
 }
 
 /// The design's printed form: `␣cn`, `⌘K`, `⌘⏎`, `C-h`, `M-⏎`, `S-Tab`, `Esc`.

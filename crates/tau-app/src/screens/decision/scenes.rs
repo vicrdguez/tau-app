@@ -22,7 +22,6 @@ use crate::app::scenes::{Scene, on_fixture};
 use crate::app::{App, Focus, Invocation, Stage, link};
 use crate::floats::Float;
 use crate::frame::Row;
-use crate::keys::keymap;
 use crate::open::Item;
 use crate::theme::Variant;
 
@@ -37,7 +36,7 @@ pub fn all() -> Vec<Scene> {
         ("decision-note-insert", note_insert),
         ("decision-light", |a| {
             note_insert(a);
-            a.variant = Variant::EmberLight;
+            a.settings.theme = Variant::EmberLight;
         }),
         ("readback-answer", |a| {
             long(a);
@@ -79,7 +78,7 @@ pub fn all() -> Vec<Scene> {
             let scope = a.scope();
             for key in crate::keys::parse_seq("<leader>a").unwrap_or_default() {
                 a.keys
-                    .press(keymap(), scope.mode, scope.ctx, key, false, -1.0);
+                    .press(a.settings.keymap, scope.mode, scope.ctx, key, false, -1.0);
             }
             a.which_key_shown = true;
         }),
@@ -194,8 +193,8 @@ fn open_answer(a: &mut App, pick: Option<usize>, armed: bool) {
 
 /// Runs a command as its keys would where the keys are.
 fn run(a: &mut App, id: &str) {
-    if let Some(command) = keymap().command(id) {
-        let applies = keymap().applies(command, a.scope().ctx);
+    if let Some(command) = a.settings.keymap.command(id) {
+        let applies = a.settings.keymap.applies(command, a.scope().ctx);
         let inv = Invocation {
             command,
             count: None,
@@ -235,7 +234,6 @@ fn long_on_wire(a: &mut App, refusal: Option<Value>) -> Arc<Wire> {
     let _ = store.save_client(&ClientConfig {
         server: Some(f.url()),
         device: Some(f.device()),
-        theme: None,
     });
     let secrets = Secrets::memory();
     let _ = secrets.save(&f.url(), &f.token());
