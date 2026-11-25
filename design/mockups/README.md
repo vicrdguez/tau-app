@@ -52,3 +52,18 @@ Renders of the HTML prototype built from `../spec.md` and `../fixture.json`, at 
 | `revoked.png` | this device revoked: notice, everything off, drafts kept |
 | `home-light.png`, `decision-light.png` | Home and a note being typed in Ember Light |
 | `narrow-800.png` | Home, a conversation and a decision at 800 px, the sidebar hidden by itself |
+
+### Metrics (proposal)
+
+The Metrics proposal (`../metrics.md`, revised 2026-11-24 after a UI review), rendered from states 48 to 55 in `../../tools/proto/states.md`. Their telemetry is made up, in `../../tools/proto/metrics.js`. Every check family passes on all eight. As everywhere in this folder, the text wins over the images.
+
+| File | Shows |
+|---|---|
+| `metrics-board.png` | the board as a place: pins grouped by project, a 28 px head over a 48 px strip, the cursor pin's band, the peek with its strips per model |
+| `metrics-board-light.png` | the board in Ember Light |
+| `metrics-board-empty.png` | no pins: `No pinned charts yet · ␣mn makes one` |
+| `metrics-chart.png` | one chart: the cut as the facts line, `␣mp pin`, y ticks at the right, the time cursor and its readout, the details panel open |
+| `metrics-chart-split.png` | a pinned chart split by model and changed from its pin: the sage edit mark, `␣mp update pin`, strips on one scale, the cursor where a column and a strip cross |
+| `metrics-chart-histogram.png` | a histogram: the mean over the min-to-max band, the newest bucket still filling, an unknown bucket |
+| `metrics-metric-picker.png` | the Metric float, grouped by source |
+| `metrics-keep-picker.png` | the Keep-only float: one value per attribute, each with its figure |

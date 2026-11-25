@@ -586,3 +586,66 @@ svg.i.olive{color:var(--olive)}
 .uesc{font:400 12px/16px "Iosevka";color:var(--fg);background:var(--bar);border-radius:var(--r-pill);padding:0 3px;margin:0 1px}
 /* the peek column empty while nothing has arrived */
 .peek:empty{padding:0}
+
+/* ───── Metrics (../../design/metrics.md, with the UI review's changes) ─────
+   No new tokens. Bars fg.muted, the bucket under the time cursor fg, the band border.strong, the mean line fg; the newest bucket an
+   outline; the time cursor a neutral column (surface.cursor.read) and, where it crosses the selected row, a 2 px coral bar. */
+.mname{font:400 12px/16px "Iosevka";color:var(--orange);white-space:nowrap}
+.crumb .mname{font-size:12.5px}
+.mname.big{font-size:13px}
+.mboard .lgh:first-of-type{margin-top:16px}
+.rw.pin{padding:0 12px;margin-bottom:12px}
+.pinh{display:flex;align-items:center;gap:10px;height:28px;white-space:nowrap}
+.pinh .pw{font:400 12px/16px "Etoile";color:var(--alt);overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pinh .pr2{flex:none;font:400 12px/16px "Etoile";color:var(--muted)}
+.pinh .fig{margin-left:auto;flex:none;font:400 12px/16px "Iosevka";color:var(--alt)}
+.rw.pin.sel .pinh .fig{color:var(--fg)}
+.grid{position:relative}
+.grid .srow{position:relative}
+.grid .si{position:relative}
+.grid .pa{position:absolute}
+.grid .pa .pl{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}
+.grid .pa .cb{position:absolute;background:var(--cursor-read)}
+.grid .pa .rl{position:absolute;left:0;right:0;height:1px;background:var(--hl)}
+.grid .pa .bl{position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--strong)}
+.grid .pa .bl.z{bottom:auto;top:50%}
+.grid .pa .curbar{position:absolute;bottom:-4px;height:2px;background:var(--coral)}
+.floatopen .grid .pa .curbar,.focus-sidebar .grid .pa .curbar{display:none}
+.grid .pa .unk{position:absolute;bottom:-18px;transform:translateX(-50%);color:var(--unknown);display:flex}
+.grid .pa .unk svg.i{width:11px;height:11px;vertical-align:0}
+.grid .yt{position:absolute;right:0}
+.grid .yt span{position:absolute;right:0;transform:translateY(-50%);font:400 12px/16px "Iosevka";color:var(--muted);white-space:nowrap}
+.grid .slab{position:absolute;left:0;top:50%;transform:translateY(-50%);font:400 13px/18px "Etoile";color:var(--alt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grid .sfig{position:absolute;right:0;top:50%;transform:translateY(-50%);text-align:right;font:400 12px/16px "Iosevka";color:var(--alt);white-space:nowrap}
+.grid .srow.sel{background:var(--cursor-read)}
+.grid .srow.sel .slab,.grid .srow.sel .sfig{color:var(--fg)}
+.grid.strips,.grid.peekgrid{margin:0 -12px}
+.grid.strips .srow,.grid.peekgrid .srow{padding:0 12px}
+.grid.peekgrid{margin-top:8px}
+.grid.peekgrid .slab{font-size:13px}
+.grid .xl{position:relative;height:16px;margin-top:10px}
+.grid.withunk .xl{margin-top:26px}
+.grid .xl span{position:absolute;top:0;font:400 12px/16px "Iosevka";color:var(--muted);white-space:nowrap}
+.mcol{position:absolute;left:40px;right:40px;top:0}
+.mcol.withd{right:264px}
+.mcol .tblock .ptitle .tl{font:inherit;color:inherit}
+.cpart{display:inline-flex;align-items:center;gap:5px}
+.cpart .ck{color:var(--steel)}
+.cpart .cv{color:var(--fg)}
+.cpart svg.i{color:var(--sage-mark);width:12px!important;height:12px!important;margin:0!important}
+.msum{margin-top:24px;font:400 13px/19px "Etoile";color:var(--alt)}
+.msum b,.mread b,.peek .pc b{font-weight:400;color:var(--fg)}
+.msub{margin-top:2px;font:400 12px/16px "Etoile";color:var(--muted)}
+.mchart .grid{margin-top:18px}
+.mread{margin-top:14px;font:400 12px/16px "Etoile";color:var(--alt);white-space:nowrap}
+.mread .dt,.mread2 .dt{margin:0 6px}
+.mrt{font-family:"Iosevka";color:var(--alt)}
+.mread2{margin-top:6px;display:flex;align-items:center;gap:4px;font:400 12px/16px "Etoile";color:var(--alt)}
+.mread2 .sm.unk{color:var(--unknown)}
+.dpanel .dtx{color:var(--fg);margin-bottom:2px}
+.fbx{max-height:282px;overflow:hidden}
+.fgh{display:flex;align-items:center;gap:7px;height:26px;margin-top:12px;padding:0 24px;font:600 13px/18px "Etoile";color:var(--steel)}
+.fgh:first-child{margin-top:0}
+.fgh .n{color:var(--alt);font-weight:400}
+.prow .mname.mw{width:210px;flex:none;font-size:13px}
+.prow .md3{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--alt)}

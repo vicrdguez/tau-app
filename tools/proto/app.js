@@ -254,6 +254,15 @@
     'conversation-hostile': { screen: 'conv', conv: 'hostile/2', hostile: true, extraOpenAll: [{ project: 'hostile', kind: 'conversation', id: 2 }, { project: 'hostile', kind: 'decision', id: 'w1:4:design#1' }, { project: 'hostile', kind: 'conversation', id: 3 }] },
     'home-light': { of: 'home', light: true },
     'decision-light': { of: 'decision-note-insert', light: true },
+    // Metrics (../../design/metrics.md, with the UI review's changes); `metrics` draws its sidebar row
+    'metrics-board': { screen: 'metrics', metrics: true, cur: 0 },
+    'metrics-board-light': { of: 'metrics-board', light: true },
+    'metrics-board-empty': { screen: 'metrics', metrics: true, pins: [] },
+    'metrics-chart': { screen: 'metrics', metrics: true, chart: 'tokens', details: true },
+    'metrics-chart-split': { screen: 'metrics', metrics: true, chart: 'tokens-split' },
+    'metrics-chart-histogram': { screen: 'metrics', metrics: true, chart: 'phase' },
+    'metrics-metric-picker': { of: 'metrics-board', float: 'metric', mode: 'COMMAND', focus: 'float' },
+    'metrics-keep-picker': { of: 'metrics-chart-split', float: 'keep', mode: 'COMMAND', focus: 'float' },
     'narrow-800': { sheet: ['narrow-home', 'narrow-conversation', 'narrow-decision'], width: 800, labels: ['home at 800 px · the sidebar hidden by itself', 'conversation at 800 px', 'decision at 800 px · notes inline'] },
     'narrow-home': { of: 'home', width: 800, sub: true },
     'narrow-conversation': { of: 'conversation-streaming', width: 800, sub: true },
@@ -306,7 +315,7 @@
     const homeOn = v === 'home' || v === 'faults';
     return `<aside class="side${sideFocus ? ' focused' : ''}" data-ctx="${sideFocus ? 'sidebar' : 'global'}"><div class="brand"><img class="appicon" src="../../design/brand/tau-icon-small-coral.svg" alt=""><div class="bt"><div class="bn">tau</div>${srv}</div></div>
       <div class="nav">${place('add', 'New', v === 'start', K('␣cn'))}${place('search', 'Find', false, K('␣.'))}</div>
-      <div class="nav">${place('home', 'Home', homeOn, `<span class="tags">${tagsHTML(ctx)}</span>`, 'home')}${place('chat', 'Conversations', v === 'convs')}${place('time', 'Timeline', v === 'timeline')}${place('folder', 'Projects', false)}</div>
+      <div class="nav">${place('home', 'Home', homeOn, `<span class="tags">${tagsHTML(ctx)}</span>`, 'home')}${place('chat', 'Conversations', v === 'convs')}${place('time', 'Timeline', v === 'timeline')}${place('folder', 'Projects', false)}${s.metrics ? place('chart--column', 'Metrics', v === 'metrics') : ''}</div>
       ${open ? `<div class="seclab">Open</div><div class="opens">${open}</div>` : ''}
       <div class="sfoot">${place('settings', 'Server')}</div></aside>`;
   }
@@ -605,6 +614,167 @@
     return `<div class="wpage" data-ctx="project"><div class="doc">${doc}</div></div>`;
   }
 
+  // ───────────── Metrics (../../design/metrics.md, with the UI review's changes) ─────────────
+  // The board is a place: a sidebar row, a breadcrumb with its project filter, pins grouped by project, and the peek. A chart is a view
+  // of that place (as Faults is of Home): a title block whose facts line is the chart's cut, an action segment for pinning, and the
+  // details panel. Marks take no new tokens: bars fg.muted, the bucket under the time cursor fg, the min-to-max band border.strong,
+  // the mean line fg; the newest bucket, still filling, is an outline. The one coral mark is the time cursor's 2 px bar.
+  const MXs = window.MX;
+  const sig3 = (x) => (x >= 100 ? String(Math.round(x)) : x >= 10 ? x.toFixed(1) : x.toFixed(2));
+  const fmtTok = (v) => (v < 1000 ? String(Math.round(v)) : v < 1e6 ? `${sig3(v / 1e3)} k` : `${sig3(v / 1e6)} M`);
+  const span = (ms) => (ms < 1000 ? `${Math.round(ms)} ms` : ms < 10000 ? `${(ms / 1000).toFixed(1)} s` : ms < 60000 ? `${Math.floor(ms / 1000)} s` : ms < 3600000 ? `${Math.floor(ms / 60000)} m` : `${Math.floor(ms / 3600000)} h ${Math.floor((ms % 3600000) / 60000)} m`);
+  const fmtV = (unit, v) => (unit === 'token' ? `${fmtTok(v)} tokens` : unit === 'USD' ? (v >= 1 ? `$${v.toFixed(2)}` : `$${v.toPrecision(3)}`) : unit === 'ms' ? span(v) : Math.round(v).toLocaleString('en'));
+  const trimZ = (t) => t.replace(/(\.\d*?)0+(?=\s|$)/, '$1').replace(/\.(?=\s|$)/, '');
+  const tickV = (unit, v) => (!v ? '0' : unit === 'token' ? trimZ(fmtTok(v)) : unit === 'USD' ? `$${v < 1 ? v.toFixed(2) : v}` : unit === 'ms' ? span(v) : String(v));
+  const niceTop = (v, unit) => {
+    if (unit === 'ms' && v >= 60000) return niceTop(v / 60000) * 60000;
+    const p = 10 ** Math.floor(Math.log10(v || 1));
+    for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= v) return m * p;
+    return 10 * p;
+  };
+  const sum = (a) => a.reduce((x, y) => x + (y || 0), 0);
+  const dayOf = (t) => `${MON[new Date(t).getUTCMonth()]} ${new Date(t).getUTCDate()}`;
+  const today = (t) => new Date(t).toISOString().slice(0, 10) === new Date(MXs.NOW).toISOString().slice(0, 10);
+  // a bucket in the copy's time forms: today's clock time alone, another day's with its date; the newest bucket ends "now"
+  const bucketWords = (r, i) => { const { b, n } = MXs.R[r]; const s0 = MXs.start(r) + i * b; const a = today(s0) ? hm(s0) : `${dayOf(s0)} ${hm(s0)}`; return i === n - 1 ? `${a} to now` : `${a} to ${hm(s0 + b)}`; };
+  const xLabels = (r) => {
+    const { b, n } = MXs.R[r], s0 = MXs.start(r), all = n * b, out = [];
+    const step = r === '7d' ? 24 * MXs.HOUR : r === '24h' ? 4 * MXs.HOUR : 10 * MXs.MIN;
+    for (let t = Math.ceil(s0 / step) * step; t < s0 + all; t += step) out.push([(t - s0) / all, r === '7d' || hm(t) === '00:00' ? dayOf(t) : hm(t)]);
+    return out;
+  };
+  // marks, drawn on view_box(buckets, 1000) as the proposal's canvas does: x counts buckets, y thousandths of the scale
+  const VB = (n, inner) => `<svg class="pl" viewBox="0 0 ${n} 1000" preserveAspectRatio="none">${inner}</svg>`;
+  const NSS = 'vector-effect="non-scaling-stroke" shape-rendering="crispEdges"';
+  function svgBars(vals, top, { cur = null, signed = false } = {}) {
+    const n = vals.length;
+    return VB(n, vals.map((v, i) => {
+      if (!v) return '';
+      const hh = Math.max(signed ? 30 : 12, (Math.abs(v) / top) * (signed ? 480 : 1000));
+      const y = signed ? (v > 0 ? 500 - hh : 500) : 1000 - hh;
+      const st = i === n - 1 ? 'fill:none;stroke:var(--muted);stroke-width:1px' : `fill:var(--${i === cur ? 'fg' : 'muted'})`;
+      return `<rect x="${i + 0.08}" y="${y}" width="0.84" height="${hh}" style="${st}" ${NSS}/>`;
+    }).join(''));
+  }
+  function svgHist(bk, top, { cur = null } = {}) {
+    const n = bk.length, Y = (v) => 1000 - Math.min(1, v / top) * 1000;
+    let band = '', segs = [[]];
+    bk.forEach((x, i) => {
+      if (!x.count || x.sum == null) { segs.push([]); return; }
+      const y1 = Y(x.max), hh = Math.max(14, Y(x.min) - y1);
+      const st = i === n - 1 ? 'fill:none;stroke:var(--muted);stroke-width:1px' : `fill:var(--${i === cur ? 'muted' : 'strong'})`;
+      band += `<rect x="${i + 0.08}" y="${y1}" width="0.84" height="${hh}" style="${st}" ${NSS}/>`;
+      segs[segs.length - 1].push([i + 0.5, Y(x.sum / x.count), i === n - 1]);
+    });
+    const line = (pts, dash) => `<polyline points="${pts.map(([x, y]) => `${x},${y}`).join(' ')}" style="fill:none;stroke:var(--fg);stroke-width:1.5px${dash ? ';stroke-dasharray:3 3' : ''}" vector-effect="non-scaling-stroke"/>`;
+    const lines = segs.filter((g) => g.length > 1).map((g) => (g[g.length - 1][2] ? line(g.slice(0, -1)) + line(g.slice(-2), true) : line(g))).join('');
+    return VB(n, band + lines);
+  }
+  // plots that share one time axis: rows of [label] [plot] [figure, or the y ticks]. The time cursor is one neutral column across
+  // the rows; the selected row has the neutral row band; the coral 2 px bar sits only where the two cross, under the baseline.
+  function grid({ rows, n, cur = null, selRow = 0, lab = 0, fig = 0, gap = 16, h, pt = 4, pb = 6, ticks = null, xl = null, zero = false, cls = '' }) {
+    const x0 = lab ? lab + gap : 0, xr = fig ? fig + gap : 0;
+    const body = rows.map((r, ri) => {
+      const sel = rows.length > 1 && ri === selRow;
+      const col = cur != null ? `<div class="cb" style="left:${(cur / n) * 100}%;width:${100 / n}%;top:-${pt}px;bottom:-${pb}px"></div>` : '';
+      const bar = cur != null && ri === selRow ? `<div class="curbar" style="left:${(cur / n) * 100}%;width:${100 / n}%"></div>` : '';
+      const rules = ticks ? '<div class="rl" style="top:0"></div><div class="rl" style="top:50%"></div>' : '';
+      const unk = (r.unknown || []).map((i) => `<span class="unk" style="left:${((i + 0.5) / n) * 100}%">${I('help')}</span>`).join('');
+      const right = ticks ? `<div class="yt" style="width:${fig}px;top:${pt}px;bottom:${pb}px">${ticks.map(([f, t]) => `<span style="top:${f * 100}%">${t}</span>`).join('')}</div>`
+        : fig ? `<span class="sfig" style="width:${fig}px">${r.figure || ''}</span>` : '';
+      return `<div class="srow${sel ? ' sel' : ''}"><div class="si" style="height:${h + pt + pb}px">${lab ? `<span class="slab" style="width:${lab}px" data-spoof>${esc(r.label)}</span>` : ''}<div class="pa" style="left:${x0}px;right:${xr}px;top:${pt}px;bottom:${pb}px">${col}${rules}${r.svg}<div class="bl${zero ? ' z' : ''}"></div>${bar}${unk}</div>${right}</div></div>`;
+    }).join('');
+    const xh = xl ? `<div class="xl" style="margin-left:${x0}px;margin-right:${xr}px">${xl.filter(([f]) => f < 0.94).map(([f, t]) => `<span style="left:${f * 100}%">${t}</span>`).join('')}</div>` : '';
+    return `<div class="grid${cls ? ' ' + cls : ''}">${body}${xh}</div>`;
+  }
+  // the board's pins: each is a question (project, metric, cut, range), never an answer
+  const PINS = [
+    { project: 'render-core', metric: 'pi.ai.tokens', unit: 'token', words: `by model ${dot} kind output`, range: '24h', split: () => MXs.series.tokensOut24h },
+    { project: 'render-core', metric: 'pi.ai.cost', unit: 'USD', range: '7d', vals: () => MXs.series.cost7d },
+    { project: 'render-core', metric: 'pi.durable.phase.duration', unit: 'ms', words: 'phase implement', range: '24h', hist: () => MXs.series.phase24h },
+    { project: 'notes-cli', metric: 'pi.ai.tokens', unit: 'token', range: '24h', vals: () => MXs.series.notesTokens24h },
+    { project: 'forecasts', metric: 'pi.durable.tasks.active', unit: '', range: '24h', signed: () => MXs.series.active24h },
+  ];
+  const histStats = (bk) => { const ok = bk.filter((x) => x.count && x.sum != null); const c = sum(ok.map((x) => x.count)); return { count: sum(bk.map((x) => x.count)), mean: sum(ok.map((x) => x.sum)) / c, max: Math.max(...ok.map((x) => x.max)), min: Math.min(...ok.map((x) => x.min)) }; };
+  const flat = (byVal) => { const ks = Object.keys(byVal); return byVal[ks[0]].map((_, i) => sum(ks.map((k) => byVal[k][i]))); };
+  function pinPlot(p) {
+    if (p.hist) { const bk = p.hist(); const st = histStats(bk); return { n: bk.length, figure: `mean ${span(st.mean)} ${dot} max ${span(st.max)}`, svg: svgHist(bk, niceTop(st.max, 'ms')) }; }
+    if (p.signed) { const v = p.signed(); const net = sum(v); return { n: v.length, zero: true, figure: `net ${net > 0 ? '+' : ''}${net}`, svg: svgBars(v, Math.max(...v.map(Math.abs)), { signed: true }) }; }
+    const v = p.split ? flat(p.split()) : p.vals();
+    return { n: v.length, figure: fmtV(p.unit, sum(v)), svg: svgBars(v, niceTop(Math.max(...v))) };
+  }
+  function pinHTML(p, sel) {
+    const d = pinPlot(p);
+    return `<div class="rw pin${sel ? ' sel' : ''}" data-row="pin"><div class="pinh"><span class="mname">${p.metric}</span>${p.words ? `<span class="pw">${p.words}</span>` : ''}<span class="pr2">${MXs.R[p.range].words}</span><span class="fig">${d.figure}</span></div>${grid({ rows: [{ svg: d.svg }], n: d.n, h: 40, pt: 2, pb: 6, zero: d.zero })}</div>`;
+  }
+  // the peek: the pin under the cursor, larger, with what its strip leaves out: its summary, its groups, the newest bucket
+  function pinPeek(p) {
+    const by = p.split(), n = MXs.R[p.range].n, all = flat(by);
+    const order = Object.keys(by).sort((a, b) => sum(by[b]) - sum(by[a]));
+    const top = niceTop(Math.max(...order.flatMap((k) => by[k])));
+    const rows = order.map((k) => ({ label: k, figure: fmtTok(sum(by[k])), svg: svgBars(by[k], top) }));
+    return `<div class="pt"><span class="mname big">${p.metric}</span></div>
+      <div class="pf"><span class="pj">${p.project}</span> ${dot} by model ${dot} kind output ${dot} ${MXs.R[p.range].words}</div>
+      <div class="pc"><b>${fmtV('token', sum(all))}</b> in the ${MXs.R[p.range].words} where kind is output, summed over every provider</div>
+      <div class="ph">by model<span class="rr">one scale, 0 to ${trimZ(fmtTok(top))} per ${MXs.R[p.range].per}</span></div>
+      ${grid({ rows, n, selRow: -1, lab: 140, fig: 44, gap: 12, h: 26, pt: 3, pb: 5, cls: 'peekgrid' })}
+      <div class="ph">newest bucket<span class="rr">still filling</span></div>
+      <div class="pc"><span class="mrt">${bucketWords(p.range, n - 1)}</span> ${dot} so far <b>${fmtV('token', all[n - 1])}</b></div>`;
+  }
+  function metricsBoard(s, W, ctx) {
+    ctx.viewCtx = 'metrics';
+    ctx.crumb = crumbOf(['Metrics', 'all projects']);
+    const pins = s.pins || PINS;
+    let h = '<div class="ptitle h1">Metrics</div>';
+    if (!pins.length) return `<div class="lcol mboard" data-ctx="metrics">${h}<div class="empty">No pinned charts yet ${dot} ${K('␣mn')} makes one</div></div>${ctx.peek ? '<aside class="peek" data-ctx="metrics"></aside>' : ''}`;
+    const groups = [];
+    for (const p of pins) { let g = groups.find((x) => x.project === p.project); if (!g) groups.push((g = { project: p.project, pins: [] })); g.pins.push(p); }
+    let k = 0;
+    h += groups.map((g) => `<div class="lgh">${g.project} <span class="s">${g.pins.length} chart${g.pins.length > 1 ? 's' : ''}</span></div><div class="rows">${g.pins.map((p) => pinHTML(p, k++ === s.cur)).join('')}</div>`).join('');
+    return `<div class="lcol mboard" data-ctx="metrics">${h}</div>${ctx.peek ? `<aside class="peek" data-ctx="metrics">${pinPeek(pins[s.cur])}</aside>` : ''}`;
+  }
+  // the chart view: the facts line is the chart's cut, each part a hint target that opens its picker (␣mr ␣mg ␣mf ␣mt)
+  const cutPart = (k, v, edited) => `<span class="cpart">${edited ? I('edit') : ''}<span class="ck">${k}</span><span class="cv">${v}</span></span>`;
+  function metricsChart(s, W, ctx) {
+    ctx.viewCtx = 'chart';
+    const R = MXs.R, at = (t) => Math.round((t - MXs.start('7d')) / R['7d'].b);
+    let c;
+    if (s.chart === 'tokens') {
+      const v = MXs.series.tokensAll7d, n = v.length, cur = v.indexOf(Math.max(...v.slice(0, -1))), top = niceTop(Math.max(...v));
+      c = { metric: 'pi.ai.tokens', range: '7d', split: 'none', keep: 'every value', plotWords: 'default: total per 2 h as bars', act: seg('␣mp', 'pin'),
+        summary: `<b>${fmtV('token', sum(v))}</b> in the last 7 days, summed over every provider, model and kind`,
+        plot: grid({ rows: [{ svg: svgBars(v, top, { cur }) }], n, cur, fig: 56, h: 280, pt: 0, pb: 0, ticks: [[0, tickV('token', top)], [0.5, tickV('token', top / 2)], [1, '0']], xl: xLabels('7d') }),
+        read: `<span class="mrt">${bucketWords('7d', cur)}</span>${dot}<b>${fmtV('token', v[cur])}</b>` };
+    } else if (s.chart === 'tokens-split') {
+      const by = MXs.series.tokensOut7d, order = Object.keys(by).sort((a, b) => sum(by[b]) - sum(by[a])), n = R['7d'].n;
+      const cur = at(Date.UTC(2026, 10, 13, 14)), selRow = 1, all = flat(by), top = niceTop(Math.max(...order.flatMap((k) => by[k])));
+      const rows = order.map((k, ri) => ({ label: k, figure: fmtTok(sum(by[k])), svg: svgBars(by[k], top, { cur: ri === selRow ? cur : null }) }));
+      c = { metric: 'pi.ai.tokens', range: '7d', changed: 'range', split: 'model', keep: 'kind output', plotWords: 'default: total per 2 h as bars', act: seg('␣mp', 'update pin'),
+        summary: `<b>${fmtV('token', sum(all))}</b> in the last 7 days where kind is output, summed over every provider`, sub: `one strip per model, on one scale from 0 to ${trimZ(fmtTok(top))} tokens per 2 h`,
+        plot: grid({ rows, n, cur, selRow, lab: 180, fig: 64, h: 34, pt: 6, pb: 8, xl: xLabels('7d'), cls: 'strips' }),
+        read: `<span class="mrt">${bucketWords('7d', cur)}</span>${dot}<span>${order[selRow]}</span>&nbsp;<b>${fmtV('token', by[order[selRow]][cur])}</b>${dot}every model <b>${fmtV('token', all[cur])}</b>` };
+    } else {
+      const bk = MXs.series.phase24h, n = bk.length, cur = n - 1, st = histStats(bk), top = niceTop(st.max, 'ms'), unknown = bk.map((x, i) => (x.count && x.sum == null ? i : -1)).filter((i) => i >= 0);
+      const last = bk[cur];
+      c = { metric: 'pi.durable.phase.duration', range: '24h', split: 'none', keep: 'phase implement', plotWords: 'default: mean per 15 min over min to max', act: seg('␣mp', 'pin'),
+        summary: `<b>${st.count} measurements</b> in the last 24 hours where phase is implement, merged over every kind ${dot} mean <b>${span(st.mean)}</b> ${dot} max <b>${span(st.max)}</b> ${dot} min <b>${span(st.min)}</b>`,
+        plot: grid({ rows: [{ svg: svgHist(bk, top, { cur }), unknown }], n, cur, fig: 56, h: 280, pt: 0, pb: 0, ticks: [[0, tickV('ms', top)], [0.5, tickV('ms', top / 2)], [1, '0']], xl: xLabels('24h'), cls: 'withunk' }),
+        read: `<span class="mrt">${bucketWords('24h', cur)}</span>${dot}so far <b>${last.count} measurements</b>${dot}mean <b>${span(last.sum / last.count)}</b>${dot}max <b>${span(last.max)}</b>`,
+        read2: unknown.map((i) => `<div class="mread2">${MK.unk}<span class="mrt">${bucketWords('24h', i)}</span>${dot}<span>unknown: a measurement was not a finite number</span></div>`).join('') };
+    }
+    ctx.crumb = crumbOf(['Metrics', '<span class="pj">render-core</span>', `<span class="mname">${c.metric}</span>`]);
+    const facts = [cutPart('range', R[c.range].words, c.changed === 'range'), cutPart('split', c.split), cutPart('keep', c.keep), cutPart('plot', c.plotWords)].join(`<span class="dt">·</span>`);
+    const dp = s.details ? `<aside class="dpanel" data-ctx="chart"><div class="lg"><div class="lh">About</div>
+        <div class="li"><span class="k">metric</span><span class="v mono">pi.ai.tokens</span></div><div class="li"><span class="k">from</span><span class="v">pi-ai</span></div>
+        <div class="li"><span class="k">kind</span><span class="v">counter</span></div><div class="li"><span class="k">unit</span><span class="v">token</span></div>
+        <div class="li"><span class="k">bucket</span><span class="v">2 h</span></div><div class="li"><span class="k">refresh</span><span class="v">every 5 min</span></div></div>
+      <div class="lg"><div class="lh">Description</div><div class="dtx">Tokens sent to and received from a model provider, per request</div></div>
+      <div class="lg"><div class="lh">Attributes</div><div class="dtx">provider ${dot} model ${dot} kind</div></div>
+      <div class="lg"><div class="lh">It can't show</div><div class="dtx">the tokens of one request</div><div class="dtx">a rate finer than 2 h</div></div></aside>` : '';
+    return { acts: c.act, stage: `<div class="mcol mchart${s.details ? ' withd' : ''}" data-ctx="chart">${titleBlock(`<span class="tl">${c.metric}</span>`, facts, { details: s.details })}
+      <div class="msum">${c.summary}</div>${c.sub ? `<div class="msub">${c.sub}</div>` : ''}${c.plot}<div class="mread">${c.read}</div>${c.read2 || ''}</div>${dp}` };
+  }
+
   // ───────────── Connect (spec §5.1) ─────────────
   const insecure = (u) => { const m = /^http:\/\/(\[[^\]]+\]|[^/:]+)/.exec(u); return !!m && !['127.0.0.1', 'localhost', '[::1]'].includes(m[1]); };
   function connectHTML(s, ctx) {
@@ -694,6 +864,22 @@
           <span class="k" style="align-self:start;padding-top:2px">extensions</span><span class="v"><div class="chk">${exts.map((e) => `<div class="ci${e.name === 'w1' ? ' on sel' : ''}">${I(e.name === 'w1' ? 'checkbox--checked' : 'checkbox')}<span class="n">${e.name}</span><span class="s">${e.workflow ? 'workflow' : 'tool'}</span></div>`).join('')}</div></span></div>`,
         hints: fk(['Tab'], 'toggle') + fk(['⏎'], 'bind') + fk(['Esc'], 'cancel') });
     }
+    if (f === 'metric') {
+      // the Metric picker (␣mn, ␣mm): the project's metrics under a group head per source, as the Settings float groups its rows
+      const body = ['w1', 'tau', 'pi-ai', 'pi-durable'].map((g) => { const ms = MXs.catalogue.filter((m) => m.source === g);
+        return `<div class="fgh">${g}<span class="n">${ms.length}</span></div>` + ms.map((m) => `<div class="prow${m.name === 'w1.designs' ? ' sel' : ''}"><span class="mname mw">${m.name}</span><span class="md3" data-spoof>${esc(m.desc)}</span><span class="x">${m.kind} ${dot} ${m.unit === 'token' ? 'tokens' : m.unit || 'no unit'}</span></div>`).join(''); }).join('');
+      return shell({ title: 'Metric', sub: 'for a new chart in <span class="pj">render-core</span>', body: `<div class="fbx" style="max-height:264px">${body}</div>`,
+        input: `<span class="fin"><span class="bc"></span><span class="cnt">8 metrics</span></span>`, hints: fk(['⏎'], 'choose') + fk(['Esc'], 'back') });
+    }
+    if (f === 'keep') {
+      // the Keep-only picker (␣mf): one value per attribute, the split attribute left out; each value with its whole-range figure
+      const all = sum(MXs.series.tokensAll7d), out = all * 0.18;
+      const grp = (name, rows) => `<div class="fgh">${name}<span class="n">${rows.length}</span></div>` + rows.map(([v, fig, cur, sel]) => `<div class="prow${sel ? ' sel' : ''}"><span class="n">${v}</span><span class="x">${cur ? `current ${dot} ` : ''}${fmtV('token', fig)}</span></div>`).join('');
+      const body = grp('provider', [['any provider', out, true], ...MXs.values.provider.map(([v, sh]) => [v, out * sh])])
+        + grp('kind', [['any kind', all], ...MXs.values.kind.map(([v, sh]) => [v, all * sh, v === 'output', v === 'output'])]);
+      return shell({ title: 'Keep only', sub: `<span class="mname">pi.ai.tokens</span> in <span class="pj">render-core</span> ${dot} last 7 days`, meta: 'model is the split, so it is not listed', body: `<div class="fbx">${body}</div>`,
+        input: `<span class="fin"><span class="bc"></span><span class="cnt">9 values</span></span>`, hints: fk(['⏎'], 'choose') + fk(['Esc'], 'back') });
+    }
     if (f === 'outbox') {
       const ob = W.outbox;
       const rows = ob.map((o) => `<div class="prow${o.state === 'unknown' ? ' sel' : ''}"><span class="m">${o.state === 'unknown' ? MK.unk : MK.ok}</span><span class="n mono" style="min-width:44px;width:44px">${o.call}</span><span class="s" style="width:120px"><span class="pj">${o.body.project}</span> <span class="id">#${o.body.conversation}</span></span><span class="n" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" data-spoof>${plain(o.body.text)}</span><span class="x">${o.state === 'unknown' ? '<b>no reply</b> · resends when connected' : 'done'} · ${hm(o.sentAt)}</span></div>`).join('');
@@ -734,6 +920,7 @@
     else if (s.screen === 'faults') body = faultsHTML(s, W, ctx);
     else if (s.screen === 'convs') body = convsHTML(s, W, ctx);
     else if (s.screen === 'project') body = projectHTML(s, W, ctx);
+    else if (s.screen === 'metrics') { if (s.chart) { const r = metricsChart(s, W, ctx); acts = r.acts; body = r.stage; } else body = metricsBoard(s, W, ctx); }
     const fl = floatHTML(s, W, ctx);
     const app = document.getElementById('app');
     app.className = [ctx.narrow ? 'narrow' : '', fl ? 'floatopen' : '', ctx.mode === 'INSERT' ? 'insert' : '', sideHidden ? 'sidehidden' : '', !ctx.peek ? 'nopeek' : '', `focus-${focus}`].join(' ');

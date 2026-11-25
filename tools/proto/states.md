@@ -271,6 +271,37 @@
     - *New, TC-29.*
     - Data: the fixture's `hostile` block: `hostile.project` added to the projects; `hostile.inbox` merged into the inbox; `hostile.conversations`; `hostile."open hostile #2"`; labels from `hostile.firstInput`. A `hostile` group in `OPEN` with `#2` (current), `◆ Needs you · ok #1` and `#3`.
     - Must show, per `hostile.cases`: the title `# Needs you` as one plain coral line in `title.page`, no heading style; your message headed `input`, never `you`, its `you: ◆ 3 …` as plain text; U+202E, U+202C and U+200B as visible escapes on `surface.bar`; the agent's `**ok** · ◆ Answer · ␣ad` as Markdown (bold steel, inline code), no chip, tag or coral; the fenced `✓ exit 0` a neutral code block; the tool row `× bash npm test   failed` on `tint.row_fail` though its output says `✓ exit 0`; the last message's `# Review the design` a rose `prose.h1` with its rule; in the sidebar the decision's title one plain line with the client's own coral diamond, and `#3`'s label cut with `…`, `#3` whole. Tags `◆ 4 × 4`.
+
+## Metrics (proposal)
+
+States 48 to 55 draw `../../design/metrics.md` with the UI review's changes (2026-11-24). Until the proposal is accepted, their telemetry and keys live in `metrics.js`, not in `fixture.json` and `keymap.toml`, and only these states draw the sidebar's `Metrics` row, so every other render is unchanged. The review's changes: the board is a place like the others (breadcrumb with its project filter, pins grouped by project under sage heads, the peek); a chart is a view of it (title block, an action segment, the details panel); the facts line is the chart's cut, `range · split · keep · plot`, each part pressable; `␣pf` keeps meaning "project", and the cut moves to `␣mr`, `␣mg` and `␣mf`; marks are `fg.muted` bars, the bucket under the time cursor in `fg`, the band in `border.strong`; the time cursor is a neutral column, and the one coral mark is its 2 px bar under the selected row.
+
+48. **`metrics-board`** · `NORMAL`, the stage; Metrics current.
+    - Data: five pins, `metrics.js` (`render-core`: `pi.ai.tokens` by model, kind output, 24 h; `pi.ai.cost`, 7 d; `pi.durable.phase.duration`, phase implement, 24 h. `notes-cli`: `pi.ai.tokens`, 24 h. `forecasts`: `pi.durable.tasks.active`, 24 h). Cursor on the first.
+    - Must show: breadcrumb `Metrics › all projects`; title `Metrics`; three project heads in sage with their chart counts; each pin a 28 px head (metric name in orange mono, its cut, its range in `fg.muted`, its whole-range figure at the right) over a 48 px strip, 12 px between pins; the histogram pin's figure pairs the mean with the max; the upDownCounter pin's bars signed about a zero line; every pin's newest bucket an outline; the cursor pin's band and coral bar. The peek: the pin's summary, one strip per model on one scale, the newest bucket `so far`. No chips in the stage.
+
+49. **`metrics-board-light`** · state 48 in **Ember Light**.
+
+50. **`metrics-board-empty`** · `NORMAL`, the stage; no pins.
+    - Must show: title `Metrics`, then `No pinned charts yet · ␣mn makes one` (the Projects pattern); no cursor; the peek column empty.
+
+51. **`metrics-chart`** · `NORMAL`, the stage; **the details panel open**.
+    - Data: `pi.ai.tokens` in `render-core`, 7 d, no split, every value, not pinned. Time cursor on the busiest bucket.
+    - Must show: breadcrumb `Metrics › render-core › pi.ai.tokens`; `␣mp pin` at the header's right; the facts line `range last 7 days · split none · keep every value · plot default: total per 2 h as bars` with steel labels; the summary naming every summed attribute; the plot with its y ticks at the right, day labels in the copy's date form, the cursor column and its coral bar; the readout `Nov 13 12:00 to 14:00 · 76.5 k tokens`. The details panel: About, the description as plain lines, the attributes, and `It can't show`.
+
+52. **`metrics-chart-split`** · `NORMAL`, the stage.
+    - Data: the first pin, opened and changed from 24 h to 7 d; split by model, keep kind output. Cursor on `claude-sonnet-4-5` at Nov 13 14:00.
+    - Must show: `␣mp update pin`; the sage `edit` mark before `range`, as option drafts carry it; five strips sorted by their figure, on one scale named under the summary; the neutral column across every strip, the selected strip's row band, and one coral bar where they cross; the readout naming the strip's value and every model's.
+
+53. **`metrics-chart-histogram`** · `NORMAL`, the stage.
+    - Data: `pi.durable.phase.duration`, phase implement, 24 h; one bucket's measurement nonfinite; cursor on the newest bucket.
+    - Must show: the mean line over the min-to-max band; the summary with the count, mean, max and min; the newest bucket an outline with a dashed last segment, the readout `16:30 to now · so far …`; the unknown bucket with no mark, a mauve `?` under the baseline and a readout line saying why.
+
+54. **`metrics-metric-picker`** · `COMMAND`, the Metric float (`␣mn`) over 48.
+    - Must show: head `Metric · for a new chart in render-core`; a group head per source with its count (`w1`, `tau`, `pi-ai`, `pi-durable`), as the Settings float groups its rows; each row the name in orange mono, the description cut with `…`, `kind · unit` at the right; the body cut at a row's edge; the board's cursor neutral.
+
+55. **`metrics-keep-picker`** · `COMMAND`, the Keep-only float (`␣mf`) over 52.
+    - Must show: head `Keep only · pi.ai.tokens in render-core · last 7 days`, meta `model is the split, so it is not listed`; groups `provider 4` and `kind 5`, each value with its whole-range figure and `current` on the values in use; the cursor on `output`; the chart's column and row bands kept, its coral bar gone, `␣mp update pin` muted.
 ---
 
 ## From the previous mockups

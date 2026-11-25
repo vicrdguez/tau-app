@@ -57,7 +57,7 @@
   const edgeEl = [...document.querySelectorAll('.box, .fld')].find((b) => shown(b) && near(parse(getComputedStyle(b).borderLeftColor), CORAL, 4)) || null;
   const sideCursor = [...document.querySelectorAll('.side *')].some((e) => shown(e) && coralOf(getComputedStyle(e)) && (() => { const r = e.getBoundingClientRect(); return visibleAt(e, r.left + 1, r.top + r.height / 2); })());
   const FOCUS = floatEl && !PEND ? 'float' : MODE === 'i' ? 'container' : sideCursor ? 'sidebar' : 'stage';
-  const pageCtx = () => (document.querySelector('.sin .connect') ? 'connect' : document.querySelector('.sin .start') ? 'start' : document.querySelector('.sin .ccol') ? 'conversation' : document.querySelector('.sin .wpage .dmarg') ? 'decision' : document.querySelector('.sin .wpage') ? 'project' : 'list');
+  const pageCtx = () => (document.querySelector('.sin .mboard') ? 'metrics' : document.querySelector('.sin .mchart') ? 'chart' : document.querySelector('.sin .connect') ? 'connect' : document.querySelector('.sin .start') ? 'start' : document.querySelector('.sin .ccol') ? 'conversation' : document.querySelector('.sin .wpage .dmarg') ? 'decision' : document.querySelector('.sin .wpage') ? 'project' : 'list');
   // floats are root contexts (the float-keys ruling): each is told by what it draws and the badge it names
   const floatCtx = (f) => (f.querySelector('.ntag') ? 'reply' : f.querySelector('.vtag') ? 'readback' : MODE === 'rb' ? 'confirm' : MODE === 'ob' ? 'outbox' : MODE === 'sv' ? 'server' : MODE === 'ho' ? 'peek' : MODE === 'i' ? 'bind' : MODE === 'c' ? 'picker' : 'global');
   const containerCtx = (b) => (!b ? pageCtx() : b.closest('.start') ? 'start' : b.closest('.cstack') ? 'composer' : b.closest('.note') ? 'note' : b.closest('.connect') ? 'connect' : b.closest('.float') ? 'bind' : 'editor');
@@ -105,7 +105,7 @@
   // the echo none; each chip and each hint printed only where reference/grammar.md §9 prints one. Floats print their own keys.
   const EXEMPT = '.float';
   const PRINTABLE = [['⏎', '.rw.need.sel .l1'], ['␣ad', '.shead .seg.prim'], ['␣ar', '.shead'], ['␣cx', '.shead'], ['␣cc', '.shead, .rfail'], [':w', '.status .save'],
-    ['␣cn', '.side'], ['␣.', '.side'], ['␣rc', '.notice'], ['␣rp', '.notice'], ['␣rt', '.notice, .shead, .prow2'], ['␣pb', '.empty, .startline'],
+    ['␣cn', '.side'], ['␣.', '.side'], ['␣rc', '.notice'], ['␣rp', '.notice'], ['␣rt', '.notice, .shead, .prow2'], ['␣pb', '.empty, .startline'], ['␣mp', '.shead'], ['␣mn', '.mboard .empty'],
     ['⏎', '.connect .go'], ['c', '.ghost']];
   const HINTABLE = [['⌘⏎', '.start .comp'], ['M-p', '.startline'], ['M-w', '.startline'], ['Esc', '.cstack .comp, .note.act'], ['jk', '.cstack .comp, .note.act'],
     ['⌘⏎', '.cstack .comp'], ['M-⏎', '.cstack .comp']]; // the start line, the start composer, the composer's and the note's Insert keys
@@ -205,7 +205,7 @@
   if (elsewhere.length) cursorFails.push(`coral cursor in the ${[...new Set(elsewhere.map((m) => m.region))].join(', ')}, but the ${want} has the keys`);
   const bars = inWant.filter((m) => m.kind === 'bar').length, edges = inWant.filter((m) => m.kind === 'edge').length, carets = inWant.filter((m) => m.kind === 'caret').length;
   const inFlight = MODE === 'i' && !edges && [...document.querySelectorAll('.start .starting')].some(shown);
-  const nothing = want === 'stage' && ![...document.querySelectorAll('.sin .rw, .sin .lrow, .sin .frow, .sin .cho, .sin .msg, .sin .md [data-s], .sin .tool')].some(shown);
+  const nothing = want === 'stage' && ![...document.querySelectorAll('.sin .rw, .sin .lrow, .sin .frow, .sin .cho, .sin .msg, .sin .md [data-s], .sin .tool, .sin .mchart .srow')].some(shown);
   if ((want === 'float' && !sel) || inFlight || nothing) { if (marks.length) cursorFails.push(`${marks.length} coral cursor mark(s) where none may show`); }
   else if (want === 'container') { if (edges !== 1 || carets < 1) cursorFails.push(`focused container: ${edges} coral edge(s), ${carets} caret(s)`); }
   else if (bars !== 1) cursorFails.push(`${bars} coral cursor(s) in the ${want}`);

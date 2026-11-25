@@ -40,6 +40,7 @@ python3 -B tools/keymap_answer_rule.py --mutants
 |---|---|
 | `states.md` | the states to render, each with its window, theme, mode, focus, data and what it must show |
 | `app.js`, `calm.css`, `index.tmpl.html` | the model of the frame and the views |
+| `metrics.js` | made-up telemetry and the proposed keys for the Metrics states (`../../design/metrics.md`), until the proposal moves them into `fixture.py` and `keymap.toml` |
 | `build.mjs` | generates the inputs, renders the states and the wireframes, runs `checks.js` |
 | `checks.js` | the check families, run in the page |
 | `mutants.mjs` | the seeded faults |

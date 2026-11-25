@@ -19,7 +19,7 @@ const puppeteer = require('puppeteer-core');
 
 const ICONS = ['list--checked', 'chat', 'time', 'folder', 'search', 'bot', 'user', 'document', 'edit', 'help', 'help--filled', 'subtract',
   'checkmark', 'stop-sign--filled', 'play--filled--alt', 'chevron--right', 'chevron--down', 'close', 'arrow--down', 'checkbox', 'checkbox--checked',
-  'launch', 'warning--alt', 'locked', 'send', 'circle-dash', 'add', 'information', 'renew', 'home', 'settings', 'side-panel--close', 'side-panel--open', 'chevron--left'];
+  'launch', 'warning--alt', 'locked', 'send', 'circle-dash', 'add', 'information', 'renew', 'home', 'settings', 'side-panel--close', 'side-panel--open', 'chevron--left', 'chart--column'];
 const CARBON = join(HERE, 'node_modules/@carbon/icons/svg/32');
 const symbols = ICONS.map((n) => {
   const inner = readFileSync(join(CARBON, `${n}.svg`), 'utf8').replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').replace(/<title>.*?<\/title>/g, '');
