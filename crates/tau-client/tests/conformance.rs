@@ -25,6 +25,60 @@ fn later(stream: &str, i: usize) -> Value {
     frame.get("frame").unwrap_or(frame).clone()
 }
 
+#[test]
+fn model_refresh_uses_the_same_call_and_supersedes_an_older_listing() {
+    let (mut h, _) = Harness::connected();
+    h.e.refresh_catalogue(h.now);
+    let (listing, body) = h.call(CallName::Models);
+    assert_eq!(body, json!({}));
+
+    h.e.refresh_models(h.now);
+    h.e.refresh_models(h.now);
+    let (refresh, body) = h.call(CallName::Models);
+    assert_eq!(body, json!({"refresh": true}));
+    h.e.refresh_catalogue(h.now);
+    h.no_calls(CallName::Models);
+
+    let latest = json!({"items": [{"model": "openai/gpt-6.2", "name": "GPT-6.2"}]});
+    h.done(refresh, &latest);
+    h.done(listing, f(&["calls", "models", "result"]));
+    let models = h.e.server().models.value().unwrap();
+    assert_eq!(models.len(), 1);
+    assert_eq!(models[0].model, "openai/gpt-6.2");
+    assert_eq!(models[0].name, "GPT-6.2");
+    assert!(
+        h.e.take_events()
+            .contains(&LinkEvent::ModelsRefreshed(Ok(())))
+    );
+}
+
+#[test]
+fn model_refresh_errors_keep_the_catalogue_and_allow_retry() {
+    let (mut h, _) = Harness::connected();
+    let before = h.e.server().models.clone();
+    for reply in [
+        Some(outcome(
+            &json!({"refused": {"code": "not_found", "message": "model catalogue unavailable"}}),
+        )),
+        Some(result(&json!({"items": [{"model": "missing name"}]}))),
+        None,
+    ] {
+        h.e.refresh_models(h.now);
+        let (refresh, _) = h.call(CallName::Models);
+        if let Some(reply) = reply {
+            h.reply(refresh, reply);
+        } else {
+            h.secs(21.0);
+        }
+        assert_eq!(h.e.server().models, before);
+        assert!(
+            h.e.take_events()
+                .iter()
+                .any(|event| matches!(event, LinkEvent::ModelsRefreshed(Err(_))))
+        );
+    }
+}
+
 // ---------------------------------------------------------------- launch and the inbox
 
 #[test]

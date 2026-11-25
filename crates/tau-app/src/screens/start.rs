@@ -1,5 +1,5 @@
 //! The start page owns a device-local draft, its launch choice, and one pending create.
-//! Server outcomes remain in tau-client; pickers snapshot the choices the user sees.
+//! Server outcomes remain in tau-client; model rows in the Workflow picker follow the catalogue.
 
 pub(crate) mod scenes;
 #[cfg(test)]
@@ -526,18 +526,11 @@ fn workflow_picker(a: &mut App) {
         }
         rows.push(r);
     }
-    for m in server.models.value().into_iter().flatten() {
-        rows.push(Choice::new(
-            format!("m:{}", m.model),
-            "bare agent",
-            m.name.clone(),
-        ));
-    }
     let selected = a.screens.start.with.as_ref().map(|w| match w {
         StartWith::Workflow(w) => format!("w:{w}"),
         StartWith::Model(m) => format!("m:{m}"),
     });
-    a.open_float(Float::Screen(Box::new(Picker::new(
+    let picker = Picker::new(
         ScreenId::Start,
         "Workflow",
         format!("for the new conversation in {p}"),
@@ -552,5 +545,16 @@ fn workflow_picker(a: &mut App) {
             });
             a.screens.start.failure = None;
         }),
-    ))));
+    )
+    .with_model_rows(|a| {
+        a.link
+            .server()
+            .models
+            .value()
+            .into_iter()
+            .flatten()
+            .map(|m| Choice::new(format!("m:{}", m.model), "bare agent", m.name.clone()))
+            .collect()
+    });
+    a.open_float(Float::Screen(Box::new(picker)));
 }

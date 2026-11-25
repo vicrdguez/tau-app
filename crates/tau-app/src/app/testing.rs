@@ -10,7 +10,7 @@ use tau_client::fixture::FixtureTransport;
 use tau_client::sse::{EndReason, Frame};
 use tau_client::store::{ClientConfig, Secrets, Store};
 use tau_client::transport::{Deliver, Reply, StreamHandle, Target, Transport};
-use tau_client::wire::{Outcome, Request};
+use tau_client::wire::{CallName, Outcome, Request};
 use tau_client::{Fixture, Link, LinkConfig};
 
 /// The fixture's server, which tests can silence, refuse every call to, or end a stream of.
@@ -18,6 +18,7 @@ pub(crate) struct Wire {
     fixture: FixtureTransport,
     pub silent: AtomicBool,
     pub refuse: Mutex<Option<Outcome>>,
+    pub model_refresh: Mutex<Option<Outcome>>,
     streams: Mutex<Vec<Arc<Deliver>>>,
 }
 
@@ -30,6 +31,13 @@ impl StreamHandle for Held {
 impl Transport for Wire {
     fn call(&self, target: &Target, request: Request, reply: Reply) {
         if self.silent.load(Ordering::SeqCst) {
+            return;
+        }
+        if request.call == CallName::Models
+            && request.body == serde_json::json!({"refresh": true})
+            && let Some(outcome) = self.model_refresh.lock().unwrap().clone()
+        {
+            reply(outcome);
             return;
         }
         match self.refuse.lock().unwrap().clone() {
@@ -69,6 +77,15 @@ pub(crate) struct Setup {
     _dir: tempfile::TempDir,
 }
 
+pub(crate) fn refreshed_models() -> Outcome {
+    let mut models = fixture().value()["calls"]["models"]["result"].clone();
+    models["items"].as_array_mut().unwrap().insert(
+        0,
+        serde_json::json!({"model": "openai/gpt-6.2", "name": "GPT-6.2"}),
+    );
+    Outcome::Done(models)
+}
+
 pub(crate) fn fixture() -> Fixture {
     Fixture::design()
 }
@@ -100,6 +117,7 @@ pub(crate) fn linked(dir: tempfile::TempDir, secrets: Secrets, silent: bool) -> 
         fixture: FixtureTransport::new(f),
         silent: AtomicBool::new(silent),
         refuse: Mutex::new(None),
+        model_refresh: Mutex::new(None),
         streams: Mutex::new(Vec::new()),
     });
     let config = LinkConfig {

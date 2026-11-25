@@ -1,11 +1,11 @@
-//! Frozen, filterable choices for the start page and option fields.
+//! Filterable choices for the start page and option fields. Model rows follow the link's catalogue.
 
 use super::{FILTER, Input, Noun, input, no_match};
 use crate::app::{App, Invocation};
 use crate::assets::carbon;
 use crate::content::line;
 use crate::keys::{Code, Ctx, Key, Mode};
-use crate::screens::{ScreenFloat, ScreenId, top_float};
+use crate::screens::{ScreenFloat, ScreenId, top_float, top_float_ref};
 use crate::theme::Theme;
 use crate::ui::{self, Badge, Scope, Shell};
 use rune::{El, TextEdit, col, icon, row};
@@ -42,7 +42,8 @@ pub struct Picker {
     pub title: String,
     pub subtitle: String,
     pub noun: Noun,
-    pub rows: Vec<Choice>,
+    rows: Vec<Choice>,
+    model_rows: Option<fn(&App) -> Vec<Choice>>,
     pub query: TextEdit,
     pub selected: Option<String>,
     pub choose: Option<Choose>,
@@ -65,15 +66,24 @@ impl Picker {
             subtitle,
             noun,
             rows,
+            model_rows: None,
             query,
             selected,
             choose: Some(choose),
         }
     }
-    pub fn filtered(&self) -> Vec<&Choice> {
+    pub fn with_model_rows(mut self, rows: fn(&App) -> Vec<Choice>) -> Self {
+        self.model_rows = Some(rows);
+        self
+    }
+    fn models(&self, a: &App) -> Vec<Choice> {
+        self.model_rows.map_or_else(Vec::new, |rows| rows(a))
+    }
+    fn filtered<'a>(&'a self, models: &'a [Choice]) -> Vec<&'a Choice> {
         let q = self.query.text.to_lowercase();
         self.rows
             .iter()
+            .chain(models)
             .filter(|r| {
                 format!("{} {} {}", r.label, r.detail, r.path)
                     .to_lowercase()
@@ -81,8 +91,7 @@ impl Picker {
             })
             .collect()
     }
-    pub fn current(&self) -> Option<&Choice> {
-        let rows = self.filtered();
+    fn current<'a>(&self, rows: &[&'a Choice]) -> Option<&'a Choice> {
         rows.iter()
             .copied()
             .find(|r| Some(&r.value) == self.selected.as_ref())
@@ -105,9 +114,14 @@ impl ScreenFloat for Picker {
     fn edit_mut(&mut self) -> Option<&mut TextEdit> {
         Some(&mut self.query)
     }
-    fn view(&self, t: Theme, _: &App) -> El {
-        let rows = self.filtered();
-        let selected = self.current().map(|r| &r.value);
+    fn offers_model_refresh(&self) -> bool {
+        self.model_rows.is_some()
+    }
+    fn view(&self, t: Theme, a: &App) -> El {
+        let models = self.models(a);
+        let total = self.rows.len() + models.len();
+        let rows = self.filtered(&models);
+        let selected = self.current(&rows).map(|r| &r.value);
         let mut body = col().w_full();
         for r in &rows {
             let mut content = row().center_y().gap(12.0).w_full();
@@ -157,7 +171,7 @@ impl ScreenFloat for Picker {
                     .child(ui::float_row(t, Some(&r.value) == selected, content)),
             );
         }
-        if rows.is_empty() && !self.rows.is_empty() {
+        if rows.is_empty() && total != 0 {
             body = body.child(no_match(t, self.noun.none(&self.query.text)));
         }
         let input = input(
@@ -166,11 +180,21 @@ impl ScreenFloat for Picker {
                 edit: &self.query,
                 label: &format!("Filter {}", self.noun.many),
                 placeholder: FILTER,
-                count: self
-                    .noun
-                    .kept(&self.query.text, rows.len(), self.rows.len()),
+                count: self.noun.kept(&self.query.text, rows.len(), total),
             },
         );
+        let mut hints = Vec::new();
+        if self.offers_model_refresh() {
+            hints.push(super::model_refresh(t, self.scope(), a));
+        }
+        hints.push(ui::float_hint_if(
+            t,
+            self.scope(),
+            &["<CR>"],
+            "choose",
+            !rows.is_empty(),
+        ));
+        hints.push(ui::float_hint(t, self.scope(), &["<Esc>"], "back"));
         ui::shell(
             t,
             Shell {
@@ -180,10 +204,7 @@ impl ScreenFloat for Picker {
                 meta: None,
                 body,
                 input: Some(input),
-                hints: vec![
-                    ui::float_hint_if(t, self.scope(), &["<CR>"], "choose", !rows.is_empty()),
-                    ui::float_hint(t, self.scope(), &["<Esc>"], "back"),
-                ],
+                hints,
             },
         )
     }
@@ -194,11 +215,13 @@ pub fn keys(a: &mut App, inv: &Invocation, _: &mut rune::Tx) {
         a.close_float();
         return;
     }
-    let Some(p) = top_float::<Picker>(a) else {
+    let Some(p) = top_float_ref::<Picker>(a) else {
         return;
     };
+    let models = p.models(a);
+    let rows = p.filtered(&models);
     if k.code == Code::Enter {
-        if let Some(value) = p.current().map(|r| r.value.clone()) {
+        if let Some(value) = p.current(&rows).map(|r| r.value.clone()) {
             choose(a, value);
         }
     } else {
@@ -213,13 +236,15 @@ pub fn keys(a: &mut App, inv: &Invocation, _: &mut rune::Tx) {
         } else {
             0
         };
-        let rows = p.filtered();
         let at = rows
             .iter()
             .position(|r| Some(&r.value) == p.selected.as_ref())
             .unwrap_or(0);
         let to = (at as isize + delta).clamp(0, rows.len().saturating_sub(1) as isize) as usize;
-        p.selected = rows.get(to).map(|r| r.value.clone());
+        let selected = rows.get(to).map(|r| r.value.clone());
+        if let Some(p) = top_float::<Picker>(a) {
+            p.selected = selected;
+        }
     }
 }
 

@@ -229,6 +229,14 @@ impl Link {
         self.command(|e, now| e.refresh_catalogue(now))
     }
 
+    pub fn refresh_models(&mut self) {
+        self.command(|e, now| e.refresh_models(now))
+    }
+
+    pub fn models_refreshing(&self) -> bool {
+        self.engine.models_refreshing()
+    }
+
     pub fn refresh_faults(&mut self) {
         self.command(|e, now| e.refresh_faults(now))
     }

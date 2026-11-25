@@ -997,6 +997,16 @@ keys = [{ mode = "c", ctx = "picker", seq = "<C-j>" }, { mode = "c", ctx = "pick
         { mode = "c", ctx = "picker", seq = "<Esc>" }, { mode = "c", ctx = "picker", seq = "<C-c>" }]
 
 [[command]]
+id = "picker.refresh-models"
+ex = "-"
+desc = "refresh models"
+tier = "local"
+kind = "modal"
+ctx = ["picker"]
+note = "Ask the server to refresh its model list. Available in pickers that list models."
+keys = [{ mode = "c", ctx = "picker", seq = "<C-r>" }]
+
+[[command]]
 id = "settings.keys"
 ex = "-"
 desc = "settings float keys"

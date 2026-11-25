@@ -45,6 +45,33 @@ fn schema_order_and_secret_display_follow_the_schema() {
 }
 
 #[test]
+fn model_field_refresh_makes_the_new_model_available_without_saving_options() {
+    let setup = crate::app::testing::paired(false);
+    let mut a = App::launch(setup.link);
+    crate::screens::start::scenes::base(&mut a);
+    a.live = true;
+    a.show(Stage::Item(Item::Project("render-core".into())));
+    link::pump(&mut a, &mut Tx::default());
+    field(&mut a, "w1", "designer");
+    run(&mut a, "field.edit");
+    a.float_edit().replace_text("GPT-6.2");
+    *setup.wire.model_refresh.lock().unwrap() = Some(crate::app::testing::refreshed_models());
+
+    keys(&mut a, "<C-r>");
+    link::pump(&mut a, &mut Tx::default());
+    keys(&mut a, "<CR>");
+    assert_eq!(
+        a.screens.project.drafts.get(&FieldKey {
+            project: "render-core".into(),
+            extension: "w1".into(),
+            key: "designer".into(),
+        }),
+        Some(&json!("openai/gpt-6.2"))
+    );
+    assert!(a.link.outbox().entries().is_empty());
+}
+
+#[test]
 fn edits_and_resets_are_drafts_and_save_groups_by_extension() {
     let mut a = ready();
     field(&mut a, "w1", "base");

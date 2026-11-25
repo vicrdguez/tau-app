@@ -16,6 +16,8 @@
 //! - `␣cm` lists other than the server's models with the current one marked, `⏎` sets another
 //!   model than the one under the cursor; `␣ct` lists other than the seven levels or drops the
 //!   model;
+//! - the model refresh control is missing, a failure loses the rows or selection, or a retry
+//!   does not make the new model selectable without reopening;
 //! - `K` on a record shows anything but its `data`;
 //! - the composer's caption says other than what `⌘⏎` does in the drawn state.
 
@@ -421,6 +423,69 @@ fn space_cm_lists_the_servers_models_with_the_current_one_and_sets_the_chosen_on
         .collect();
     assert_eq!(set.len(), 1);
     assert_eq!(set[0].1["model"], Value::String(chosen));
+}
+
+#[test]
+fn model_refresh_click_reports_failure_and_keyboard_retry_updates_the_open_picker() {
+    use crate::app::{link, testing};
+    use tau_client::wire::parse_reply;
+
+    let setup = testing::paired(false);
+    let mut a = App::launch(setup.link);
+    on_fixture(&mut a, Stage::Item(conv("render-core", 8)));
+    a.live = true;
+    a.settings.motion = false;
+    keys(&mut a, "<leader>cm<C-j>");
+    let before = picker_rows(&a);
+    let selected = before[picker_cursor(&a)].value.clone();
+    assert!(!before.iter().any(|row| row.label == "GPT-6.2"));
+    *setup.wire.model_refresh.lock().unwrap() = Some(parse_reply(
+        404,
+        Some("1"),
+        br#"{"refused":{"code":"not_found","message":"model catalogue unavailable"}}"#,
+    ));
+
+    let mut rt = window(a);
+    assert!(
+        testing::spoken(&rt)
+            .iter()
+            .any(|node| { node.role == "button" && node.name.starts_with("Refresh models") })
+    );
+    click(&mut rt, "refresh-models");
+    link::pump(&mut rt.state, &mut Tx::default());
+
+    assert!(
+        rt.state
+            .echo
+            .as_deref()
+            .is_some_and(|e| e.contains("model catalogue unavailable"))
+    );
+    assert_eq!(picker_rows(&rt.state), before);
+    assert_eq!(before[picker_cursor(&rt.state)].value, selected);
+    assert!(writes(&rt.state).is_empty());
+
+    *setup.wire.model_refresh.lock().unwrap() = Some(testing::refreshed_models());
+    keys(&mut rt.state, "<C-r>");
+    link::pump(&mut rt.state, &mut Tx::default());
+    let rows = picker_rows(&rt.state);
+    assert_eq!(rows[picker_cursor(&rt.state)].value, selected);
+    keys(&mut rt.state, "GPT-6.2<CR>");
+    let set = writes(&rt.state);
+    assert_eq!(set.len(), 1);
+    assert_eq!(set[0].0, tau_client::WriteCall::SetModel);
+    assert_eq!(set[0].1["model"], "openai/gpt-6.2");
+}
+
+#[test]
+fn thinking_picker_does_not_offer_model_refresh() {
+    let mut a = at("render-core", 8);
+    keys(&mut a, "<leader>ct");
+    let rt = window(a);
+    assert!(
+        !crate::app::testing::spoken(&rt)
+            .iter()
+            .any(|node| { node.name.starts_with("Refresh models") })
+    );
 }
 
 #[test]

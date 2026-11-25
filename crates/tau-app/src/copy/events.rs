@@ -2,11 +2,11 @@
 
 use serde_json::Value;
 use tau_client::{
-    engine::LinkEvent,
+    engine::{LinkEvent, ModelRefreshError},
     outbox::{Settlement, WriteCall, WriteState},
     sse::EndReason,
     streams::StreamKey,
-    wire::{DecisionRecord, RefusalCode},
+    wire::{DecisionRecord, RefusalCode, Unknown},
 };
 
 use super::{AnswerAction, refusal};
@@ -20,6 +20,18 @@ pub fn event_echo(
     action: AnswerAction,
 ) -> Option<String> {
     match event {
+        LinkEvent::ModelsRefreshed(Ok(())) => Some("Models refreshed".into()),
+        LinkEvent::ModelsRefreshed(Err(error)) => {
+            let reason = match error {
+                ModelRefreshError::NotConnected => "not connected",
+                ModelRefreshError::Refused(r) => &r.message,
+                ModelRefreshError::Unknown(Unknown::Server { message, .. }) => message,
+                ModelRefreshError::Unknown(Unknown::Timeout) => "the server did not reply in time",
+                ModelRefreshError::Unknown(_) => "could not read the server's reply",
+                ModelRefreshError::InvalidReply => "the server returned an invalid model list",
+            };
+            Some(format!("Could not refresh models: {reason}"))
+        }
         LinkEvent::DecisionLeft { ours: false, .. } => Some("answered elsewhere".into()),
         LinkEvent::StreamEnded {
             reason: EndReason::Stopping,

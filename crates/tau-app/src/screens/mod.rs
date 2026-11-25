@@ -274,6 +274,10 @@ pub trait ScreenFloat: Any {
     fn scope(&self) -> Scope;
     fn badge(&self) -> Badge;
     fn view(&self, t: Theme, app: &App) -> El;
+    fn offers_model_refresh(&self) -> bool {
+        false
+    }
+
     /// The float's input, for its field's `on_edit`.
     fn edit_mut(&mut self) -> Option<&mut TextEdit> {
         None
@@ -281,6 +285,13 @@ pub trait ScreenFloat: Any {
 }
 
 /// The top float, when it is a `T`.
+pub fn top_float_ref<T: ScreenFloat>(app: &App) -> Option<&T> {
+    match app.floats.last() {
+        Some((Float::Screen(f), _)) => (f.as_ref() as &dyn Any).downcast_ref::<T>(),
+        _ => None,
+    }
+}
+
 pub fn top_float<T: ScreenFloat>(app: &mut App) -> Option<&mut T> {
     match app.floats.last_mut() {
         Some((Float::Screen(f), _)) => (f.as_mut() as &mut dyn Any).downcast_mut::<T>(),
