@@ -191,6 +191,15 @@ pub enum LinkEvent {
         device: Device,
     },
     PairFailed(PairFailure),
+    ModelsRefreshed(Result<(), ModelRefreshError>),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ModelRefreshError {
+    NotConnected,
+    Refused(Refusal),
+    Unknown(Unknown),
+    InvalidReply,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -228,6 +237,7 @@ enum Purpose {
     },
     Handshake,
     Catalogue(CallName),
+    RefreshModels,
     Options(Project),
     Conversations {
         project: Project,

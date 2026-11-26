@@ -8,6 +8,7 @@
 //! - a click on the start line's project or workflow, or on the composer's hint, does nothing, or
 //!   does something while its key is off (pending, a float up, the sidebar holding the keys);
 //! - a picker chosen by clicks loses the draft or moves its caret;
+//! - the Workflow picker cannot refresh and select a new bare-agent model without reopening;
 //! - a control reads as loose words and keys instead of one name;
 //! - with no projects, `⌘⏎` is printed twice with two meanings.
 
@@ -225,6 +226,29 @@ fn the_design_keys_open_each_picker_in_insert_and_in_normal() {
         key(&mut a, "<Esc>");
         assert!(a.floats.is_empty());
     }
+}
+
+#[test]
+fn workflow_model_refresh_keeps_the_filter_and_draft_and_selects_the_new_model() {
+    let setup = testing::paired(false);
+    let mut a = App::launch(setup.link);
+    scenes::base(&mut a);
+    a.live = true;
+    a.screens.start.editor.edit.replace_text("keep this draft");
+    key(&mut a, "<M-w>");
+    a.float_edit().replace_text("GPT-6.2");
+    *setup.wire.model_refresh.lock().unwrap() = Some(testing::refreshed_models());
+
+    key(&mut a, "<C-r>");
+    frame(&mut a);
+    assert_eq!(a.float_edit().text, "GPT-6.2");
+    key(&mut a, "<CR>");
+    assert!(a.floats.is_empty());
+    assert_eq!(
+        a.screens.start.with,
+        Some(StartWith::Model("openai/gpt-6.2".into()))
+    );
+    assert_eq!(a.screens.start.editor.text(), "keep this draft");
 }
 
 #[test]

@@ -12,7 +12,7 @@ use crate::floats::choices::{self, Choice, Choices};
 use crate::floats::detail::{self, Detail};
 use crate::floats::{Float, Noun, cursor_step};
 use crate::keys::{Code, Ctx, Key, Mode};
-use crate::screens::{NOTHING_RECEIVED, ScreenFloat, ScreenId, top_float};
+use crate::screens::{NOTHING_RECEIVED, ScreenFloat, ScreenId, top_float, top_float_ref};
 use crate::theme::Theme;
 use crate::ui::{Badge, Scope};
 
@@ -27,7 +27,7 @@ pub struct Picker {
     pub conv: ConvRef,
     pub pick: Pick,
     pub query: TextEdit,
-    pub cursor: usize,
+    pub selected: Option<String>,
 }
 
 /// A row and what choosing it sets.
@@ -63,9 +63,13 @@ impl Picker {
             conv,
             pick,
             query,
-            cursor: 0,
+            selected: None,
         };
-        picker.cursor = picker.rows(app).iter().position(|r| r.current).unwrap_or(0);
+        picker.selected = picker
+            .all(app)
+            .into_iter()
+            .find(|r| r.current)
+            .map(|r| r.value);
         app.open_float(Float::Screen(Box::new(picker)));
     }
 
@@ -80,6 +84,12 @@ impl Picker {
                     || r.value.to_lowercase().contains(&q)
             })
             .collect()
+    }
+
+    fn cursor(&self, rows: &[Row]) -> usize {
+        rows.iter()
+            .position(|row| Some(&row.value) == self.selected.as_ref())
+            .unwrap_or(0)
     }
 
     /// Every row, before the query.
@@ -137,6 +147,10 @@ impl ScreenFloat for Picker {
         Badge::Command
     }
 
+    fn offers_model_refresh(&self) -> bool {
+        self.pick == Pick::Model
+    }
+
     fn view(&self, t: Theme, app: &App) -> El {
         let rows = self.rows(app);
         let choices: Vec<Choice> = rows
@@ -160,11 +174,14 @@ impl ScreenFloat for Picker {
                 subject: Some(format!("#{}", self.conv.id)),
                 meta: workflow_note(app, &self.conv),
                 rows: &choices,
-                cursor: self.cursor,
+                cursor: self.cursor(&rows),
                 query: &self.query,
                 noun,
                 total: self.all(app).len(),
                 empty: (!received).then_some(NOTHING_RECEIVED),
+                refresh: self
+                    .offers_model_refresh()
+                    .then(|| crate::floats::model_refresh(t, self.scope(), app)),
             },
         )
     }
@@ -191,15 +208,15 @@ pub fn picker_keys(app: &mut App, inv: &Invocation, _: &mut Tx) {
         app.close_float();
         return;
     }
-    let Some(p) = top_float::<Picker>(app) else {
+    let Some(p) = top_float_ref::<Picker>(app) else {
         return;
     };
-    let (conv, pick, cursor) = (p.conv.clone(), p.pick, p.cursor);
-    let rows = top::<Picker>(app).map(|p| p.rows(app)).unwrap_or_default();
+    let rows = p.rows(app);
+    let cursor = p.cursor(&rows);
     if let Some(step) = cursor_step(key) {
+        let next = (cursor as i64 + step).clamp(0, rows.len().saturating_sub(1) as i64) as usize;
         if let Some(p) = top_float::<Picker>(app) {
-            p.cursor =
-                (p.cursor as i64 + step).clamp(0, rows.len().saturating_sub(1) as i64) as usize;
+            p.selected = rows.get(next).map(|r| r.value.clone());
         }
         return;
     }
@@ -207,6 +224,7 @@ pub fn picker_keys(app: &mut App, inv: &Invocation, _: &mut Tx) {
         return;
     }
     let Some(row) = rows.get(cursor) else { return };
+    let (conv, pick) = (p.conv.clone(), p.pick);
     app.close_float();
     let current_model = app
         .link
@@ -277,25 +295,19 @@ impl ScreenFloat for RecordData {
     }
 }
 
-/// The top float, when it is a `T`.
-fn top<T: ScreenFloat>(app: &App) -> Option<&T> {
-    match app.floats.last() {
-        Some((Float::Screen(f), _)) => (f.as_ref() as &dyn std::any::Any).downcast_ref::<T>(),
-        _ => None,
-    }
-}
-
 #[cfg(test)]
 pub fn record_float_text(app: &App) -> Option<String> {
-    top::<RecordData>(app).map(|r| r.json.clone())
+    top_float_ref::<RecordData>(app).map(|r| r.json.clone())
 }
 
 #[cfg(test)]
 pub fn picker_rows(app: &App) -> Vec<Row> {
-    top::<Picker>(app).map(|p| p.rows(app)).unwrap_or_default()
+    top_float_ref::<Picker>(app)
+        .map(|p| p.rows(app))
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
 pub fn picker_cursor(app: &App) -> usize {
-    top::<Picker>(app).map_or(0, |p| p.cursor)
+    top_float_ref::<Picker>(app).map_or(0, |p| p.cursor(&p.rows(app)))
 }

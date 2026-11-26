@@ -26,6 +26,24 @@ use crate::ui::{
     Badge, Scope, Shell, float_hint, float_hint_if, float_row, printed_keys, shell, title,
 };
 
+pub(crate) fn model_refresh(t: Theme, scope: Scope, app: &crate::app::App) -> El {
+    let seq = "<C-r>";
+    let pending = app.link.models_refreshing();
+    let word = if pending {
+        "Refreshing models…"
+    } else {
+        "Refresh models"
+    };
+    let key = t.keymap.chip(seq, scope.mode, scope.ctx);
+    crate::ui::control(
+        float_hint_if(t, scope, &[seq], word, !pending),
+        crate::ui::with_keys(word, &[&key]),
+        !pending,
+        |a: &mut crate::app::App, tx| crate::app::commands::run_id(a, "picker.refresh-models", tx),
+    )
+    .key("refresh-models")
+}
+
 /// What a picker lists.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PickerKind {

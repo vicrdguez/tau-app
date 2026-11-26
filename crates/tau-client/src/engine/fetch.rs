@@ -32,8 +32,35 @@ impl Engine {
         }
     }
 
+    pub fn models_refreshing(&self) -> bool {
+        self.in_flight(|p| matches!(p, Purpose::RefreshModels))
+    }
+
+    pub fn refresh_models(&mut self, now: Now) {
+        if self.conn != Conn::Ready {
+            self.events.push(LinkEvent::ModelsRefreshed(Err(
+                ModelRefreshError::NotConnected,
+            )));
+            return;
+        }
+        if self.models_refreshing() {
+            return;
+        }
+        self.calls
+            .retain(|_, call| !matches!(call.purpose, Purpose::Catalogue(CallName::Models)));
+        self.call(
+            Purpose::RefreshModels,
+            Request {
+                call: CallName::Models,
+                body: serde_json::json!({"refresh": true}),
+            },
+            now,
+        );
+    }
+
     fn catalogue(&mut self, call: CallName, now: Now) {
         if self.conn != Conn::Ready
+            || (call == CallName::Models && self.models_refreshing())
             || self.in_flight(|p| matches!(p, Purpose::Catalogue(c) if *c == call))
         {
             return;
@@ -304,6 +331,16 @@ impl Engine {
     pub(super) fn on_fetched(&mut self, purpose: Purpose, outcome: Outcome, now: Now) {
         match purpose {
             Purpose::Catalogue(call) => self.on_catalogue(call, outcome, now),
+            Purpose::RefreshModels => {
+                let result = match outcome {
+                    Outcome::Done(_) => known_from(outcome, "items", now)
+                        .ok_or(ModelRefreshError::InvalidReply)
+                        .map(|models| self.server.models = models),
+                    Outcome::Refused(r) => Err(ModelRefreshError::Refused(r)),
+                    Outcome::Unknown(u) => Err(ModelRefreshError::Unknown(u)),
+                };
+                self.events.push(LinkEvent::ModelsRefreshed(result));
+            }
             Purpose::Options(project) => {
                 if let Some(known) = known_from::<Vec<OptionsItem>>(outcome, "items", now) {
                     self.server.options.insert(project, known);

@@ -128,6 +128,8 @@ Written before the code, one list per module. Each failure names the test that w
 | a label is cached when none was found, asked more than once a minute, or read past 5 pages | `labels_are_found_once_and_cached` |
 | a label taken from a window that doesn't start the conversation | `labels_come_from_the_start_only` |
 | a gone object reads as not received | `gone_from_the_server` |
+| routine model listing refreshes the server, an explicit refresh sends the wrong request, or a pending ordinary list hides the refreshed list | `model_refresh_uses_the_same_call_and_supersedes_an_older_listing` |
+| a failed refresh clears the cached list, is silent, or cannot be retried | `model_refresh_errors_keep_the_catalogue_and_allow_retry` |
 
 ## start, answers (`tests/conformance.rs`)
 

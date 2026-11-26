@@ -77,6 +77,13 @@ fn frame() -> HashMap<&'static str, Handler> {
     t.insert("help.settings", |a, _, _| a.open_float(Float::settings()));
     t.insert("settings.keys", floats::settings::keys);
     t.insert("picker.keys", picker_keys);
+    t.insert("picker.refresh-models", |a, inv, _| {
+        if inv.applies
+            && matches!(a.floats.last(), Some((Float::Screen(f), _)) if f.offers_model_refresh())
+        {
+            a.link.refresh_models();
+        }
+    });
     t.insert("confirm.keys", confirm_keys);
     t.extend(crate::nav::handlers());
     t.extend(crate::yank::handlers());

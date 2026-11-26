@@ -349,18 +349,10 @@ pub(super) fn edit(a: &mut App, inv: &Invocation, _: &mut Tx) {
         );
         return;
     }
-    let choices = if f.schema["format"] == "model" {
+    let model = f.schema["format"] == "model";
+    let choices = if model {
         a.link.refresh_catalogue();
-        Some(
-            a.link
-                .server()
-                .models
-                .value()
-                .into_iter()
-                .flatten()
-                .map(|m| Choice::new(m.model.clone(), m.name.clone(), m.model.clone()))
-                .collect::<Vec<_>>(),
-        )
+        Some(Vec::new())
     } else {
         f.schema["enum"].as_array().map(|es| {
             es.iter()
@@ -369,12 +361,11 @@ pub(super) fn edit(a: &mut App, inv: &Invocation, _: &mut Tx) {
         })
     };
     if let Some(rows) = choices {
-        let model = f.schema["format"] == "model";
         let id = f.id.clone();
         let selected = f
             .value
             .map(|v| if model { value_text(&v) } else { v.to_string() });
-        a.open_float(Float::Screen(Box::new(Picker::new(
+        let mut picker = Picker::new(
             ScreenId::Project,
             if model { "Model" } else { "Choice" },
             format!("for {} · {}", id.extension, id.key),
@@ -389,7 +380,20 @@ pub(super) fn edit(a: &mut App, inv: &Invocation, _: &mut Tx) {
                 };
                 a.screens.project.drafts.insert(id, value);
             }),
-        ))));
+        );
+        if model {
+            picker = picker.with_model_rows(|a| {
+                a.link
+                    .server()
+                    .models
+                    .value()
+                    .into_iter()
+                    .flatten()
+                    .map(|m| Choice::new(m.model.clone(), m.name.clone(), m.model.clone()))
+                    .collect()
+            });
+        }
+        a.open_float(Float::Screen(Box::new(picker)));
         return;
     }
     if f.secret()

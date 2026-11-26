@@ -33,6 +33,7 @@ pub struct Choices<'a> {
     pub total: usize,
     /// Stands in for the rows while there are none (`Nothing received from the server yet`).
     pub empty: Option<&'a str>,
+    pub refresh: Option<El>,
 }
 
 pub fn view(t: Theme, scope: Scope, c: Choices) -> El {
@@ -83,6 +84,16 @@ pub fn view(t: Theme, scope: Scope, c: Choices) -> El {
         }
         body = body.child(float_row(t, i == c.cursor, content));
     }
+    let mut hints = Vec::new();
+    hints.extend(c.refresh);
+    hints.push(float_hint_if(
+        t,
+        scope,
+        &["<CR>"],
+        "choose",
+        !c.rows.is_empty(),
+    ));
+    hints.push(float_hint(t, scope, &["<Esc>"], "back"));
     shell(
         t,
         Shell {
@@ -100,10 +111,7 @@ pub fn view(t: Theme, scope: Scope, c: Choices) -> El {
                     count: c.noun.kept(&c.query.text, c.rows.len(), c.total),
                 },
             )),
-            hints: vec![
-                float_hint_if(t, scope, &["<CR>"], "choose", !c.rows.is_empty()),
-                float_hint(t, scope, &["<Esc>"], "back"),
-            ],
+            hints,
         },
     )
 }

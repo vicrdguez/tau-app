@@ -214,7 +214,7 @@ impl Screen for Conversation {
     fn keys(&self, app: &mut App, keys: &[Key], count: Option<u32>) -> bool {
         if let Some((Float::Screen(_), _)) = app.floats.last() {
             if let Some(p) = crate::screens::top_float::<Picker>(app) {
-                p.cursor = 0;
+                p.selected = None;
                 return false;
             }
             return true;
